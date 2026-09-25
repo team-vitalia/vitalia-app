@@ -18,11 +18,14 @@ interface Usuario {
 interface AuthContextType {
   usuario: Usuario | null;
   token: string | null;
+
   login: (
     correo_electronico: string,
     password: string
   ) => Promise<Usuario>;
+
   logout: () => void;
+
   cargando: boolean;
 }
 
@@ -30,57 +33,142 @@ const AuthContext = createContext<AuthContextType | undefined>(
   undefined
 );
 
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
 export function AuthProvider({
   children,
-}: {
-  children: ReactNode;
-}) {
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+}: AuthProviderProps) {
+  const [usuario, setUsuario] = useState<Usuario | null>(
+    null
+  );
+
+  const [token, setToken] = useState<string | null>(
+    null
+  );
+
   const [cargando, setCargando] = useState(false);
+
+  /*
+  ============================================================
+  LOGIN
+  ============================================================
+  */
 
   const login = async (
     correo_electronico: string,
     password: string
   ): Promise<Usuario> => {
+    setCargando(true);
+
     try {
-      setCargando(true);
+      /*
+      ----------------------------------------------------------
+      AUTENTICACIÓN
+      ----------------------------------------------------------
+      */
 
-      const respuesta = await api.post("/api/auth/login", {
-        correo_electronico,
-        password,
-      });
+      const respuesta = await api.post(
+        "/api/auth/login",
+        {
+          correo_electronico,
+          password,
+        }
+      );
 
-      const accessToken = respuesta.data.access_token;
+      const accessToken =
+        respuesta.data.access_token;
 
-      setToken(accessToken);
-
-      const usuarioRespuesta = await api.get("/api/auth/me", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      setUsuario(usuarioRespuesta.data);
-
-      return usuarioRespuesta.data;
-
-    } catch (error: any) {
-      if (error.response) {
+      if (!accessToken) {
         throw new Error(
-          error.response.data.detail ||
-            "Correo o contraseña incorrectos"
+          "No se recibió el token de acceso."
         );
       }
 
-      throw new Error(
-        "No se pudo conectar con el servidor"
+      /*
+      ----------------------------------------------------------
+      OBTENER USUARIO AUTENTICADO
+      ----------------------------------------------------------
+      */
+
+      const respuestaUsuario = await api.get(
+        "/api/auth/me",
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
 
+      const usuarioActual =
+        respuestaUsuario.data;
+
+      /*
+      ----------------------------------------------------------
+      GUARDAR SESIÓN
+      ----------------------------------------------------------
+      */
+
+      setToken(accessToken);
+      setUsuario(usuarioActual);
+
+      return usuarioActual;
+    } catch (error: any) {
+      /*
+      ----------------------------------------------------------
+      ERROR DE LOGIN
+      ----------------------------------------------------------
+      */
+
+      const status =
+        error?.response?.status;
+
+      const detail =
+        error?.response?.data?.detail;
+
+      console.log(
+        "ERROR LOGIN:",
+        status,
+        error?.response?.data
+      );
+
+      /*
+      ----------------------------------------------------------
+      CREDENCIALES INCORRECTAS
+      ----------------------------------------------------------
+      */
+
+      if (
+        status === 401 ||
+        detail ===
+          "Correo o contraseña incorrectos"
+      ) {
+        throw new Error(
+          "Correo o contraseña incorrectos"
+        );
+      }
+
+      /*
+      ----------------------------------------------------------
+      OTRO ERROR
+      ----------------------------------------------------------
+      */
+
+      throw new Error(
+        detail ||
+          "No se pudo iniciar sesión."
+      );
     } finally {
       setCargando(false);
     }
   };
+
+  /*
+  ============================================================
+  LOGOUT
+  ============================================================
+  */
 
   const logout = () => {
     setUsuario(null);
@@ -101,6 +189,12 @@ export function AuthProvider({
     </AuthContext.Provider>
   );
 }
+
+/*
+============================================================
+HOOK
+============================================================
+*/
 
 export function useAuth() {
   const context = useContext(AuthContext);
