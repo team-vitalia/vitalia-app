@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,6 +30,66 @@ interface Especialidad {
   codigo: string | null;
   esta_activo: boolean;
 }
+
+
+type TipoAlerta = "exito" | "error";
+
+type AlertaProps = {
+  visible: boolean;
+  titulo: string;
+  mensaje: string;
+  tipo: TipoAlerta;
+  onCerrar: () => void;
+};
+
+function AlertaPersonalizada({
+  visible,
+  titulo,
+  mensaje,
+  tipo,
+  onCerrar,
+}: AlertaProps) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCerrar}
+      statusBarTranslucent
+    >
+      <View style={styles.alertaOverlay}>
+        <View style={styles.alertaCaja}>
+          <View
+            style={[
+              styles.alertaIconoContainer,
+              tipo === "error" && styles.alertaIconoError,
+            ]}
+          >
+            <Text
+              style={[
+                styles.alertaIcono,
+                tipo === "error" && styles.alertaIconoTextoError,
+              ]}
+            >
+              {tipo === "exito" ? "✓" : "!"}
+            </Text>
+          </View>
+
+          <Text style={styles.alertaTitulo}>{titulo}</Text>
+          <Text style={styles.alertaMensaje}>{mensaje}</Text>
+
+          <Pressable
+            onPress={onCerrar}
+            style={styles.alertaBoton}
+          >
+            <Text style={styles.alertaBotonTexto}>Aceptar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 
 export default function CrearUsuarioScreen() {
   const router = useRouter();
@@ -68,6 +129,42 @@ export default function CrearUsuarioScreen() {
   const [especialidadId, setEspecialidadId] = useState("");
   const [numeroLicencia, setNumeroLicencia] = useState("");
   const [costoConsulta, setCostoConsulta] = useState("");
+
+  const [alerta, setAlerta] = useState({
+    visible: false,
+    titulo: "",
+    mensaje: "",
+    tipo: "exito" as TipoAlerta,
+  });
+
+  const [accionAlAceptar, setAccionAlAceptar] =
+    useState<(() => void) | null>(null);
+
+  const mostrarAlerta = (
+    titulo: string,
+    mensaje: string,
+    tipo: TipoAlerta = "error",
+    alAceptar?: () => void
+  ) => {
+    setAccionAlAceptar(() => alAceptar ?? null);
+    setAlerta({
+      visible: true,
+      titulo,
+      mensaje,
+      tipo,
+    });
+  };
+
+  const cerrarAlerta = () => {
+    setAlerta((actual) => ({
+      ...actual,
+      visible: false,
+    }));
+
+    const accion = accionAlAceptar;
+    setAccionAlAceptar(null);
+    accion?.();
+  };
 
   // =========================================================
   // ESTADOS
@@ -111,20 +208,32 @@ export default function CrearUsuarioScreen() {
   // =========================================================
 
   const obtenerRoles = async () => {
+    if (!token) {
+      return;
+    }
+
     try {
       setCargandoRoles(true);
 
-      const respuesta = await api.get("/api/roles/");
+      const respuesta = await api.get("/api/roles/", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       setRoles(respuesta.data);
 
       if (respuesta.data.length > 0) {
-        setRolSeleccionado(
-          respuesta.data[0].id_PK
-        );
+        setRolSeleccionado(respuesta.data[0].id_PK);
+      } else {
+        setRolSeleccionado(null);
       }
     } catch (error: any) {
-      console.error(error);
+      console.error(
+        "ERROR AL OBTENER ROLES:",
+        error.response?.status,
+        error.response?.data
+      );
 
       Alert.alert(
         "Error",
@@ -168,8 +277,10 @@ export default function CrearUsuarioScreen() {
   };
 
   useEffect(() => {
-    obtenerRoles();
-  }, []);
+    if (token) {
+      obtenerRoles();
+    }
+  }, [token]);
 
   // =========================================================
   // CARGAR ESPECIALIDADES CUANDO EL ROL ES DOCTOR
@@ -306,11 +417,10 @@ export default function CrearUsuarioScreen() {
     // -------------------------------------------------------
 
     if (!nombre.trim()) {
-      Alert.alert(
+      mostrarAlerta(
         "Campo requerido",
         "Ingresa el nombre."
       );
-
       return;
     }
 
@@ -515,8 +625,11 @@ export default function CrearUsuarioScreen() {
 
       setMostrarGuardando(false);
 
-      router.replace(
-        "/admin/usuarios"
+      mostrarAlerta(
+        "¡Usuario creado!",
+        "El usuario se registró correctamente en VITALIA.",
+        "exito",
+        () => router.replace("/admin/usuarios")
       );
 
     } catch (error: any) {
@@ -524,10 +637,11 @@ export default function CrearUsuarioScreen() {
 
       setMostrarGuardando(false);
 
-      Alert.alert(
+      mostrarAlerta(
         "No se pudo crear el usuario",
         error.response?.data?.detail ||
-          "Ocurrió un error al crear el usuario."
+          "Ocurrió un error al crear el usuario.",
+        "error"
       );
     } finally {
       setGuardando(false);
@@ -584,327 +698,442 @@ export default function CrearUsuarioScreen() {
   // =========================================================
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={styles.container}
-      contentContainerStyle={[
-        styles.content,
-        esMovil &&
-          styles.contentMovil,
-      ]}
-      showsVerticalScrollIndicator={
-        false
-      }
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* =====================================================
-          ENCABEZADO
-      ===================================================== */}
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.container}
+        contentContainerStyle={[
+          styles.content,
+          esMovil && styles.contentMovil,
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* =====================================================
+            ENCABEZADO
+        ===================================================== */}
 
-      <View style={styles.header}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.backButton,
-            pressed &&
-              styles.backButtonPressed,
-          ]}
-          onPress={() =>
-            router.back()
-          }
-          disabled={guardando}
-        >
-          <Text
-            style={styles.backIcon}
-          >
-            ←
-          </Text>
-
-          <Text
-            style={styles.backText}
-          >
-            Usuarios
-          </Text>
-        </Pressable>
-
-        <View
-          style={
-            styles.headerTitleContainer
-          }
-        >
-          <View
-            style={styles.titleIcon}
+        <View style={styles.header}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed &&
+                styles.backButtonPressed,
+            ]}
+            onPress={() =>
+              router.back()
+            }
+            disabled={guardando}
           >
             <Text
-              style={
-                styles.titleIconText
-              }
+              style={styles.backIcon}
             >
-              +
-            </Text>
-          </View>
-
-          <View
-            style={styles.titleInfo}
-          >
-            <Text
-              style={styles.overline}
-            >
-              ADMINISTRACIÓN
+              ←
             </Text>
 
             <Text
-              style={styles.title}
+              style={styles.backText}
             >
-              Crear usuario
+              Usuarios
             </Text>
-
-            <Text
-              style={styles.subtitle}
-            >
-              Registra un nuevo usuario en VITALIA
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* =====================================================
-          FORMULARIO
-      ===================================================== */}
-
-      <View style={styles.card}>
-
-        {/* ===================================================
-            INFORMACIÓN GENERAL
-        =================================================== */}
-
-        <View
-          style={styles.sectionHeader}
-        >
-          <View
-            style={styles.sectionIcon}
-          >
-            <Text
-              style={
-                styles.sectionIconText
-              }
-            >
-              1
-            </Text>
-          </View>
+          </Pressable>
 
           <View
             style={
-              styles.sectionHeaderInfo
+              styles.headerTitleContainer
             }
           >
-            <Text
-              style={styles.sectionTitle}
+            <View
+              style={styles.titleIcon}
             >
-              Información del usuario
-            </Text>
+              <Text
+                style={
+                  styles.titleIconText
+                }
+              >
+                +
+              </Text>
+            </View>
 
-            <Text
-              style={
-                styles.sectionDescription
-              }
+            <View
+              style={styles.titleInfo}
             >
-              Ingresa los datos básicos de acceso.
-            </Text>
+              <Text
+                style={styles.overline}
+              >
+                ADMINISTRACIÓN
+              </Text>
+
+              <Text
+                style={styles.title}
+              >
+                Crear usuario
+              </Text>
+
+              <Text
+                style={styles.subtitle}
+              >
+                Registra un nuevo usuario en VITALIA
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* NOMBRE */}
+        {/* =====================================================
+            FORMULARIO
+        ===================================================== */}
 
-        <View
-          style={styles.formGroup}
-        >
-          <Text style={styles.label}>
-            Nombre
-          </Text>
+        <View style={styles.card}>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Ej. Juan"
-            placeholderTextColor="#A2B0AD"
-            value={nombre}
-            onChangeText={
-              setNombre
-            }
-            autoCapitalize="words"
-            editable={!guardando}
+          {/* ===================================================
+              ROL
+          =================================================== */}
+
+          <View
+            style={styles.sectionHeader}
+          >
+            <View
+              style={styles.sectionIcon}
+            >
+              <Text
+                style={
+                  styles.sectionIconText
+                }
+              >
+                1
+              </Text>
+            </View>
+
+            <View
+              style={
+                styles.sectionHeaderInfo
+              }
+            >
+              <Text
+                style={styles.sectionTitle}
+              >
+                Rol del usuario
+              </Text>
+
+              <Text
+                style={
+                  styles.sectionDescription
+                }
+              >
+                Selecciona los permisos que tendrá dentro
+                de VITALIA.
+              </Text>
+            </View>
+          </View>
+
+          {/* ROLES */}
+
+          {cargandoRoles ? (
+            <View
+              style={styles.loadingRoles}
+            >
+              <ActivityIndicator
+                size="small"
+                color="#247F76"
+              />
+
+              <Text
+                style={styles.loadingText}
+              >
+                Cargando roles...
+              </Text>
+            </View>
+          ) : roles.length === 0 ? (
+            <View
+              style={styles.noRoles}
+            >
+              <Text
+                style={styles.noRolesIcon}
+              >
+                !
+              </Text>
+
+              <View
+                style={styles.noRolesInfo}
+              >
+                <Text
+                  style={styles.noRolesTitle}
+                >
+                  No hay roles disponibles
+                </Text>
+
+                <Text
+                  style={styles.noRolesText}
+                >
+                  No se encontraron roles configurados en
+                  el sistema.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View
+              style={styles.rolesContainer}
+            >
+              {roles.map((rol) => {
+                const seleccionado =
+                  rolSeleccionado ===
+                  rol.id_PK;
+
+                return (
+                  <Pressable
+                    key={rol.id_PK}
+                    style={({
+                      pressed,
+                    }) => [
+                      styles.roleOption,
+                      seleccionado &&
+                        styles.roleSelected,
+                      pressed &&
+                        styles.rolePressed,
+                    ]}
+                    onPress={() =>
+                      cambiarRol(
+                        rol.id_PK
+                      )
+                    }
+                    disabled={
+                      guardando
+                    }
+                  >
+                    <View
+                      style={[
+                        styles.radio,
+                        seleccionado &&
+                          styles.radioSelected,
+                      ]}
+                    >
+                      {seleccionado && (
+                        <View
+                          style={
+                            styles.radioInner
+                          }
+                        />
+                      )}
+                    </View>
+
+                    <View
+                      style={styles.roleInfo}
+                    >
+                      <Text
+                        style={[
+                          styles.roleName,
+                          seleccionado &&
+                            styles.roleNameSelected,
+                        ]}
+                      >
+                        {rol.nombre}
+                      </Text>
+
+                      {rol.descripcion && (
+                        <Text
+                          style={
+                            styles.roleDescription
+                          }
+                        >
+                          {
+                            rol.descripcion
+                          }
+                        </Text>
+                      )}
+                    </View>
+
+                    {seleccionado && (
+                      <View
+                        style={
+                          styles.selectedBadge
+                        }
+                      >
+                        <Text
+                          style={
+                            styles.selectedBadgeText
+                          }
+                        >
+                          Seleccionado
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+
+          {/* ===================================================
+              DIVISOR
+          =================================================== */}
+
+          <View
+            style={styles.divider}
           />
-        </View>
 
-        {/* APELLIDO SOLO PACIENTE */}
+          {/* ===================================================
+              INFORMACIÓN GENERAL
+          =================================================== */}
 
-        {esPaciente && (
+          <View
+            style={styles.sectionHeader}
+          >
+            <View
+              style={styles.sectionIcon}
+            >
+              <Text
+                style={
+                  styles.sectionIconText
+                }
+              >
+                2
+              </Text>
+            </View>
+
+            <View
+              style={
+                styles.sectionHeaderInfo
+              }
+            >
+              <Text
+                style={styles.sectionTitle}
+              >
+                Información del usuario
+              </Text>
+
+              <Text
+                style={
+                  styles.sectionDescription
+                }
+              >
+                Ingresa los datos básicos de acceso.
+              </Text>
+            </View>
+          </View>
+
+          {/* NOMBRE */}
+
           <View
             style={styles.formGroup}
           >
-            <Text
-              style={styles.label}
-            >
-              Apellido
+            <Text style={styles.label}>
+              Nombre
             </Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Ej. Pérez"
+              placeholder="Ej. Juan"
               placeholderTextColor="#A2B0AD"
-              value={apellido}
+              value={nombre}
               onChangeText={
-                setApellido
+                setNombre
               }
               autoCapitalize="words"
               editable={!guardando}
             />
           </View>
-        )}
 
-        {/* CORREO */}
+          {/* APELLIDO SOLO PACIENTE */}
 
-        <View
-          style={styles.formGroup}
-        >
-          <Text style={styles.label}>
-            Correo electrónico
-          </Text>
+          {esPaciente && (
+            <View
+              style={styles.formGroup}
+            >
+              <Text
+                style={styles.label}
+              >
+                Apellido
+              </Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="correo@vitalia.com"
-            placeholderTextColor="#A2B0AD"
-            value={correo}
-            onChangeText={
-              setCorreo
-            }
-            autoCapitalize="none"
-            keyboardType="email-address"
-            editable={!guardando}
-          />
-        </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Ej. Pérez"
+                placeholderTextColor="#A2B0AD"
+                value={apellido}
+                onChangeText={
+                  setApellido
+                }
+                autoCapitalize="words"
+                editable={!guardando}
+              />
+            </View>
+          )}
 
-        {/* TELEFONO SOLO PACIENTE */}
+          {/* CORREO */}
 
-        {esPaciente && (
           <View
             style={styles.formGroup}
           >
-            <Text
-              style={styles.label}
-            >
-              Teléfono
+            <Text style={styles.label}>
+              Correo electrónico
             </Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Ej. 7221234567"
+              placeholder="correo@vitalia.com"
               placeholderTextColor="#A2B0AD"
-              value={telefono}
+              value={correo}
               onChangeText={
-                setTelefono
+                setCorreo
               }
-              keyboardType="phone-pad"
+              autoCapitalize="none"
+              keyboardType="email-address"
               editable={!guardando}
             />
           </View>
-        )}
 
-        {/* CONTRASEÑA */}
+          {/* TELEFONO SOLO PACIENTE */}
 
-        <View
-          style={styles.formGroup}
-        >
-          <View
-            style={styles.labelRow}
-          >
-            <Text
-              style={styles.label}
-            >
-              Contraseña
-            </Text>
-
-            <Text
-              style={[
-                styles.requiredText,
-                passwordError &&
-                  styles.requiredTextError,
-              ]}
-            >
-              Mínimo 8 caracteres
-            </Text>
-          </View>
-
-          <Animated.View
-            style={{
-              transform: [
-                {
-                  translateX:
-                    passwordShake.interpolate(
-                      {
-                        inputRange: [
-                          -1,
-                          1,
-                        ],
-                        outputRange: [
-                          -7,
-                          7,
-                        ],
-                      }
-                    ),
-                },
-              ],
-            }}
-          >
+          {esPaciente && (
             <View
-              style={[
-                styles.passwordContainer,
-                passwordError &&
-                  styles.passwordContainerError,
-              ]}
+              style={styles.formGroup}
             >
+              <Text
+                style={styles.label}
+              >
+                Teléfono
+              </Text>
+
               <TextInput
-                style={
-                  styles.passwordInput
-                }
-                placeholder="Ingresa una contraseña segura"
+                style={styles.input}
+                placeholder="Ej. 7221234567"
                 placeholderTextColor="#A2B0AD"
-                value={password}
+                value={telefono}
                 onChangeText={
-                  validarPassword
+                  setTelefono
                 }
-                secureTextEntry={
-                  !mostrarPassword
-                }
-                autoCapitalize="none"
+                keyboardType="phone-pad"
                 editable={!guardando}
               />
-
-              <Pressable
-                style={
-                  styles.passwordButton
-                }
-                onPress={() =>
-                  setMostrarPassword(
-                    !mostrarPassword
-                  )
-                }
-                disabled={guardando}
-              >
-                <Text
-                  style={
-                    styles.passwordButtonText
-                  }
-                >
-                  {mostrarPassword
-                    ? "Ocultar"
-                    : "Ver"}
-                </Text>
-              </Pressable>
             </View>
-          </Animated.View>
+          )}
 
-          {passwordError ? (
+          {/* CONTRASEÑA */}
+
+          <View
+            style={styles.formGroup}
+          >
+            <View
+              style={styles.labelRow}
+            >
+              <Text
+                style={styles.label}
+              >
+                Contraseña
+              </Text>
+
+              <Text
+                style={[
+                  styles.requiredText,
+                  passwordError &&
+                    styles.requiredTextError,
+                ]}
+              >
+                Mínimo 8 caracteres
+              </Text>
+            </View>
+
             <Animated.View
               style={{
                 transform: [
@@ -917,8 +1146,8 @@ export default function CrearUsuarioScreen() {
                             1,
                           ],
                           outputRange: [
-                            -4,
-                            4,
+                            -7,
+                            7,
                           ],
                         }
                       ),
@@ -927,775 +1156,667 @@ export default function CrearUsuarioScreen() {
               }}
             >
               <View
-                style={
-                  styles.passwordErrorBox
-                }
+                style={[
+                  styles.passwordContainer,
+                  passwordError &&
+                    styles.passwordContainerError,
+                ]}
+              >
+                <TextInput
+                  style={
+                    styles.passwordInput
+                  }
+                  placeholder="Ingresa una contraseña segura"
+                  placeholderTextColor="#A2B0AD"
+                  value={password}
+                  onChangeText={
+                    validarPassword
+                  }
+                  secureTextEntry={
+                    !mostrarPassword
+                  }
+                  autoCapitalize="none"
+                  editable={!guardando}
+                />
+
+                <Pressable
+                  style={
+                    styles.passwordButton
+                  }
+                  onPress={() =>
+                    setMostrarPassword(
+                      !mostrarPassword
+                    )
+                  }
+                  disabled={guardando}
+                >
+                  <Text
+                    style={
+                      styles.passwordButtonText
+                    }
+                  >
+                    {mostrarPassword
+                      ? "Ocultar"
+                      : "Ver"}
+                  </Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+
+            {passwordError ? (
+              <Animated.View
+                style={{
+                  transform: [
+                    {
+                      translateX:
+                        passwordShake.interpolate(
+                          {
+                            inputRange: [
+                              -1,
+                              1,
+                            ],
+                            outputRange: [
+                              -4,
+                              4,
+                            ],
+                          }
+                        ),
+                    },
+                  ],
+                }}
               >
                 <View
                   style={
-                    styles.passwordErrorIcon
+                    styles.passwordErrorBox
+                  }
+                >
+                  <View
+                    style={
+                      styles.passwordErrorIcon
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.passwordErrorIconText
+                      }
+                    >
+                      !
+                    </Text>
+                  </View>
+
+                  <Text
+                    style={styles.errorText}
+                  >
+                    La contraseña debe tener al menos
+                    8 caracteres.
+                  </Text>
+                </View>
+              </Animated.View>
+            ) : (
+              <Text
+                style={styles.helperText}
+              >
+                Utiliza una contraseña segura para
+                proteger la cuenta.
+              </Text>
+            )}
+          </View>
+
+          {/* ===================================================
+              DATOS ESPECÍFICOS DEL PACIENTE
+          =================================================== */}
+
+          {esPaciente && (
+            <>
+              <View
+                style={styles.divider}
+              />
+
+              <View
+                style={styles.sectionHeader}
+              >
+                <View
+                  style={styles.sectionIcon}
+                >
+                  <Text
+                    style={
+                      styles.sectionIconText
+                    }
+                  >
+                    P
+                  </Text>
+                </View>
+
+                <View
+                  style={
+                    styles.sectionHeaderInfo
                   }
                 >
                   <Text
                     style={
-                      styles.passwordErrorIconText
+                      styles.sectionTitle
                     }
                   >
-                    !
+                    Información del paciente
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.sectionDescription
+                    }
+                  >
+                    Datos adicionales del expediente del paciente.
+                  </Text>
+                </View>
+              </View>
+
+              {/* FECHA NACIMIENTO */}
+
+              <View
+                style={styles.formGroup}
+              >
+                <Text
+                  style={styles.label}
+                >
+                  Fecha de nacimiento
+                </Text>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="AAAA-MM-DD"
+                  placeholderTextColor="#A2B0AD"
+                  value={
+                    fechaNacimiento
+                  }
+                  onChangeText={
+                    setFechaNacimiento
+                  }
+                  keyboardType="numbers-and-punctuation"
+                  editable={!guardando}
+                />
+              </View>
+
+              {/* GENERO */}
+
+              <View
+                style={styles.formGroup}
+              >
+                <Text
+                  style={styles.label}
+                >
+                  Género
+                </Text>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ej. Femenino"
+                  placeholderTextColor="#A2B0AD"
+                  value={genero}
+                  onChangeText={
+                    setGenero
+                  }
+                  editable={!guardando}
+                />
+              </View>
+
+              {/* DIRECCION */}
+
+              <View
+                style={styles.formGroup}
+              >
+                <Text
+                  style={styles.label}
+                >
+                  Dirección
+                </Text>
+
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.textArea,
+                  ]}
+                  placeholder="Ingresa la dirección"
+                  placeholderTextColor="#A2B0AD"
+                  value={direccion}
+                  onChangeText={
+                    setDireccion
+                  }
+                  multiline
+                  numberOfLines={4}
+                  editable={!guardando}
+                />
+              </View>
+            </>
+          )}
+
+          {/* ===================================================
+              DATOS ESPECÍFICOS DEL DOCTOR
+          =================================================== */}
+
+          {esDoctor && (
+            <>
+              <View
+                style={styles.divider}
+              />
+
+              <View
+                style={styles.sectionHeader}
+              >
+                <View
+                  style={styles.sectionIcon}
+                >
+                  <Text
+                    style={
+                      styles.sectionIconText
+                    }
+                  >
+                    D
                   </Text>
                 </View>
 
-                <Text
-                  style={styles.errorText}
-                >
-                  La contraseña debe tener al menos
-                  8 caracteres.
-                </Text>
-              </View>
-            </Animated.View>
-          ) : (
-            <Text
-              style={styles.helperText}
-            >
-              Utiliza una contraseña segura para
-              proteger la cuenta.
-            </Text>
-          )}
-        </View>
-
-        {/* ===================================================
-            DATOS ESPECÍFICOS DEL PACIENTE
-        =================================================== */}
-
-        {esPaciente && (
-          <>
-            <View
-              style={styles.divider}
-            />
-
-            <View
-              style={styles.sectionHeader}
-            >
-              <View
-                style={styles.sectionIcon}
-              >
-                <Text
-                  style={
-                    styles.sectionIconText
-                  }
-                >
-                  P
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.sectionHeaderInfo
-                }
-              >
-                <Text
-                  style={
-                    styles.sectionTitle
-                  }
-                >
-                  Información del paciente
-                </Text>
-
-                <Text
-                  style={
-                    styles.sectionDescription
-                  }
-                >
-                  Datos adicionales del expediente del paciente.
-                </Text>
-              </View>
-            </View>
-
-            {/* FECHA NACIMIENTO */}
-
-            <View
-              style={styles.formGroup}
-            >
-              <Text
-                style={styles.label}
-              >
-                Fecha de nacimiento
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="AAAA-MM-DD"
-                placeholderTextColor="#A2B0AD"
-                value={
-                  fechaNacimiento
-                }
-                onChangeText={
-                  setFechaNacimiento
-                }
-                keyboardType="numbers-and-punctuation"
-                editable={!guardando}
-              />
-            </View>
-
-            {/* GENERO */}
-
-            <View
-              style={styles.formGroup}
-            >
-              <Text
-                style={styles.label}
-              >
-                Género
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ej. Femenino"
-                placeholderTextColor="#A2B0AD"
-                value={genero}
-                onChangeText={
-                  setGenero
-                }
-                editable={!guardando}
-              />
-            </View>
-
-            {/* DIRECCION */}
-
-            <View
-              style={styles.formGroup}
-            >
-              <Text
-                style={styles.label}
-              >
-                Dirección
-              </Text>
-
-              <TextInput
-                style={[
-                  styles.input,
-                  styles.textArea,
-                ]}
-                placeholder="Ingresa la dirección"
-                placeholderTextColor="#A2B0AD"
-                value={direccion}
-                onChangeText={
-                  setDireccion
-                }
-                multiline
-                numberOfLines={4}
-                editable={!guardando}
-              />
-            </View>
-          </>
-        )}
-
-        {/* ===================================================
-            DATOS ESPECÍFICOS DEL DOCTOR
-        =================================================== */}
-
-        {esDoctor && (
-          <>
-            <View
-              style={styles.divider}
-            />
-
-            <View
-              style={styles.sectionHeader}
-            >
-              <View
-                style={styles.sectionIcon}
-              >
-                <Text
-                  style={
-                    styles.sectionIconText
-                  }
-                >
-                  D
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.sectionHeaderInfo
-                }
-              >
-                <Text
-                  style={
-                    styles.sectionTitle
-                  }
-                >
-                  Información del doctor
-                </Text>
-
-                <Text
-                  style={
-                    styles.sectionDescription
-                  }
-                >
-                  Datos profesionales del doctor.
-                </Text>
-              </View>
-            </View>
-
-            {/* ESPECIALIDAD */}
-
-            <View
-              style={styles.formGroup}
-            >
-              <Text
-                style={styles.label}
-              >
-                Especialidad
-              </Text>
-
-              {cargandoEspecialidades ? (
                 <View
                   style={
-                    styles.loadingEspecialidades
+                    styles.sectionHeaderInfo
                   }
                 >
+                  <Text
+                    style={
+                      styles.sectionTitle
+                    }
+                  >
+                    Información del doctor
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.sectionDescription
+                    }
+                  >
+                    Datos profesionales del doctor.
+                  </Text>
+                </View>
+              </View>
+
+              {/* ESPECIALIDAD */}
+
+              <View
+                style={styles.formGroup}
+              >
+                <Text
+                  style={styles.label}
+                >
+                  Especialidad
+                </Text>
+
+                {cargandoEspecialidades ? (
+                  <View
+                    style={
+                      styles.loadingEspecialidades
+                    }
+                  >
+                    <ActivityIndicator
+                      size="small"
+                      color="#247F76"
+                    />
+
+                    <Text
+                      style={
+                        styles.loadingText
+                      }
+                    >
+                      Cargando especialidades...
+                    </Text>
+                  </View>
+                ) : especialidades.length === 0 ? (
+                  <View
+                    style={
+                      styles.noEspecialidades
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.noEspecialidadesIcon
+                      }
+                    >
+                      !
+                    </Text>
+
+                    <View
+                      style={
+                        styles.noEspecialidadesInfo
+                      }
+                    >
+                      <Text
+                        style={
+                          styles.noEspecialidadesTitle
+                        }
+                      >
+                        No hay especialidades
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.noEspecialidadesText
+                        }
+                      >
+                        Primero debes registrar una especialidad.
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View
+                    style={
+                      styles.especialidadesContainer
+                    }
+                  >
+                    {especialidades.map(
+                      (especialidad) => {
+                        const seleccionada =
+                          especialidadId ===
+                          String(
+                            especialidad.id_PK
+                          );
+
+                        return (
+                          <Pressable
+                            key={
+                              especialidad.id_PK
+                            }
+                            style={({
+                              pressed,
+                            }) => [
+                              styles.especialidadOption,
+                              seleccionada &&
+                                styles.especialidadSelected,
+                              pressed &&
+                                styles.especialidadPressed,
+                            ]}
+                            onPress={() =>
+                              seleccionarEspecialidad(
+                                especialidad
+                              )
+                            }
+                            disabled={
+                              guardando
+                            }
+                          >
+                            <View
+                              style={[
+                                styles.especialidadRadio,
+                                seleccionada &&
+                                  styles.especialidadRadioSelected,
+                              ]}
+                            >
+                              {seleccionada && (
+                                <View
+                                  style={
+                                    styles.especialidadRadioInner
+                                  }
+                                />
+                              )}
+                            </View>
+
+                            <View
+                              style={
+                                styles.especialidadInfo
+                              }
+                            >
+                              <Text
+                                style={[
+                                  styles.especialidadNombre,
+                                  seleccionada &&
+                                    styles.especialidadNombreSelected,
+                                ]}
+                              >
+                                {
+                                  especialidad.nombre
+                                }
+                              </Text>
+
+                              {especialidad.descripcion && (
+                                <Text
+                                  style={
+                                    styles.especialidadDescripcion
+                                  }
+                                >
+                                  {
+                                    especialidad.descripcion
+                                  }
+                                </Text>
+                              )}
+                            </View>
+
+                            {especialidad.codigo && (
+                              <View
+                                style={
+                                  styles.especialidadCodigo
+                                }
+                              >
+                                <Text
+                                  style={
+                                    styles.especialidadCodigoText
+                                  }
+                                >
+                                  {
+                                    especialidad.codigo
+                                  }
+                                </Text>
+                              </View>
+                            )}
+                          </Pressable>
+                        );
+                      }
+                    )}
+                  </View>
+                )}
+              </View>
+
+              {/* LICENCIA */}
+
+              <View
+                style={styles.formGroup}
+              >
+                <Text
+                  style={styles.label}
+                >
+                  Número de licencia
+                </Text>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ej. LIC-001"
+                  placeholderTextColor="#A2B0AD"
+                  value={
+                    numeroLicencia
+                  }
+                  onChangeText={
+                    setNumeroLicencia
+                  }
+                  autoCapitalize="characters"
+                  editable={!guardando}
+                />
+              </View>
+
+              {/* COSTO */}
+
+              <View
+                style={styles.formGroup}
+              >
+                <Text
+                  style={styles.label}
+                >
+                  Costo de consulta
+                </Text>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ej. 500"
+                  placeholderTextColor="#A2B0AD"
+                  value={
+                    costoConsulta
+                  }
+                  onChangeText={
+                    setCostoConsulta
+                  }
+                  keyboardType="decimal-pad"
+                  editable={!guardando}
+                />
+              </View>
+            </>
+          )}
+
+          {/* ===================================================
+              INFORMACIÓN
+          =================================================== */}
+
+          <View
+            style={styles.infoBox}
+          >
+            <View
+              style={styles.infoIcon}
+            >
+              <Text
+                style={styles.infoIconText}
+              >
+                i
+              </Text>
+            </View>
+
+            <View
+              style={styles.infoContent}
+            >
+              <Text
+                style={styles.infoTitle}
+              >
+                Acceso al sistema
+              </Text>
+
+              <Text
+                style={styles.infoText}
+              >
+                El usuario podrá iniciar sesión utilizando
+                el correo electrónico y la contraseña
+                registrados.
+              </Text>
+            </View>
+          </View>
+
+          {/* ===================================================
+              BOTONES
+          =================================================== */}
+
+          <View
+            style={[
+              styles.buttons,
+              esMovil &&
+                styles.buttonsMovil,
+            ]}
+          >
+            <Pressable
+              style={({ pressed }) => [
+                styles.cancelButton,
+                pressed &&
+                  styles.cancelButtonPressed,
+              ]}
+              onPress={() =>
+                router.back()
+              }
+              disabled={guardando}
+            >
+              <Text
+                style={styles.cancelText}
+              >
+                Cancelar
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.createButton,
+                guardando &&
+                  styles.buttonDisabled,
+                pressed &&
+                  !guardando &&
+                  styles.createButtonPressed,
+                esMovil &&
+                  styles.createButtonMovil,
+              ]}
+              onPress={
+                crearUsuario
+              }
+              disabled={
+                guardando ||
+                cargandoRoles ||
+                roles.length === 0
+              }
+            >
+              {guardando ? (
+                <>
                   <ActivityIndicator
+                    color="#FFFFFF"
                     size="small"
-                    color="#247F76"
                   />
 
                   <Text
                     style={
-                      styles.loadingText
+                      styles.createText
                     }
                   >
-                    Cargando especialidades...
+                    Creando...
                   </Text>
-                </View>
-              ) : especialidades.length === 0 ? (
-                <View
-                  style={
-                    styles.noEspecialidades
-                  }
-                >
+                </>
+              ) : (
+                <>
                   <Text
                     style={
-                      styles.noEspecialidadesIcon
+                      styles.createIcon
                     }
                   >
-                    !
+                    ✓
                   </Text>
 
-                  <View
+                  <Text
                     style={
-                      styles.noEspecialidadesInfo
+                      styles.createText
                     }
                   >
-                    <Text
-                      style={
-                        styles.noEspecialidadesTitle
-                      }
-                    >
-                      No hay especialidades
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.noEspecialidadesText
-                      }
-                    >
-                      Primero debes registrar una especialidad.
-                    </Text>
-                  </View>
-                </View>
-              ) : (
-                <View
-                  style={
-                    styles.especialidadesContainer
-                  }
-                >
-                  {especialidades.map(
-                    (especialidad) => {
-                      const seleccionada =
-                        especialidadId ===
-                        String(
-                          especialidad.id_PK
-                        );
-
-                      return (
-                        <Pressable
-                          key={
-                            especialidad.id_PK
-                          }
-                          style={({
-                            pressed,
-                          }) => [
-                            styles.especialidadOption,
-                            seleccionada &&
-                              styles.especialidadSelected,
-                            pressed &&
-                              styles.especialidadPressed,
-                          ]}
-                          onPress={() =>
-                            seleccionarEspecialidad(
-                              especialidad
-                            )
-                          }
-                          disabled={
-                            guardando
-                          }
-                        >
-                          <View
-                            style={[
-                              styles.especialidadRadio,
-                              seleccionada &&
-                                styles.especialidadRadioSelected,
-                            ]}
-                          >
-                            {seleccionada && (
-                              <View
-                                style={
-                                  styles.especialidadRadioInner
-                                }
-                              />
-                            )}
-                          </View>
-
-                          <View
-                            style={
-                              styles.especialidadInfo
-                            }
-                          >
-                            <Text
-                              style={[
-                                styles.especialidadNombre,
-                                seleccionada &&
-                                  styles.especialidadNombreSelected,
-                              ]}
-                            >
-                              {
-                                especialidad.nombre
-                              }
-                            </Text>
-
-                            {especialidad.descripcion && (
-                              <Text
-                                style={
-                                  styles.especialidadDescripcion
-                                }
-                              >
-                                {
-                                  especialidad.descripcion
-                                }
-                              </Text>
-                            )}
-                          </View>
-
-                          {especialidad.codigo && (
-                            <View
-                              style={
-                                styles.especialidadCodigo
-                              }
-                            >
-                              <Text
-                                style={
-                                  styles.especialidadCodigoText
-                                }
-                              >
-                                {
-                                  especialidad.codigo
-                                }
-                              </Text>
-                            </View>
-                          )}
-                        </Pressable>
-                      );
-                    }
-                  )}
-                </View>
+                    Crear usuario
+                  </Text>
+                </>
               )}
-            </View>
-
-            {/* LICENCIA */}
-
-            <View
-              style={styles.formGroup}
-            >
-              <Text
-                style={styles.label}
-              >
-                Número de licencia
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ej. LIC-001"
-                placeholderTextColor="#A2B0AD"
-                value={
-                  numeroLicencia
-                }
-                onChangeText={
-                  setNumeroLicencia
-                }
-                autoCapitalize="characters"
-                editable={!guardando}
-              />
-            </View>
-
-            {/* COSTO */}
-
-            <View
-              style={styles.formGroup}
-            >
-              <Text
-                style={styles.label}
-              >
-                Costo de consulta
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ej. 500"
-                placeholderTextColor="#A2B0AD"
-                value={
-                  costoConsulta
-                }
-                onChangeText={
-                  setCostoConsulta
-                }
-                keyboardType="decimal-pad"
-                editable={!guardando}
-              />
-            </View>
-          </>
-        )}
-
-        {/* ===================================================
-            DIVISOR
-        =================================================== */}
-
-        <View
-          style={styles.divider}
-        />
-
-        {/* ===================================================
-            ROL
-        =================================================== */}
-
-        <View
-          style={styles.sectionHeader}
-        >
-          <View
-            style={styles.sectionIcon}
-          >
-            <Text
-              style={
-                styles.sectionIconText
-              }
-            >
-              2
-            </Text>
-          </View>
-
-          <View
-            style={
-              styles.sectionHeaderInfo
-            }
-          >
-            <Text
-              style={styles.sectionTitle}
-            >
-              Rol del usuario
-            </Text>
-
-            <Text
-              style={
-                styles.sectionDescription
-              }
-            >
-              Selecciona los permisos que tendrá dentro
-              de VITALIA.
-            </Text>
+            </Pressable>
           </View>
         </View>
 
-        {/* ROLES */}
-
-        {cargandoRoles ? (
-          <View
-            style={styles.loadingRoles}
-          >
-            <ActivityIndicator
-              size="small"
-              color="#247F76"
-            />
-
-            <Text
-              style={styles.loadingText}
-            >
-              Cargando roles...
-            </Text>
-          </View>
-        ) : roles.length === 0 ? (
-          <View
-            style={styles.noRoles}
-          >
-            <Text
-              style={styles.noRolesIcon}
-            >
-              !
-            </Text>
-
-            <View
-              style={styles.noRolesInfo}
-            >
-              <Text
-                style={styles.noRolesTitle}
-              >
-                No hay roles disponibles
-              </Text>
-
-              <Text
-                style={styles.noRolesText}
-              >
-                No se encontraron roles configurados en
-                el sistema.
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <View
-            style={styles.rolesContainer}
-          >
-            {roles.map((rol) => {
-              const seleccionado =
-                rolSeleccionado ===
-                rol.id_PK;
-
-              return (
-                <Pressable
-                  key={rol.id_PK}
-                  style={({
-                    pressed,
-                  }) => [
-                    styles.roleOption,
-                    seleccionado &&
-                      styles.roleSelected,
-                    pressed &&
-                      styles.rolePressed,
-                  ]}
-                  onPress={() =>
-                    cambiarRol(
-                      rol.id_PK
-                    )
-                  }
-                  disabled={
-                    guardando
-                  }
-                >
-                  <View
-                    style={[
-                      styles.radio,
-                      seleccionado &&
-                        styles.radioSelected,
-                    ]}
-                  >
-                    {seleccionado && (
-                      <View
-                        style={
-                          styles.radioInner
-                        }
-                      />
-                    )}
-                  </View>
-
-                  <View
-                    style={styles.roleInfo}
-                  >
-                    <Text
-                      style={[
-                        styles.roleName,
-                        seleccionado &&
-                          styles.roleNameSelected,
-                      ]}
-                    >
-                      {rol.nombre}
-                    </Text>
-
-                    {rol.descripcion && (
-                      <Text
-                        style={
-                          styles.roleDescription
-                        }
-                      >
-                        {
-                          rol.descripcion
-                        }
-                      </Text>
-                    )}
-                  </View>
-
-                  {seleccionado && (
-                    <View
-                      style={
-                        styles.selectedBadge
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.selectedBadgeText
-                        }
-                      >
-                        Seleccionado
-                      </Text>
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-
-        {/* ===================================================
-            INFORMACIÓN
-        =================================================== */}
+        {/* =====================================================
+            FOOTER
+        ===================================================== */}
 
         <View
-          style={styles.infoBox}
+          style={styles.footer}
         >
           <View
-            style={styles.infoIcon}
-          >
-            <Text
-              style={styles.infoIconText}
-            >
-              i
-            </Text>
-          </View>
+            style={styles.footerLine}
+          />
 
-          <View
-            style={styles.infoContent}
+          <Text
+            style={styles.footerText}
           >
-            <Text
-              style={styles.infoTitle}
-            >
-              Acceso al sistema
-            </Text>
-
-            <Text
-              style={styles.infoText}
-            >
-              El usuario podrá iniciar sesión utilizando
-              el correo electrónico y la contraseña
-              registrados.
-            </Text>
-          </View>
+            VITALIA · Gestión clínica inteligente
+          </Text>
         </View>
-
-        {/* ===================================================
-            BOTONES
-        =================================================== */}
-
-        <View
-          style={[
-            styles.buttons,
-            esMovil &&
-              styles.buttonsMovil,
-          ]}
-        >
-          <Pressable
-            style={({ pressed }) => [
-              styles.cancelButton,
-              pressed &&
-                styles.cancelButtonPressed,
-            ]}
-            onPress={() =>
-              router.back()
-            }
-            disabled={guardando}
-          >
-            <Text
-              style={styles.cancelText}
-            >
-              Cancelar
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.createButton,
-              guardando &&
-                styles.buttonDisabled,
-              pressed &&
-                !guardando &&
-                styles.createButtonPressed,
-              esMovil &&
-                styles.createButtonMovil,
-            ]}
-            onPress={
-              crearUsuario
-            }
-            disabled={
-              guardando ||
-              cargandoRoles ||
-              roles.length === 0
-            }
-          >
-            {guardando ? (
-              <>
-                <ActivityIndicator
-                  color="#FFFFFF"
-                  size="small"
-                />
-
-                <Text
-                  style={
-                    styles.createText
-                  }
-                >
-                  Creando...
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text
-                  style={
-                    styles.createIcon
-                  }
-                >
-                  ✓
-                </Text>
-
-                <Text
-                  style={
-                    styles.createText
-                  }
-                >
-                  Crear usuario
-                </Text>
-              </>
-            )}
-          </Pressable>
-        </View>
-      </View>
-
-      {/* =====================================================
-          FOOTER
-      ===================================================== */}
-
-      <View
-        style={styles.footer}
-      >
-        <View
-          style={styles.footerLine}
-        />
-
-        <Text
-          style={styles.footerText}
-        >
-          VITALIA · Gestión clínica inteligente
-        </Text>
-      </View>
-    </ScrollView>
+      </ScrollView>
+      <AlertaPersonalizada
+        visible={alerta.visible}
+        titulo={alerta.titulo}
+        mensaje={alerta.mensaje}
+        tipo={alerta.tipo}
+        onCerrar={cerrarAlerta}
+      />
+    </View>
   );
 }
-
+//ALERTAS QUE APAREZCAN BIEN Y HACER CONTRATOS
 const styles = StyleSheet.create({
   // =========================================================
   // CONTENEDOR
@@ -2285,6 +2406,7 @@ const styles = StyleSheet.create({
     color: "#A87543",
     marginTop: 3,
   },
+  
 
   // =========================================================
   // INFORMACIÓN
@@ -2509,5 +2631,90 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#9AA9A6",
     letterSpacing: 0.5,
+  },
+  
+  alertaOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 35, 32, 0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+
+  alertaCaja: {
+    width: "100%",
+    maxWidth: 390,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    paddingHorizontal: 28,
+    paddingTop: 30,
+    paddingBottom: 26,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2EEEB",
+    elevation: 15,
+    shadowColor: "#173F3A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+  },
+
+  alertaIconoContainer: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: "#E5F6F1",
+    borderWidth: 1,
+    borderColor: "#C7EAE0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+
+  alertaIconoError: {
+    backgroundColor: "#FFF0EF",
+    borderColor: "#F4D0CC",
+  },
+
+  alertaIcono: {
+    fontSize: 34,
+    fontWeight: "700",
+    color: "#247F76",
+  },
+
+  alertaIconoTextoError: {
+    color: "#C94D43",
+  },
+
+  alertaTitulo: {
+    fontSize: 21,
+    fontWeight: "800",
+    color: "#173F3A",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+
+  alertaMensaje: {
+    fontSize: 15,
+    color: "#687D77",
+    textAlign: "center",
+    lineHeight: 23,
+    marginBottom: 26,
+  },
+
+  alertaBoton: {
+    width: "100%",
+    minHeight: 48,
+    backgroundColor: "#247F76",
+    borderRadius: 13,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 13,
+  },
+
+  alertaBotonTexto: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
   },
 });

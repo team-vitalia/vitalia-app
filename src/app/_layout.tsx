@@ -54,6 +54,8 @@ function AppLayout() {
   pathname === "/paciente" ||
   pathname === "/recepcion";
   const esUsuarios = pathname.includes("/admin/usuarios");
+  const esRoles = pathname.includes("/admin/roles");
+  const esEspecialidades = pathname.startsWith("/admin/especialidades");
 
   return (
     <View style={styles.container}>
@@ -174,6 +176,76 @@ function AppLayout() {
                   ]}
                 >
                   Gestionar usuarios
+                </Text>
+              </Pressable>
+            )}
+
+            {usuario.rol_id === 1 && (
+              <Pressable
+                style={[
+                  styles.menuItem,
+                  esRoles && styles.menuItemActive,
+                ]}
+                onPress={() => router.push("/admin/roles")}
+              >
+                <View
+                  style={[
+                    styles.iconBox,
+                    esRoles && styles.iconBoxActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.menuIcon,
+                      esRoles && styles.menuIconActive,
+                    ]}
+                  >
+                    ⚙
+                  </Text>
+                </View>
+
+                <Text
+                  style={[
+                    styles.menuText,
+                    esRoles && styles.menuTextActive,
+                  ]}
+                >
+                  Gestionar roles
+                </Text>
+              </Pressable>
+            )}
+
+            {usuario.rol_id === 1 && (
+              <Pressable
+                style={[
+                  styles.menuItem,
+                  esEspecialidades && styles.menuItemActive,
+                ]}
+                onPress={() => router.push("/admin/especialidades")}
+              >
+                <View
+                  style={[
+                    styles.iconBox,
+                    esEspecialidades && styles.iconBoxActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.menuIcon,
+                      esEspecialidades && styles.menuIconActive,
+                    ]}
+                  >
+                    ✚
+                  </Text>
+                </View>
+
+                <Text
+                  style={[
+                    styles.menuText,
+                    esEspecialidades && styles.menuTextActive,
+                  ]}
+                >
+                  Gestionar especialidades
                 </Text>
               </Pressable>
             )}
