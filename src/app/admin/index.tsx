@@ -350,6 +350,32 @@ export default function AdminScreen() {
         </Pressable>
       )}
 
+      {usuario?.rol_id === 1 && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.actionCard,
+            pressed && styles.actionCardPressed,
+          ]}
+          onPress={() => router.push("/admin/doctores")}
+        >
+          <View style={styles.actionIcon}>
+            <Text style={styles.actionIconText}>▤</Text>
+          </View>
+
+          <View style={styles.actionInfo}>
+            <Text style={styles.actionTitle}>
+              Gestión de contratos médicos
+            </Text>
+
+            <Text style={styles.actionDescription}>
+              Registra, consulta y edita los contratos de los médicos de VITALIA.
+            </Text>
+          </View>
+
+          <Text style={styles.actionArrow}>→</Text>
+        </Pressable>
+      )}
+
       {/* =========================
           PIE
       ========================== */}
