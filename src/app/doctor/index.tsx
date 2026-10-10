@@ -1,9 +1,9 @@
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 import { useRouter } from "expo-router";
@@ -249,6 +249,30 @@ export default function DoctorScreen() {
           →
         </Text>
 
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [
+          styles.actionCard,
+          pressed && styles.actionCardPressed,
+        ]}
+        onPress={() => router.push("/doctor/perfil")}
+      >
+        <View style={styles.actionIcon}>
+          <Text style={styles.actionIconText}>✎</Text>
+        </View>
+
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>
+            Mi perfil profesional
+          </Text>
+
+          <Text style={styles.actionDescription}>
+            Consulta y edita tu licencia, costo y especialidades.
+          </Text>
+        </View>
+
+        <Text style={styles.actionArrow}>→</Text>
       </Pressable>
 
 

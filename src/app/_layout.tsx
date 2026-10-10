@@ -1,3 +1,4 @@
+import { FontAwesome } from "@expo/vector-icons";
 import { Stack, usePathname, useRouter } from "expo-router";
 import {
   Image,
@@ -7,7 +8,6 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { FontAwesome } from "@expo/vector-icons";
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { NotificationsProvider } from "../context/NotificationsContext";
@@ -56,7 +56,6 @@ function AppLayout() {
     pathname === "/paciente" ||
     pathname === "/recepcion";
   const esUsuarios = pathname.includes("/admin/usuarios");
-  const esNotificaciones = pathname === "/notificaciones";
 
   return (
     <View style={styles.container}>
@@ -195,6 +194,7 @@ function AppLayout() {
                 </Text>
               </Pressable>
             )}
+
           </View>
 
           <View style={styles.sidebarBottom}>

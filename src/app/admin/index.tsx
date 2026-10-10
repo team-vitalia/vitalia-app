@@ -297,6 +297,58 @@ export default function AdminScreen() {
         </Pressable>
       )}
 
+      
+      {usuario?.rol_id === 1 && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.actionCard,
+            pressed && styles.actionCardPressed,
+          ]}
+          onPress={() => router.push("/admin/roles")}
+        >
+          <View style={styles.actionIcon}>
+            <Text style={styles.actionIconText}>⚙</Text>
+          </View>
+
+          <View style={styles.actionInfo}>
+            <Text style={styles.actionTitle}>
+              Roles y accesos
+            </Text>
+
+            <Text style={styles.actionDescription}>
+              Crea, edita y administra los roles de VITALIA.
+            </Text>
+          </View>
+
+          <Text style={styles.actionArrow}>→</Text>
+        </Pressable>
+      )}
+
+      {usuario?.rol_id === 1 && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.actionCard,
+            pressed && styles.actionCardPressed,
+          ]}
+          onPress={() => router.push("/admin/especialidades")}
+        >
+          <View style={styles.actionIcon}>
+            <Text style={styles.actionIconText}>✚</Text>
+          </View>
+
+          <View style={styles.actionInfo}>
+            <Text style={styles.actionTitle}>
+              Gestión de especialidades
+            </Text>
+
+            <Text style={styles.actionDescription}>
+              Agrega, edita y administra las especialidades médicas de VITALIA.
+            </Text>
+          </View>
+
+          <Text style={styles.actionArrow}>→</Text>
+        </Pressable>
+      )}
 
       {/* =========================
           PIE
