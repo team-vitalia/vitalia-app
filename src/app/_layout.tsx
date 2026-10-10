@@ -1,3 +1,4 @@
+import { FontAwesome } from "@expo/vector-icons";
 import { Stack, usePathname, useRouter } from "expo-router";
 import {
   Image,
@@ -9,6 +10,7 @@ import {
 } from "react-native";
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
+import { NotificationsProvider } from "../context/NotificationsContext";
 
 function AppLayout() {
   const router = useRouter();
@@ -49,24 +51,16 @@ function AppLayout() {
   };
 
   const esInicio =
-  pathname === "/admin" ||
-  pathname === "/doctor" ||
-  pathname === "/paciente" ||
-  pathname === "/recepcion";
+    pathname === "/admin" ||
+    pathname === "/doctor" ||
+    pathname === "/paciente" ||
+    pathname === "/recepcion";
   const esUsuarios = pathname.includes("/admin/usuarios");
-  const esRoles = pathname.includes("/admin/roles");
-  const esEspecialidades = pathname.startsWith("/admin/especialidades");
 
   return (
     <View style={styles.container}>
-
-      {/* =========================
-          SIDEBAR ESCRITORIO
-      ========================== */}
       {usuario && !isMobile && (
         <View style={styles.sidebar}>
-
-          {/* LOGO */}
           <View style={styles.logoContainer}>
             <Image
               source={require("../assets/images/logo.png")}
@@ -80,7 +74,6 @@ function AppLayout() {
             </Text>
           </View>
 
-          {/* USUARIO */}
           <View style={styles.profileCard}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
@@ -105,9 +98,7 @@ function AppLayout() {
             </View>
           </View>
 
-          {/* MENÚ */}
           <View style={styles.menuSection}>
-
             <Text style={styles.sectionTitle}>
               MENÚ PRINCIPAL
             </Text>
@@ -125,14 +116,11 @@ function AppLayout() {
                   esInicio && styles.iconBoxActive,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.menuIcon,
-                    esInicio && styles.menuIconActive,
-                  ]}
-                >
-                  ⌂
-                </Text>
+                <FontAwesome
+                  name="home"
+                  size={16}
+                  color={esInicio ? "#247F76" : "#82938F"}
+                />
               </View>
 
               <Text
@@ -142,6 +130,36 @@ function AppLayout() {
                 ]}
               >
                 Inicio
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.menuItem,
+                esNotificaciones && styles.menuItemActive,
+              ]}
+              onPress={() => router.push("/notificaciones")}
+            >
+              <View
+                style={[
+                  styles.iconBox,
+                  esNotificaciones && styles.iconBoxActive,
+                ]}
+              >
+                <FontAwesome
+                  name="bell"
+                  size={16}
+                  color={esNotificaciones ? "#247F76" : "#82938F"}
+                />
+              </View>
+
+              <Text
+                style={[
+                  styles.menuText,
+                  esNotificaciones && styles.menuTextActive,
+                ]}
+              >
+                Notificaciones
               </Text>
             </Pressable>
 
@@ -159,14 +177,11 @@ function AppLayout() {
                     esUsuarios && styles.iconBoxActive,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.menuIcon,
-                      esUsuarios && styles.menuIconActive,
-                    ]}
-                  >
-                    ◎
-                  </Text>
+                  <FontAwesome
+                    name="users"
+                    size={16}
+                    color={esUsuarios ? "#247F76" : "#82938F"}
+                  />
                 </View>
 
                 <Text
@@ -180,83 +195,16 @@ function AppLayout() {
               </Pressable>
             )}
 
-            {usuario.rol_id === 1 && (
-              <Pressable
-                style={[
-                  styles.menuItem,
-                  esRoles && styles.menuItemActive,
-                ]}
-                onPress={() => router.push("/admin/roles")}
-              >
-                <View
-                  style={[
-                    styles.iconBox,
-                    esRoles && styles.iconBoxActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.menuIcon,
-                      esRoles && styles.menuIconActive,
-                    ]}
-                  >
-                    ⚙
-                  </Text>
-                </View>
-
-                <Text
-                  style={[
-                    styles.menuText,
-                    esRoles && styles.menuTextActive,
-                  ]}
-                >
-                  Gestionar roles
-                </Text>
-              </Pressable>
-            )}
-
-            {usuario.rol_id === 1 && (
-              <Pressable
-                style={[
-                  styles.menuItem,
-                  esEspecialidades && styles.menuItemActive,
-                ]}
-                onPress={() => router.push("/admin/especialidades")}
-              >
-                <View
-                  style={[
-                    styles.iconBox,
-                    esEspecialidades && styles.iconBoxActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.menuIcon,
-                      esEspecialidades && styles.menuIconActive,
-                    ]}
-                  >
-                    ✚
-                  </Text>
-                </View>
-
-                <Text
-                  style={[
-                    styles.menuText,
-                    esEspecialidades && styles.menuTextActive,
-                  ]}
-                >
-                  Gestionar especialidades
-                </Text>
-              </Pressable>
-            )}
-
           </View>
 
-          {/* PARTE INFERIOR */}
           <View style={styles.sidebarBottom}>
-
             <View style={styles.securityBox}>
-              <Text style={styles.securityIcon}>✓</Text>
+              <FontAwesome
+                name="shield"
+                size={16}
+                color="#247F76"
+                style={{ marginRight: 8 }}
+              />
 
               <View>
                 <Text style={styles.securityTitle}>
@@ -273,31 +221,29 @@ function AppLayout() {
               style={styles.logoutButton}
               onPress={cerrarSesion}
             >
-              <Text style={styles.logoutIcon}>↪</Text>
+              <FontAwesome
+                name="sign-out"
+                size={16}
+                color="#D65A5A"
+                style={{ marginRight: 8 }}
+              />
 
               <Text style={styles.logoutText}>
                 Cerrar sesión
               </Text>
             </Pressable>
-
           </View>
         </View>
       )}
 
-      {/* =========================
-          CONTENIDO PRINCIPAL
-      ========================== */}
       <View
         style={[
           styles.main,
           isMobile && styles.mainMobile,
         ]}
       >
-
-        {/* HEADER MOBILE */}
         {usuario && isMobile && (
           <View style={styles.mobileHeader}>
-
             <View style={styles.mobileBrand}>
               <Text style={styles.mobileLogo}>
                 VITALIA
@@ -318,15 +264,11 @@ function AppLayout() {
               style={styles.mobileLogout}
               onPress={cerrarSesion}
             >
-              <Text style={styles.mobileLogoutText}>
-                ↪
-              </Text>
+              <FontAwesome name="sign-out" size={16} color="#D65A5A" />
             </Pressable>
-
           </View>
         )}
 
-        {/* STACK */}
         <View style={styles.stackContainer}>
           <Stack
             screenOptions={{
@@ -334,9 +276,7 @@ function AppLayout() {
             }}
           />
         </View>
-
       </View>
-
     </View>
   );
 }
@@ -344,39 +284,29 @@ function AppLayout() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <AppLayout />
+      <NotificationsProvider>
+        <AppLayout />
+      </NotificationsProvider>
     </AuthProvider>
   );
 }
 
 const styles = StyleSheet.create({
-
-  /* =========================
-     CONTENEDOR GENERAL
-  ========================== */
-
   container: {
     flex: 1,
     flexDirection: "row",
     backgroundColor: "#F4FAF8",
   },
 
-  /* =========================
-     SIDEBAR
-  ========================== */
-
   sidebar: {
     width: 270,
     height: "100%",
     backgroundColor: "#FFFFFF",
-
     borderRightWidth: 1,
     borderRightColor: "#E2ECEA",
-
     paddingHorizontal: 18,
     paddingTop: 28,
     paddingBottom: 20,
-
     flexDirection: "column",
   },
 
@@ -404,21 +334,13 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-  /* =========================
-     PERFIL
-  ========================== */
-
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
-
     backgroundColor: "#F1F8F6",
-
     borderRadius: 16,
-
     paddingHorizontal: 12,
     paddingVertical: 12,
-
     marginBottom: 28,
   },
 
@@ -426,12 +348,9 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-
     backgroundColor: "#DDF3EF",
-
     justifyContent: "center",
     alignItems: "center",
-
     marginRight: 10,
   },
 
@@ -457,10 +376,6 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-  /* =========================
-     MENÚ
-  ========================== */
-
   menuSection: {
     flex: 1,
   },
@@ -470,21 +385,16 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#9AA9A6",
     letterSpacing: 1,
-
     marginLeft: 10,
     marginBottom: 10,
   },
 
   menuItem: {
     height: 50,
-
     borderRadius: 14,
-
     flexDirection: "row",
     alignItems: "center",
-
     paddingHorizontal: 10,
-
     marginBottom: 7,
   },
 
@@ -495,26 +405,14 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 36,
     height: 36,
-
     borderRadius: 11,
-
     alignItems: "center",
     justifyContent: "center",
-
     marginRight: 10,
   },
 
   iconBoxActive: {
     backgroundColor: "#D5EFEB",
-  },
-
-  menuIcon: {
-    fontSize: 21,
-    color: "#82938F",
-  },
-
-  menuIconActive: {
-    color: "#247F76",
   },
 
   menuText: {
@@ -528,10 +426,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  /* =========================
-     PARTE INFERIOR
-  ========================== */
-
   sidebarBottom: {
     marginTop: "auto",
   },
@@ -539,33 +433,10 @@ const styles = StyleSheet.create({
   securityBox: {
     flexDirection: "row",
     alignItems: "center",
-
     backgroundColor: "#F7FBFA",
-
     borderRadius: 13,
-
     padding: 11,
-
     marginBottom: 12,
-  },
-
-  securityIcon: {
-    width: 28,
-    height: 28,
-
-    borderRadius: 14,
-
-    backgroundColor: "#DDF3EF",
-
-    color: "#247F76",
-
-    textAlign: "center",
-    textAlignVertical: "center",
-
-    fontSize: 15,
-    fontWeight: "800",
-
-    marginRight: 9,
   },
 
   securityTitle: {
@@ -582,20 +453,11 @@ const styles = StyleSheet.create({
 
   logoutButton: {
     height: 46,
-
     borderRadius: 13,
-
     backgroundColor: "#FFF5F5",
-
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  logoutIcon: {
-    fontSize: 17,
-    color: "#D65A5A",
-    marginRight: 7,
   },
 
   logoutText: {
@@ -604,16 +466,10 @@ const styles = StyleSheet.create({
     color: "#D65A5A",
   },
 
-  /* =========================
-     CONTENIDO
-  ========================== */
-
   main: {
     flex: 1,
     minWidth: 0,
-
     height: "100%",
-
     backgroundColor: "#F4FAF8",
   },
 
@@ -622,24 +478,16 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
 
-  /* =========================
-     MOBILE
-  ========================== */
-
   mainMobile: {
     width: "100%",
   },
 
   mobileHeader: {
     height: 68,
-
     backgroundColor: "#FFFFFF",
-
     borderBottomWidth: 1,
     borderBottomColor: "#E2ECEA",
-
     paddingHorizontal: 18,
-
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -666,18 +514,9 @@ const styles = StyleSheet.create({
   mobileLogout: {
     width: 40,
     height: 40,
-
     borderRadius: 12,
-
     backgroundColor: "#FFF5F5",
-
     alignItems: "center",
     justifyContent: "center",
   },
-
-  mobileLogoutText: {
-    fontSize: 18,
-    color: "#D65A5A",
-  },
-
 });
