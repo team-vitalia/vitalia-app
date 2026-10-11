@@ -27,7 +27,7 @@ export function useNotificationsSocket(
   const [messages, setMessages] = useState<WSMessage[]>([]);
 
   const socketRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef<boolean>(true);
   const reconnectAttemptsRef = useRef<number>(0);
   const onNotificationClickRef = useRef(onNotificationClick);

@@ -11,6 +11,7 @@ import {
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { NotificationsProvider } from "../context/NotificationsContext";
+import { CalendarProvider } from "../context/CalendarContext";
 
 function AppLayout() {
   const router = useRouter();
@@ -56,6 +57,8 @@ function AppLayout() {
     pathname === "/paciente" ||
     pathname === "/recepcion";
   const esUsuarios = pathname.includes("/admin/usuarios");
+  const esNotificaciones = pathname === "/notificaciones";
+  const esCalendar = pathname === "/calendar";
 
   return (
     <View style={styles.container}>
@@ -160,6 +163,36 @@ function AppLayout() {
                 ]}
               >
                 Notificaciones
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.menuItem,
+                esCalendar && styles.menuItemActive,
+              ]}
+              onPress={() => router.push("/calendar")}
+            >
+              <View
+                style={[
+                  styles.iconBox,
+                  esCalendar && styles.iconBoxActive,
+                ]}
+              >
+                <FontAwesome
+                  name="calendar"
+                  size={16}
+                  color={esCalendar ? "#247F76" : "#82938F"}
+                />
+              </View>
+
+              <Text
+                style={[
+                  styles.menuText,
+                  esCalendar && styles.menuTextActive,
+                ]}
+              >
+                Google Calendar
               </Text>
             </Pressable>
 
@@ -285,7 +318,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <NotificationsProvider>
-        <AppLayout />
+        <CalendarProvider>
+          <AppLayout />
+        </CalendarProvider>
       </NotificationsProvider>
     </AuthProvider>
   );
