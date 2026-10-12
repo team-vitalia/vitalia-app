@@ -10,8 +10,8 @@ import {
 } from "react-native";
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
-import { NotificationsProvider } from "../context/NotificationsContext";
 import { CalendarProvider } from "../context/CalendarContext";
+import { NotificationsProvider } from "../context/NotificationsContext";
 
 function AppLayout() {
   const router = useRouter();
@@ -59,6 +59,7 @@ function AppLayout() {
   const esUsuarios = pathname.includes("/admin/usuarios");
   const esNotificaciones = pathname === "/notificaciones";
   const esCalendar = pathname === "/calendar";
+  const esCitas = pathname.includes("/recepcion/citas");
 
   return (
     <View style={styles.container}>
@@ -135,6 +136,40 @@ function AppLayout() {
                 Inicio
               </Text>
             </Pressable>
+            
+
+            {usuario.rol_id === 4 && (
+  <Pressable
+    style={[
+      styles.menuItem,
+      esCitas && styles.menuItemActive,
+    ]}
+    onPress={() => router.push("/recepcion/citas")}
+  >
+    <View
+      style={[
+        styles.iconBox,
+        esCitas && styles.iconBoxActive,
+      ]}
+    >
+      <FontAwesome
+        name="calendar-check-o"
+        size={16}
+        color={esCitas ? "#247F76" : "#82938F"}
+      />
+    </View>
+
+    <Text
+      style={[
+        styles.menuText,
+        esCitas && styles.menuTextActive,
+      ]}
+    >
+      Citas
+    </Text>
+  </Pressable>
+)}
+
 
             <Pressable
               style={[

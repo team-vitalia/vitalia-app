@@ -187,6 +187,38 @@ export default function RecepcionScreen() {
 
       </Pressable>
 
+      <Pressable
+        style={({ pressed }) => [
+          styles.actionCard,
+          pressed && styles.actionCardPressed,
+        ]}
+        onPress={() => router.push("/recepcion/cola")}
+      >
+
+        <View style={styles.actionIcon}>
+          <Text style={styles.actionIconText}>
+            ◷
+          </Text>
+        </View>
+
+        <View style={styles.actionInfo}>
+
+          <Text style={styles.actionTitle}>
+            Lista de Espera Citas
+          </Text>
+
+          <Text style={styles.actionDescription}>
+            Consulta las citas que estan en espera.
+          </Text>
+
+        </View>
+
+        <Text style={styles.actionArrow}>
+          →
+        </Text>
+
+      </Pressable>
+
 
       <Pressable
         style={({ pressed }) => [
