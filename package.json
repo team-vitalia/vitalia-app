@@ -6,6 +6,7 @@
     "@expo/ui": "~57.0.20",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "9.1.0",
     "axios": "^1.20.0",
     "expo": "~57.0.25",
     "expo-auth-session": "~57.0.14",
@@ -33,6 +34,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-web": "~0.21.0",
+    "react-native-webview": "13.16.1",
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {

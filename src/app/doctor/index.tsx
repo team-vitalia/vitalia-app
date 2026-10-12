@@ -6,12 +6,27 @@ import {
   View,
 } from "react-native";
 
+import {
+  ActivityIndicator,
+  Modal,
+} from "react-native";
+
 import { useRouter } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 
+import { useState } from "react";
+import VisorContrato from "../../components/VisorContrato";
+import api from "../../services/api";
+
 export default function DoctorScreen() {
   const router = useRouter();
-  const { usuario } = useAuth();
+  const { usuario, token } = useAuth();
+
+  const [modalContrato, setModalContrato] = useState(false);
+  const [contratoId, setContratoId] = useState<number | null>(null);
+  const [urlContrato, setUrlContrato] = useState("");
+  const [cargandoContrato, setCargandoContrato] = useState(false);
+  const [errorContrato, setErrorContrato] = useState("");
 
   const obtenerSaludo = () => {
     const hora = new Date().getHours();
@@ -25,6 +40,77 @@ export default function DoctorScreen() {
     }
 
     return "Buenas noches";
+  };
+
+  const abrirContrato = async () => {
+    setModalContrato(true);
+    setCargandoContrato(true);
+    setErrorContrato("");
+    setContratoId(null);
+    setUrlContrato("");
+
+    try {
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      const respuesta = await api.get(
+        "/api/contratos/mi-contrato",
+        { headers }
+      );
+
+      const contratos = Array.isArray(respuesta.data)
+        ? respuesta.data
+        : respuesta.data
+          ? [respuesta.data]
+          : [];
+
+      if (contratos.length === 0) {
+        setErrorContrato(
+          "No tienes un contrato registrado."
+        );
+        return;
+      }
+
+      const contrato = [...contratos].sort(
+        (a, b) => Number(b.id_PK) - Number(a.id_PK)
+      )[0];
+
+      const id = Number(contrato?.id_PK);
+
+      if (!Number.isInteger(id) || id <= 0) {
+        setErrorContrato(
+          "El servidor no devolvió un ID de contrato válido."
+        );
+        return;
+      }
+
+      const baseURL = (
+        api.defaults.baseURL ?? "http://127.0.0.1:8000"
+      ).replace(/\/+$/, "");
+
+      setUrlContrato(
+        `${baseURL}/api/contratos/${id}/documento`
+      );
+
+      setContratoId(id);
+    } catch (err: any) {
+      console.error(
+        "Error al consultar el contrato:",
+        err?.response?.status,
+        err?.response?.data ?? err?.message
+      );
+
+      const detalle = err?.response?.data?.detail;
+
+      setErrorContrato(
+        typeof detalle === "string"
+          ? detalle
+          : "No fue posible consultar tu contrato."
+      );
+    } finally {
+      setCargandoContrato(false);
+    }
   };
 
   return (
@@ -275,6 +361,30 @@ export default function DoctorScreen() {
         <Text style={styles.actionArrow}>→</Text>
       </Pressable>
 
+      <Pressable
+        style={({ pressed }) => [
+          styles.actionCard,
+          pressed && styles.actionCardPressed,
+        ]}
+        onPress={abrirContrato}
+      >
+        <View style={styles.actionIcon}>
+          <Text style={styles.actionIconText}>▤</Text>
+        </View>
+
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>
+            Mi contrato
+          </Text>
+
+          <Text style={styles.actionDescription}>
+            Consulta y visualiza tu contrato profesional.
+          </Text>
+        </View>
+
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
+
 
       {/* =========================
           INFORMACIÓN
@@ -316,8 +426,50 @@ export default function DoctorScreen() {
         </Text>
 
       </View>
+      <Modal
+        visible={modalContrato}
+        animationType="slide"
+        onRequestClose={() => setModalContrato(false)}
+      >
+        <View style={styles.container}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              padding: 16,
+            }}
+          >
+            <Pressable onPress={() => setModalContrato(false)}>
+              <Text style={styles.role}>Cerrar ✕</Text>
+            </Pressable>
+          </View>
+
+          {cargandoContrato ? (
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+              <ActivityIndicator size="large" color="#247F76" />
+              <Text style={{ marginTop: 12 }}>
+                Cargando contrato...
+              </Text>
+            </View>
+          ) : errorContrato ? (
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
+              <Text style={{ color: "#A83228", textAlign: "center" }}>
+                {errorContrato}
+              </Text>
+            </View>
+          ) : contratoId !== null ? (
+            <View style={{ flex: 1 }}>
+              <VisorContrato
+                url={urlContrato}
+                token={token ?? ""}
+              />
+            </View>
+          ) : null}
+        </View>
+      </Modal>
 
     </ScrollView>
+    
   );
 }
 

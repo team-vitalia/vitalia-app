@@ -1,0 +1,64 @@
+
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useState } from "react";
+import { Platform, Pressable, Text, View } from "react-native";
+
+interface SelectorFechaProps {
+  value: string;
+  onChange: (fecha: string) => void;
+  placeholder?: string;
+}
+
+function fechaLocal(fecha: Date) {
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getDate()).padStart(2, "0");
+
+  return `${anio}-${mes}-${dia}`;
+}
+
+export default function SelectorFecha({
+  value,
+  onChange,
+  placeholder = "Seleccionar fecha",
+}: SelectorFechaProps) {
+  const [visible, setVisible] = useState(false);
+
+  const fechaSeleccionada = value
+    ? new Date(`${value}T12:00:00`)
+    : new Date();
+
+  return (
+    <View>
+      <Pressable
+        onPress={() => setVisible(true)}
+        style={{
+          borderWidth: 1,
+          borderColor: "#DCE8E5",
+          borderRadius: 10,
+          padding: 13,
+          backgroundColor: "#FBFDFC",
+        }}
+      >
+        <Text style={{ color: value ? "#294F49" : "#8A9A98" }}>
+          {value || placeholder}
+        </Text>
+      </Pressable>
+
+      {visible && (
+        <DateTimePicker
+          value={fechaSeleccionada}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={(_, fecha) => {
+            setVisible(Platform.OS === "ios");
+
+            if (fecha) {
+              onChange(fechaLocal(fecha));
+            }
+          }}
+        />
+      )}
+    </View>
+  );
+}

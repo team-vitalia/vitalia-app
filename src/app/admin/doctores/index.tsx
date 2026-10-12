@@ -1,18 +1,20 @@
 
 import { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 import { useFocusEffect } from "expo-router";
+import SelectorFecha from "../../../components/SelectorFecha";
+import VisorContrato from "../../../components/VisorContrato";
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../services/api";
 
@@ -56,6 +58,14 @@ const formularioInicial: FormularioContrato = {
   url_documento: "",
 };
 
+const TIPOS_CONTRATO = [
+  "Indefinido",
+  "Temporal",
+  "Por honorarios",
+  "Medio tiempo",
+  "Otro",
+];
+
 export default function ContratosScreen() {
   const { token } = useAuth();
 
@@ -63,6 +73,7 @@ export default function ContratosScreen() {
   const [doctores, setDoctores] = useState<Doctor[]>([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [otroTipoContrato, setOtroTipoContrato] = useState("");
 
   const [modalVisible, setModalVisible] = useState(false);
   const [contratoEditar, setContratoEditar] =
@@ -80,6 +91,15 @@ export default function ContratosScreen() {
 
   const headers = {
     Authorization: `Bearer ${token}`,
+  };
+
+  const [documentoVisible, setDocumentoVisible] = useState(false);
+  const [contratoDocumento, setContratoDocumento] =
+    useState<Contrato | null>(null);
+
+  const abrirDocumento = (contrato: Contrato) => {
+    setContratoDocumento(contrato);
+    setDocumentoVisible(true);
   };
 
   const mostrarAlerta = (
@@ -185,7 +205,10 @@ export default function ContratosScreen() {
   const guardarContrato = async () => {
     const inicio = formulario.fecha_inicio.trim();
     const fin = formulario.fecha_fin.trim();
-    const tipo = formulario.tipo_contrato.trim();
+    const tipo =
+    formulario.tipo_contrato === "Otro"
+    ? otroTipoContrato.trim()
+    : formulario.tipo_contrato.trim();
     const estado = formulario.estado.trim();
     const salarioTexto = formulario.salario.trim();
 
@@ -378,10 +401,19 @@ export default function ContratosScreen() {
       </Text>
 
       {item.url_documento ? (
-        <Text style={styles.documento} numberOfLines={2}>
-          Documento: {item.url_documento}
+        <Pressable
+          style={styles.botonDocumento}
+          onPress={() => abrirDocumento(item)}
+        >
+          <Text style={styles.botonDocumentoTexto}>
+            Ver documento
+          </Text>
+        </Pressable>
+      ) : (
+        <Text style={styles.documento}>
+          Documento no disponible
         </Text>
-      ) : null}
+      )}
 
       <Pressable
         style={styles.botonEditar}
@@ -520,45 +552,68 @@ export default function ContratosScreen() {
                 Fecha de inicio * (AAAA-MM-DD)
               </Text>
 
-              <TextInput
-                style={styles.input}
+              <SelectorFecha
                 value={formulario.fecha_inicio}
-                onChangeText={(v) =>
-                  actualizarCampo("fecha_inicio", v)
-                }
-                placeholder="2026-10-09"
-                placeholderTextColor="#8A9A98"
-                autoCapitalize="none"
+                onChange={(fecha) => actualizarCampo("fecha_inicio", fecha)}
+                placeholder="Seleccionar fecha de inicio"
               />
 
               <Text style={styles.etiqueta}>
                 Fecha de fin (opcional)
               </Text>
 
-              <TextInput
-                style={styles.input}
+              <SelectorFecha
                 value={formulario.fecha_fin}
-                onChangeText={(v) =>
-                  actualizarCampo("fecha_fin", v)
-                }
-                placeholder="2027-10-09"
-                placeholderTextColor="#8A9A98"
-                autoCapitalize="none"
+                onChange={(fecha) => actualizarCampo("fecha_fin", fecha)}
+                placeholder="Seleccionar fecha de fin (opcional)"
               />
 
               <Text style={styles.etiqueta}>
                 Tipo de contrato *
               </Text>
 
-              <TextInput
-                style={styles.input}
-                value={formulario.tipo_contrato}
-                onChangeText={(v) =>
-                  actualizarCampo("tipo_contrato", v)
-                }
-                placeholder="Indefinido, temporal..."
-                placeholderTextColor="#8A9A98"
-              />
+              <View style={styles.opcionesEstado}>
+                {TIPOS_CONTRATO.map((tipo) => (
+                  <Pressable
+                    key={tipo}
+                    style={[
+                      styles.opcionEstado,
+                      formulario.tipo_contrato === tipo
+                        ? styles.opcionEstadoActiva
+                        : null,
+                    ]}
+                    onPress={() => {
+                      actualizarCampo("tipo_contrato", tipo);
+
+                      if (tipo !== "Otro") {
+                        setOtroTipoContrato("");
+                      }
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.opcionEstadoTexto,
+                        formulario.tipo_contrato === tipo
+                          ? styles.opcionEstadoTextoActivo
+                          : null,
+                      ]}
+                    >
+                      {tipo}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {formulario.tipo_contrato === "Otro" && (
+                <TextInput
+                  style={styles.input}
+                  value={otroTipoContrato}
+                  onChangeText={setOtroTipoContrato}
+                  placeholder="Especifica el tipo de contrato"
+                  placeholderTextColor="#8A9A98"
+                  maxLength={100}
+                />
+              )}
 
               <Text style={styles.etiqueta}>
                 Estado *
@@ -601,12 +656,18 @@ export default function ContratosScreen() {
               <TextInput
                 style={styles.input}
                 value={formulario.salario}
-                onChangeText={(v) =>
-                  actualizarCampo("salario", v)
-                }
+                onChangeText={(valor) => {
+                  const numerico = valor
+                    .replace(/,/g, ".")
+                    .replace(/[^\d.]/g, "")
+                    .replace(/(\..*)\./g, "$1")
+                    .replace(/^(\d*\.\d{0,2}).*$/, "$1");
+
+                  actualizarCampo("salario", numerico);
+                }}
+                keyboardType="decimal-pad"
                 placeholder="15000.00"
                 placeholderTextColor="#8A9A98"
-                keyboardType="decimal-pad"
               />
 
               <Pressable
@@ -639,6 +700,53 @@ export default function ContratosScreen() {
               </Pressable>
             </ScrollView>
           </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={documentoVisible}
+        animationType="slide"
+        onRequestClose={() => setDocumentoVisible(false)}
+      >
+        <View style={styles.contenedorDocumento}>
+          <View style={styles.encabezadoDocumento}>
+            <View style={styles.flex}>
+              <Text style={styles.tituloDocumento}>
+                Vista previa del contrato
+              </Text>
+
+              <Text style={styles.subtituloDocumento}>
+                {contratoDocumento
+                  ? `Contrato #${contratoDocumento.id_PK} · ${nombreDoctor(
+                      contratoDocumento.doctor_id_FK
+                    )}`
+                  : ""}
+              </Text>
+            </View>
+
+            <Pressable
+              style={styles.botonCerrarDocumento}
+              onPress={() => setDocumentoVisible(false)}
+            >
+              <Text style={styles.botonCerrarDocumentoTexto}>
+                Cerrar
+              </Text>
+            </Pressable>
+          </View>
+
+          
+          {contratoDocumento?.url_documento ? (
+            <VisorContrato
+              url={`${(api.defaults.baseURL ?? "http://127.0.0.1:8000").replace(/\/$/, "")}/api/contratos/${contratoDocumento.id_PK}/documento`}
+              token={token ?? ""}
+            />
+          ) : (
+            <View style={styles.cargandoDocumento}>
+              <Text style={styles.textoCargandoDocumento}>
+                No hay un documento disponible para este contrato.
+              </Text>
+            </View>
+          )}
         </View>
       </Modal>
 
@@ -994,5 +1102,81 @@ const styles = StyleSheet.create({
     color: "#71827E",
     textAlign: "center",
     marginTop: 10,
+  },
+  botonDocumento: {
+    alignSelf: "flex-start",
+    backgroundColor: "#E0F3EF",
+    borderWidth: 1,
+    borderColor: "#B9E3DA",
+    borderRadius: 9,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+
+  botonDocumentoTexto: {
+    color: "#247F76",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  contenedorDocumento: {
+    flex: 1,
+    backgroundColor: "#F4F8F7",
+  },
+
+  encabezadoDocumento: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2ECE9",
+  },
+
+  tituloDocumento: {
+    color: "#245D57",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+
+  subtituloDocumento: {
+    color: "#718582",
+    fontSize: 12,
+    marginTop: 5,
+  },
+
+  botonCerrarDocumento: {
+    backgroundColor: "#2A8C82",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 9,
+  },
+
+  botonCerrarDocumentoTexto: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  vistaPDF: {
+    flex: 1,
+    backgroundColor: "#F4F8F7",
+  },
+
+  cargandoDocumento: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+
+  textoCargandoDocumento: {
+    color: "#507E77",
+    fontSize: 14,
+    marginTop: 12,
+    textAlign: "center",
   },
 });
