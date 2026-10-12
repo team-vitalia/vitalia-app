@@ -247,6 +247,7 @@ export default function DoctorScreen() {
           styles.actionCard,
           pressed && styles.actionCardPressed,
         ]}
+        onPress={() => router.push("/doctor/consultas")}
       >
 
         <View style={styles.actionIcon}>
@@ -279,6 +280,7 @@ export default function DoctorScreen() {
           styles.actionCard,
           pressed && styles.actionCardPressed,
         ]}
+        onPress={() => router.push("/doctor/pacientes")}
       >
 
         <View style={styles.actionIcon}>
