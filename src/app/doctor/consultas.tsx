@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-
 import { router } from "expo-router";
+import { FontAwesome } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
+import { useGoogleCalendar } from "../../context/CalendarContext";
+import { useNotifications } from "../../context/NotificationsContext";
 import api from "../../services/api";
 
 interface Cita {
@@ -23,6 +25,7 @@ interface Cita {
   motivo: string | null;
   notas: string | null;
   creado_por: number | null;
+  google_event_id?: string | null;
 }
 
 interface Paciente {
@@ -31,14 +34,28 @@ interface Paciente {
   apellido: string;
 }
 
+/**
+ * Pantalla clínica para que el médico consulte su agenda de citas asignadas
+ * y gestione la sincronización directa con su cuenta personal de Google Calendar.
+ */
 export default function MisConsultasScreen() {
   const { token } = useAuth();
+  const { messages } = useNotifications();
+  const {
+    isCalendarConnected,
+    cargando: cargandoCalendar,
+    conectarGoogle,
+    desconectarGoogle,
+  } = useGoogleCalendar();
 
   const [citas, setCitas] = useState<Cita[]>([]);
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
+  /**
+   * Obtiene del backend las citas y el listado de pacientes asignados al médico autenticado.
+   */
   const cargarDatos = async () => {
     if (!token) return;
 
@@ -58,15 +75,8 @@ export default function MisConsultasScreen() {
       setCitas(respuestaCitas.data);
       setPacientes(respuestaPacientes.data);
     } catch (err: any) {
-      console.log(
-        "ERROR MIS CONSULTAS:",
-        err?.response?.status,
-        err?.response?.data
-      );
-
       setError(
-        err?.response?.data?.detail ||
-          "No se pudieron cargar tus consultas."
+        err?.response?.data?.detail || "No se pudieron cargar tus consultas."
       );
     } finally {
       setCargando(false);
@@ -79,6 +89,15 @@ export default function MisConsultasScreen() {
     }
   }, [token]);
 
+  useEffect(() => {
+    if (messages.length > 0 && token) {
+      cargarDatos();
+    }
+  }, [messages.length, token]);
+
+  /**
+   * Resuelve el nombre del paciente asociado al identificador provisto.
+   */
   const obtenerNombrePaciente = (pacienteId: number | null): string => {
     if (!pacienteId) return "—";
     const paciente = pacientes.find((p) => p.id_PK === pacienteId);
@@ -86,6 +105,9 @@ export default function MisConsultasScreen() {
     return `${paciente.nombre} ${paciente.apellido}`;
   };
 
+  /**
+   * Retorna una fecha formateada en formato legible en español.
+   */
   const formatearFecha = (fecha: string | null): string => {
     if (!fecha) return "Sin fecha";
     try {
@@ -101,6 +123,9 @@ export default function MisConsultasScreen() {
     }
   };
 
+  /**
+   * Determina los colores estéticos para la insignia de estado de la consulta.
+   */
   const colorEstado = (estado: string | null) => {
     switch (estado) {
       case "programada":
@@ -127,28 +152,102 @@ export default function MisConsultasScreen() {
           style={styles.backButton}
           onPress={() => router.push("/doctor")}
         >
-          <Text style={styles.backText}>← Volver al panel</Text>
+          <FontAwesome
+            name="arrow-left"
+            size={13}
+            color="#247F76"
+            style={{ marginRight: 6 }}
+          />
+          <Text style={styles.backText}>Volver al panel</Text>
         </Pressable>
 
         <Pressable style={styles.refreshButton} onPress={cargarDatos}>
-          <Text style={styles.refreshText}>↻</Text>
+          <FontAwesome name="refresh" size={14} color="#247F76" />
         </Pressable>
       </View>
 
       <Text style={styles.smallTitle}>PANEL CLÍNICO</Text>
-      <Text style={styles.title}>Mis consultas</Text>
+      <Text style={styles.title}>Mis Consultas</Text>
       <Text style={styles.subtitle}>
-        Consulta las citas de tus pacientes asignados.
+        Consulta tus citas asignadas y mantén sincronizada tu agenda personal.
       </Text>
 
-      {/* RESUMEN */}
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryNumber}>{citas.length}</Text>
-        <Text style={styles.summaryText}>Consultas registradas</Text>
+      {/* TARJETA DE VINCULACIÓN CON GOOGLE CALENDAR */}
+      <View style={styles.calendarSyncCard}>
+        <View style={styles.calendarSyncInfo}>
+          <View style={styles.calendarTitleRow}>
+            <FontAwesome
+              name="calendar"
+              size={18}
+              color="#247F76"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.calendarCardTitle}>Google Calendar del Médico</Text>
+          </View>
+
+          <Text style={styles.calendarCardSubtitle}>
+            {isCalendarConnected
+              ? "Tu cuenta de Google Calendar está vinculada. Las citas que recepción te asigne se registrarán en tu calendario."
+              : "Vincula tu cuenta de Google para que las citas asignadas por recepción aparezcan automáticamente en tu calendario."}
+          </Text>
+
+          <View style={styles.calendarStatusRow}>
+            <View
+              style={[
+                styles.calendarStatusDot,
+                { backgroundColor: isCalendarConnected ? "#247F76" : "#D65A5A" },
+              ]}
+            />
+            <Text style={styles.calendarStatusText}>
+              {isCalendarConnected ? "Servicio Conectado y Activo" : "No conectado"}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.calendarActions}>
+          {cargandoCalendar ? (
+            <ActivityIndicator size="small" color="#247F76" />
+          ) : isCalendarConnected ? (
+            <Pressable
+              style={styles.unlinkButton}
+              onPress={desconectarGoogle}
+            >
+              <FontAwesome
+                name="chain-broken"
+                size={12}
+                color="#FFFFFF"
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.unlinkButtonText}>Desvincular</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={styles.linkButton}
+              onPress={conectarGoogle}
+            >
+              <FontAwesome
+                name="google"
+                size={14}
+                color="#FFFFFF"
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.linkButtonText}>Vincular Calendar</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
-      {/* CONTENIDO */}
-      <Text style={styles.sectionTitle}>Agenda de consultas</Text>
+      {/* RESUMEN DE CONSULTAS */}
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryLeft}>
+          <Text style={styles.summaryNumber}>{citas.length}</Text>
+          <Text style={styles.summaryText}>Consultas registradas</Text>
+        </View>
+        <FontAwesome name="stethoscope" size={38} color="#A7DFD6" />
+      </View>
+
+      {/* CONTENIDO DE CONSULTAS */}
+      <Text style={styles.sectionTitle}>Agenda de Consultas</Text>
 
       {cargando ? (
         <View style={styles.center}>
@@ -165,21 +264,51 @@ export default function MisConsultasScreen() {
         </View>
       ) : citas.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>◷</Text>
+          <FontAwesome
+            name="calendar-times-o"
+            size={40}
+            color="#8A9A98"
+            style={{ marginBottom: 12 }}
+          />
           <Text style={styles.emptyTitle}>No tienes consultas asignadas</Text>
           <Text style={styles.emptyText}>
-            Cuando recepción te asigne citas, aparecerán aquí.
+            Cuando recepción registre citas para tu consultorio, aparecerán aquí.
           </Text>
         </View>
       ) : (
         citas.map((cita) => {
           const estado = colorEstado(cita.estado);
+          const tieneGoogleCalendar = !!cita.google_event_id;
 
           return (
             <View key={cita.id_PK} style={styles.citaCard}>
               <View style={styles.citaHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.citaTitle}>Cita #{cita.id_PK}</Text>
+                  <View style={styles.citaTitleRow}>
+                    <Text style={styles.citaTitle}>Cita #{cita.id_PK}</Text>
+                    {tieneGoogleCalendar ? (
+                      <View style={styles.googleBadge}>
+                        <FontAwesome
+                          name="calendar-check-o"
+                          size={11}
+                          color="#17685F"
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text style={styles.googleBadgeText}>Google Calendar</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.localBadge}>
+                        <FontAwesome
+                          name="calendar-o"
+                          size={11}
+                          color="#687F7B"
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text style={styles.localBadgeText}>Local</Text>
+                      </View>
+                    )}
+                  </View>
+
                   <Text style={styles.citaDate}>
                     {formatearFecha(cita.fecha)}
                   </Text>
@@ -203,7 +332,15 @@ export default function MisConsultasScreen() {
 
               {/* HORARIO */}
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>🕐 Horario:</Text>
+                <View style={styles.infoLabelContainer}>
+                  <FontAwesome
+                    name="clock-o"
+                    size={12}
+                    color="#247F76"
+                    style={styles.infoIcon}
+                  />
+                  <Text style={styles.infoLabel}>Horario:</Text>
+                </View>
                 <Text style={styles.infoValue}>
                   {cita.hora_inicio || "—"} - {cita.hora_fin || "—"}
                 </Text>
@@ -211,7 +348,15 @@ export default function MisConsultasScreen() {
 
               {/* PACIENTE */}
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>👤 Paciente:</Text>
+                <View style={styles.infoLabelContainer}>
+                  <FontAwesome
+                    name="user"
+                    size={12}
+                    color="#247F76"
+                    style={styles.infoIcon}
+                  />
+                  <Text style={styles.infoLabel}>Paciente:</Text>
+                </View>
                 <Text style={styles.infoValue}>
                   {obtenerNombrePaciente(cita.paciente_id_FK)}
                 </Text>
@@ -220,7 +365,15 @@ export default function MisConsultasScreen() {
               {/* MOTIVO */}
               {cita.motivo && (
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>📋 Motivo:</Text>
+                  <View style={styles.infoLabelContainer}>
+                    <FontAwesome
+                      name="stethoscope"
+                      size={12}
+                      color="#247F76"
+                      style={styles.infoIcon}
+                    />
+                    <Text style={styles.infoLabel}>Motivo:</Text>
+                  </View>
                   <Text style={styles.infoValue}>{cita.motivo}</Text>
                 </View>
               )}
@@ -228,7 +381,15 @@ export default function MisConsultasScreen() {
               {/* NOTAS */}
               {cita.notas && (
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>📝 Notas:</Text>
+                  <View style={styles.infoLabelContainer}>
+                    <FontAwesome
+                      name="file-text-o"
+                      size={12}
+                      color="#247F76"
+                      style={styles.infoIcon}
+                    />
+                    <Text style={styles.infoLabel}>Notas:</Text>
+                  </View>
                   <Text style={styles.infoValue}>{cita.notas}</Text>
                 </View>
               )}
@@ -255,23 +416,32 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 16,
   },
 
-  backButton: { paddingVertical: 8, paddingHorizontal: 12 },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#DCEAE6",
+  },
 
-  backText: { color: "#247F76", fontSize: 14, fontWeight: "800" },
+  backText: { color: "#247F76", fontSize: 13, fontWeight: "800" },
 
   refreshButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#DDF3EF",
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#DCEAE6",
   },
-
-  refreshText: { fontSize: 22, color: "#247F76", fontWeight: "800" },
 
   smallTitle: {
     fontSize: 11,
@@ -286,8 +456,99 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     color: "#82938F",
-    marginTop: 5,
-    marginBottom: 25,
+    marginTop: 4,
+    marginBottom: 20,
+  },
+
+  calendarSyncCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#CCE4DD",
+    marginBottom: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 14,
+  },
+
+  calendarSyncInfo: {
+    flex: 1,
+    minWidth: 260,
+  },
+
+  calendarTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+
+  calendarCardTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#173F3A",
+  },
+
+  calendarCardSubtitle: {
+    fontSize: 12,
+    color: "#607671",
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+
+  calendarStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  calendarStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+
+  calendarStatusText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#46625D",
+  },
+
+  calendarActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  linkButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#247F76",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+
+  linkButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  unlinkButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#D65A5A",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+
+  unlinkButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
   },
 
   summaryCard: {
@@ -295,7 +556,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 22,
     marginBottom: 28,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
+
+  summaryLeft: { flex: 1 },
 
   summaryNumber: { fontSize: 32, fontWeight: "900", color: "#FFFFFF" },
 
@@ -344,8 +610,6 @@ const styles = StyleSheet.create({
     borderColor: "#E4EEEB",
   },
 
-  emptyIcon: { fontSize: 35, color: "#247F76", marginBottom: 12 },
-
   emptyTitle: { fontSize: 16, fontWeight: "800", color: "#26443F" },
 
   emptyText: {
@@ -370,7 +634,44 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
+  citaTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
   citaTitle: { fontSize: 15, fontWeight: "800", color: "#26443F" },
+
+  googleBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E2F6F2",
+    borderRadius: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+  },
+
+  googleBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#17685F",
+  },
+
+  localBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F2F5F4",
+    borderRadius: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+  },
+
+  localBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#687F7B",
+  },
 
   citaDate: {
     fontSize: 12,
@@ -403,12 +704,20 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
 
+  infoLabelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: 90,
+  },
+
+  infoIcon: {
+    marginRight: 6,
+  },
+
   infoLabel: {
     fontSize: 12,
     fontWeight: "800",
     color: "#31534D",
-    marginRight: 6,
-    minWidth: 90,
   },
 
   infoValue: {

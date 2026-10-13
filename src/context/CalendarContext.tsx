@@ -37,7 +37,8 @@ const CalendarContext = createContext<CalendarContextType | undefined>(undefined
 
 export function CalendarProvider({ children }: { children: ReactNode }) {
   const { usuario } = useAuth();
-  const userId = usuario ? `user_${usuario.id}` : "default_user";
+  const idUsuario = usuario?.id ?? usuario?.id_PK;
+  const userId = idUsuario ? `user_${idUsuario}` : "default_user";
 
   const [isCalendarConnected, setIsCalendarConnected] = useState<boolean>(false);
   const [cargando, setCargando] = useState<boolean>(false);

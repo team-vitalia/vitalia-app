@@ -356,6 +356,15 @@ export default function DoctorScreen() {
         <Text style={styles.actionArrow}>→</Text>
       </Pressable>
 
+      <Pressable style={styles.actionCard} onPress={() => router.push("/doctor/evaluar-interacciones")}>
+              <View style={styles.actionIcon}><Text style={styles.actionIconText}>💊</Text></View>
+              <View style={styles.actionInfo}>
+                <Text style={styles.actionTitle}>Evaluador de Interacciones</Text>
+                <Text style={styles.actionDescription}>Verifica incompatibilidades farmacológicas entre medicamentos.</Text>
+              </View>
+              <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
+
       <Pressable
         style={({ pressed }) => [
           styles.actionCard,

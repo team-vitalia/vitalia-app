@@ -1,17 +1,19 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../services/api";
+import SelectorFecha from "../../../components/SelectorFecha";
 
 interface Paciente {
   id_PK: number;
@@ -26,6 +28,10 @@ interface Doctor {
   estado: string;
 }
 
+/**
+ * Pantalla para registrar una nueva cita médica con sincronización automática
+ * a Google Calendar y notificación en tiempo real vía WebSockets (CU-05, CU-12).
+ */
 export default function CrearCita() {
   const { token } = useAuth();
 
@@ -50,41 +56,45 @@ export default function CrearCita() {
     cargarDatos();
   }, []);
 
+  /**
+   * Obtiene la lista de pacientes y doctores disponibles desde la API.
+   */
   const cargarDatos = async () => {
     if (!token) return;
 
     try {
       setCargando(true);
 
-      const [respuestaPacientes, respuestaDoctores] =
-        await Promise.all([
-          api.get("/api/pacientes/", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
-          api.get("/api/doctores/", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
-        ]);
+      const [respuestaPacientes, respuestaDoctores] = await Promise.all([
+        api.get("/api/pacientes/", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+        api.get("/api/doctores/", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+      ]);
 
       setPacientes(respuestaPacientes.data);
       setDoctores(respuestaDoctores.data);
     } catch (error: any) {
       console.error("Error cargando datos:", error);
-
       Alert.alert(
         "Error",
-        error?.response?.data?.detail ||
-          "No fue posible cargar pacientes y doctores."
+        error?.response?.data?.detail || "No fue posible cargar pacientes y doctores."
       );
     } finally {
       setCargando(false);
     }
   };
 
+  /**
+   * Envía la solicitud de creación de cita al backend, disparando inserción en base de datos,
+   * evento en Google Calendar y notificación por WebSocket.
+   */
   const crearCita = async () => {
     if (!token) {
       Alert.alert("Error", "No hay sesión activa.");
@@ -140,7 +150,7 @@ export default function CrearCita() {
 
       Alert.alert(
         "Cita creada",
-        "La cita se registró correctamente.",
+        "La cita se registró y sincronizó correctamente.",
         [
           {
             text: "Aceptar",
@@ -150,11 +160,9 @@ export default function CrearCita() {
       );
     } catch (error: any) {
       console.error("Error creando cita:", error);
-
       Alert.alert(
         "Error",
-        error?.response?.data?.detail ||
-          "No fue posible crear la cita."
+        error?.response?.data?.detail || "No fue posible crear la cita."
       );
     } finally {
       setGuardando(false);
@@ -172,10 +180,8 @@ export default function CrearCita() {
   if (cargando) {
     return (
       <View style={styles.cargando}>
-        <ActivityIndicator size="large" color="#2A8C82" />
-        <Text style={styles.textoCargando}>
-          Cargando información...
-        </Text>
+        <ActivityIndicator size="large" color="#247F76" />
+        <Text style={styles.textoCargando}>Cargando información...</Text>
       </View>
     );
   }
@@ -191,20 +197,33 @@ export default function CrearCita() {
           style={styles.botonRegresar}
           onPress={() => router.back()}
         >
-          <Text style={styles.textoRegresar}>‹</Text>
+          <FontAwesome name="arrow-left" size={16} color="#247F76" />
         </Pressable>
 
         <View>
           <Text style={styles.titulo}>Nueva cita</Text>
           <Text style={styles.subtitulo}>
-            Registra una nueva cita médica
+            Registra una nueva cita médica programada
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.syncCard}>
+        <FontAwesome name="calendar-check-o" size={20} color="#247F76" style={styles.syncIcon} />
+        <View style={styles.syncTextContainer}>
+          <Text style={styles.syncTitle}>Sincronización Inteligente</Text>
+          <Text style={styles.syncDescription}>
+            Al registrarse, esta cita se añadirá automáticamente a Google Calendar y emitirá una alerta en tiempo real a recepción y personal médico.
           </Text>
         </View>
       </View>
 
       {/* PACIENTE */}
       <View style={styles.seccion}>
-        <Text style={styles.etiqueta}>Paciente *</Text>
+        <View style={styles.labelRow}>
+          <FontAwesome name="user" size={13} color="#247F76" style={styles.labelIcon} />
+          <Text style={styles.etiqueta}>Paciente *</Text>
+        </View>
 
         <Pressable
           style={styles.selector}
@@ -225,7 +244,11 @@ export default function CrearCita() {
               : "Selecciona un paciente"}
           </Text>
 
-          <Text style={styles.flecha}>⌄</Text>
+          <FontAwesome
+            name={mostrarPacientes ? "chevron-up" : "chevron-down"}
+            size={13}
+            color="#247F76"
+          />
         </Pressable>
 
         {mostrarPacientes && (
@@ -256,7 +279,10 @@ export default function CrearCita() {
 
       {/* DOCTOR */}
       <View style={styles.seccion}>
-        <Text style={styles.etiqueta}>Doctor *</Text>
+        <View style={styles.labelRow}>
+          <FontAwesome name="user-md" size={14} color="#247F76" style={styles.labelIcon} />
+          <Text style={styles.etiqueta}>Doctor *</Text>
+        </View>
 
         <Pressable
           style={styles.selector}
@@ -277,7 +303,11 @@ export default function CrearCita() {
               : "Selecciona un doctor"}
           </Text>
 
-          <Text style={styles.flecha}>⌄</Text>
+          <FontAwesome
+            name={mostrarDoctores ? "chevron-up" : "chevron-down"}
+            size={13}
+            color="#247F76"
+          />
         </Pressable>
 
         {mostrarDoctores && (
@@ -299,7 +329,6 @@ export default function CrearCita() {
                   <Text style={styles.opcionNombre}>
                     {doctor.nombre}
                   </Text>
-
                   <Text style={styles.opcionDetalle}>
                     {doctor.especialidad}
                   </Text>
@@ -312,26 +341,28 @@ export default function CrearCita() {
 
       {/* FECHA */}
       <View style={styles.seccion}>
-        <Text style={styles.etiqueta}>Fecha *</Text>
+        <View style={styles.labelRow}>
+          <FontAwesome name="calendar" size={13} color="#247F76" style={styles.labelIcon} />
+          <Text style={styles.etiqueta}>Fecha de la cita *</Text>
+        </View>
 
-        <TextInput
-          style={styles.input}
+        <SelectorFecha
           value={fecha}
-          onChangeText={setFecha}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#8A9A98"
-          maxLength={10}
+          onChange={setFecha}
+          placeholder="Seleccionar fecha (AAAA-MM-DD)"
         />
-
         <Text style={styles.ayuda}>
-          Ejemplo: 2026-10-05
+          Selecciona el día programado para la consulta.
         </Text>
       </View>
 
       {/* HORARIOS */}
       <View style={styles.fila}>
         <View style={styles.campoMitad}>
-          <Text style={styles.etiqueta}>Hora inicio *</Text>
+          <View style={styles.labelRow}>
+            <FontAwesome name="clock-o" size={13} color="#247F76" style={styles.labelIcon} />
+            <Text style={styles.etiqueta}>Hora inicio *</Text>
+          </View>
 
           <TextInput
             style={styles.input}
@@ -344,7 +375,10 @@ export default function CrearCita() {
         </View>
 
         <View style={styles.campoMitad}>
-          <Text style={styles.etiqueta}>Hora fin *</Text>
+          <View style={styles.labelRow}>
+            <FontAwesome name="clock-o" size={13} color="#247F76" style={styles.labelIcon} />
+            <Text style={styles.etiqueta}>Hora fin *</Text>
+          </View>
 
           <TextInput
             style={styles.input}
@@ -359,26 +393,32 @@ export default function CrearCita() {
 
       {/* MOTIVO */}
       <View style={styles.seccion}>
-        <Text style={styles.etiqueta}>Motivo de consulta</Text>
+        <View style={styles.labelRow}>
+          <FontAwesome name="stethoscope" size={13} color="#247F76" style={styles.labelIcon} />
+          <Text style={styles.etiqueta}>Motivo de consulta</Text>
+        </View>
 
         <TextInput
           style={styles.input}
           value={motivo}
           onChangeText={setMotivo}
-          placeholder="Consulta general"
+          placeholder="Ej. Chequeo preventivo, dolor lumbar..."
           placeholderTextColor="#8A9A98"
         />
       </View>
 
       {/* NOTAS */}
       <View style={styles.seccion}>
-        <Text style={styles.etiqueta}>Notas</Text>
+        <View style={styles.labelRow}>
+          <FontAwesome name="pencil-square-o" size={13} color="#247F76" style={styles.labelIcon} />
+          <Text style={styles.etiqueta}>Notas adicionales</Text>
+        </View>
 
         <TextInput
           style={[styles.input, styles.textArea]}
           value={notas}
           onChangeText={setNotas}
-          placeholder="Información adicional..."
+          placeholder="Información adicional relevante para la consulta..."
           placeholderTextColor="#8A9A98"
           multiline
           numberOfLines={4}
@@ -386,7 +426,7 @@ export default function CrearCita() {
         />
       </View>
 
-      {/* BOTÓN */}
+      {/* BOTÓN CREAR */}
       <Pressable
         style={({ pressed }) => [
           styles.botonCrear,
@@ -399,9 +439,10 @@ export default function CrearCita() {
         {guardando ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.textoBoton}>
-            Crear cita
-          </Text>
+          <View style={styles.botonCrearContent}>
+            <FontAwesome name="plus-circle" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.textoBoton}>Guardar y Sincronizar Cita</Text>
+          </View>
         )}
       </Pressable>
 
@@ -410,9 +451,7 @@ export default function CrearCita() {
         onPress={() => router.back()}
         disabled={guardando}
       >
-        <Text style={styles.textoCancelar}>
-          Cancelar
-        </Text>
+        <Text style={styles.textoCancelar}>Cancelar</Text>
       </Pressable>
     </ScrollView>
   );
@@ -421,75 +460,116 @@ export default function CrearCita() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4F8F7",
+    backgroundColor: "#F4FAF8",
   },
 
   contenido: {
     padding: 24,
     paddingBottom: 50,
+    maxWidth: 720,
+    width: "100%",
+    alignSelf: "center",
   },
 
   cargando: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F4F8F7",
+    backgroundColor: "#F4FAF8",
   },
 
   textoCargando: {
     marginTop: 12,
     color: "#5F716E",
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   encabezado: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 28,
+    marginBottom: 22,
   },
 
   botonRegresar: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: 12,
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
-    elevation: 2,
-  },
-
-  textoRegresar: {
-    fontSize: 32,
-    color: "#2A8C82",
-    lineHeight: 34,
+    borderWidth: 1,
+    borderColor: "#DCE8E5",
   },
 
   titulo: {
-    fontSize: 27,
-    fontWeight: "700",
-    color: "#193D39",
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#173F3A",
   },
 
   subtitulo: {
-    marginTop: 4,
-    fontSize: 14,
+    marginTop: 3,
+    fontSize: 13,
     color: "#71817F",
+  },
+
+  syncCard: {
+    flexDirection: "row",
+    backgroundColor: "#E7F5F2",
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#BDE2D9",
+    marginBottom: 24,
+    alignItems: "flex-start",
+  },
+
+  syncIcon: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+
+  syncTextContainer: {
+    flex: 1,
+  },
+
+  syncTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#17685F",
+    marginBottom: 4,
+  },
+
+  syncDescription: {
+    fontSize: 12,
+    color: "#3F645E",
+    lineHeight: 18,
   },
 
   seccion: {
     marginBottom: 20,
   },
 
-  etiqueta: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#294B47",
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
 
+  labelIcon: {
+    marginRight: 7,
+  },
+
+  etiqueta: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#294B47",
+  },
+
   selector: {
-    minHeight: 52,
+    minHeight: 48,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D8E5E2",
@@ -502,24 +582,19 @@ const styles = StyleSheet.create({
 
   textoSelector: {
     color: "#294B47",
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: "600",
     flex: 1,
   },
 
   placeholder: {
     color: "#8A9A98",
-    fontSize: 15,
+    fontSize: 14,
     flex: 1,
   },
 
-  flecha: {
-    fontSize: 22,
-    color: "#2A8C82",
-    marginLeft: 10,
-  },
-
   lista: {
-    marginTop: 5,
+    marginTop: 6,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D8E5E2",
@@ -528,20 +603,20 @@ const styles = StyleSheet.create({
   },
 
   opcion: {
-    padding: 15,
+    padding: 14,
     borderBottomWidth: 1,
     borderBottomColor: "#EDF2F1",
   },
 
   opcionNombre: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "700",
     color: "#294B47",
   },
 
   opcionDetalle: {
     marginTop: 3,
-    fontSize: 13,
+    fontSize: 12,
     color: "#71817F",
   },
 
@@ -549,21 +624,22 @@ const styles = StyleSheet.create({
     padding: 16,
     color: "#71817F",
     textAlign: "center",
+    fontSize: 13,
   },
 
   input: {
-    minHeight: 52,
+    minHeight: 48,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D8E5E2",
     borderRadius: 12,
     paddingHorizontal: 16,
-    fontSize: 15,
+    fontSize: 14,
     color: "#294B47",
   },
 
   ayuda: {
-    marginTop: 6,
+    marginTop: 5,
     fontSize: 12,
     color: "#81908E",
   },
@@ -579,22 +655,26 @@ const styles = StyleSheet.create({
   },
 
   textArea: {
-    minHeight: 110,
-    paddingTop: 14,
+    minHeight: 96,
+    paddingTop: 12,
   },
 
   botonCrear: {
-    height: 54,
+    height: 50,
     borderRadius: 13,
-    backgroundColor: "#2A8C82",
+    backgroundColor: "#247F76",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 5,
-    elevation: 2,
+    marginTop: 10,
+  },
+
+  botonCrearContent: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   botonPresionado: {
-    backgroundColor: "#247F76",
+    backgroundColor: "#1D6760",
   },
 
   botonDeshabilitado: {
@@ -603,12 +683,12 @@ const styles = StyleSheet.create({
 
   textoBoton: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "800",
   },
 
   botonCancelar: {
-    height: 50,
+    height: 48,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 8,
@@ -616,7 +696,7 @@ const styles = StyleSheet.create({
 
   textoCancelar: {
     color: "#647572",
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "700",
   },
 });
