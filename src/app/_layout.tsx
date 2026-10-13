@@ -3,6 +3,7 @@ import { Stack, usePathname, useRouter } from "expo-router";
 import {
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -10,7 +11,7 @@ import {
 } from "react-native";
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
-import { CalendarProvider } from "../context/CalendarContext";
+import { CalendarProvider, useGoogleCalendar } from "../context/CalendarContext";
 import { NotificationsProvider } from "../context/NotificationsContext";
 
 function AppLayout() {
@@ -18,6 +19,7 @@ function AppLayout() {
   const pathname = usePathname();
   const { usuario, logout } = useAuth();
   const { width } = useWindowDimensions();
+  const { isCalendarConnected } = useGoogleCalendar();
 
   const isMobile = width < 700;
 
@@ -90,12 +92,16 @@ function AppLayout() {
                 {usuario.nombre}
               </Text>
               <Text style={styles.usuarioCorreo} numberOfLines={1}>
-                {usuario.correo}
+                {usuario.correo || usuario.correo_electronico}
               </Text>
             </View>
           </View>
 
-          <View style={styles.menuSection}>
+          <ScrollView
+            style={styles.menuScroll}
+            contentContainerStyle={styles.menuScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
             <Text style={styles.sectionTitle}>MENÚ PRINCIPAL</Text>
 
             <Pressable
@@ -124,6 +130,71 @@ function AppLayout() {
                 ]}
               >
                 Inicio
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.menuItem,
+                esCalendar && styles.menuItemActive,
+              ]}
+              onPress={() => router.push("/calendar")}
+            >
+              <View
+                style={[
+                  styles.iconBox,
+                  esCalendar && styles.iconBoxActive,
+                ]}
+              >
+                <FontAwesome
+                  name="calendar"
+                  size={16}
+                  color={esCalendar ? "#247F76" : "#82938F"}
+                />
+              </View>
+              <View style={styles.menuLabelContainer}>
+                <Text
+                  style={[
+                    styles.menuText,
+                    esCalendar && styles.menuTextActive,
+                  ]}
+                >
+                  Google Calendar
+                </Text>
+                {isCalendarConnected && (
+                  <View style={styles.onlineBadge}>
+                    <View style={styles.onlineDot} />
+                  </View>
+                )}
+              </View>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.menuItem,
+                esNotificaciones && styles.menuItemActive,
+              ]}
+              onPress={() => router.push("/notificaciones")}
+            >
+              <View
+                style={[
+                  styles.iconBox,
+                  esNotificaciones && styles.iconBoxActive,
+                ]}
+              >
+                <FontAwesome
+                  name="bell"
+                  size={16}
+                  color={esNotificaciones ? "#247F76" : "#82938F"}
+                />
+              </View>
+              <Text
+                style={[
+                  styles.menuText,
+                  esNotificaciones && styles.menuTextActive,
+                ]}
+              >
+                Notificaciones
               </Text>
             </Pressable>
 
@@ -219,65 +290,7 @@ function AppLayout() {
                 </Text>
               </Pressable>
             )}
-
-            <Pressable
-              style={[
-                styles.menuItem,
-                esNotificaciones && styles.menuItemActive,
-              ]}
-              onPress={() => router.push("/notificaciones")}
-            >
-              <View
-                style={[
-                  styles.iconBox,
-                  esNotificaciones && styles.iconBoxActive,
-                ]}
-              >
-                <FontAwesome
-                  name="bell"
-                  size={16}
-                  color={esNotificaciones ? "#247F76" : "#82938F"}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.menuText,
-                  esNotificaciones && styles.menuTextActive,
-                ]}
-              >
-                Notificaciones
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.menuItem,
-                esCalendar && styles.menuItemActive,
-              ]}
-              onPress={() => router.push("/calendar")}
-            >
-              <View
-                style={[
-                  styles.iconBox,
-                  esCalendar && styles.iconBoxActive,
-                ]}
-              >
-                <FontAwesome
-                  name="calendar"
-                  size={16}
-                  color={esCalendar ? "#247F76" : "#82938F"}
-                />
-              </View>
-              <Text
-                style={[
-                  styles.menuText,
-                  esCalendar && styles.menuTextActive,
-                ]}
-              >
-                Google Calendar
-              </Text>
-            </Pressable>
-          </View>
+          </ScrollView>
 
           <View style={styles.sidebarBottom}>
             <View style={styles.securityBox}>
@@ -314,7 +327,7 @@ function AppLayout() {
       >
         {usuario && isMobile && (
           <View style={styles.mobileHeader}>
-            <View style={styles.mobileBrand}>
+            <Pressable style={styles.mobileBrand} onPress={irInicio}>
               <Text style={styles.mobileLogo}>VITALIA</Text>
               <Text style={styles.mobileRole}>
                 {usuario.rol_id === 1
@@ -325,11 +338,28 @@ function AppLayout() {
                   ? "Paciente"
                   : "Recepción"}
               </Text>
-            </View>
-
-            <Pressable style={styles.mobileLogout} onPress={cerrarSesion}>
-              <FontAwesome name="sign-out" size={16} color="#D65A5A" />
             </Pressable>
+
+            <View style={styles.mobileActions}>
+              <Pressable
+                style={[styles.mobileIconButton, esCalendar && styles.mobileIconButtonActive]}
+                onPress={() => router.push("/calendar")}
+              >
+                <FontAwesome name="calendar" size={16} color={esCalendar ? "#247F76" : "#82938F"} />
+                {isCalendarConnected && <View style={styles.mobileOnlineDot} />}
+              </Pressable>
+
+              <Pressable
+                style={[styles.mobileIconButton, esNotificaciones && styles.mobileIconButtonActive]}
+                onPress={() => router.push("/notificaciones")}
+              >
+                <FontAwesome name="bell" size={16} color={esNotificaciones ? "#247F76" : "#82938F"} />
+              </Pressable>
+
+              <Pressable style={styles.mobileLogout} onPress={cerrarSesion}>
+                <FontAwesome name="sign-out" size={16} color="#D65A5A" />
+              </Pressable>
+            </View>
           </View>
         )}
 
@@ -360,13 +390,14 @@ const styles = StyleSheet.create({
   logo: { width: 52, height: 52, marginBottom: 5 },
   logoText: { fontSize: 21, fontWeight: "800", color: "#247F76", letterSpacing: 1.5 },
   logoSubtitle: { fontSize: 10, color: "#8A9B98", marginTop: 3 },
-  profileCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#F1F8F6", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 28 },
+  profileCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#F1F8F6", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 20 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#DDF3EF", justifyContent: "center", alignItems: "center", marginRight: 10 },
   avatarText: { fontSize: 17, fontWeight: "800", color: "#247F76" },
   profileInfo: { flex: 1 },
   usuarioNombre: { fontSize: 13, fontWeight: "700", color: "#173F3A" },
   usuarioCorreo: { fontSize: 10, color: "#82938F", marginTop: 3 },
-  menuSection: { flex: 1 },
+  menuScroll: { flex: 1 },
+  menuScrollContent: { paddingBottom: 16 },
   sectionTitle: { fontSize: 10, fontWeight: "700", color: "#9AA9A6", letterSpacing: 1, marginLeft: 10, marginBottom: 10 },
   menuItem: { height: 50, borderRadius: 14, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, marginBottom: 7 },
   menuItemActive: { backgroundColor: "#E7F5F2" },
@@ -374,7 +405,10 @@ const styles = StyleSheet.create({
   iconBoxActive: { backgroundColor: "#D5EFEB" },
   menuText: { fontSize: 13, fontWeight: "600", color: "#667773" },
   menuTextActive: { color: "#247F76", fontWeight: "700" },
-  sidebarBottom: { marginTop: "auto" },
+  menuLabelContainer: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  onlineBadge: { marginLeft: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, backgroundColor: "#E6F7F2" },
+  onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#247F76" },
+  sidebarBottom: { marginTop: "auto", paddingTop: 10 },
   securityBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#F7FBFA", borderRadius: 13, padding: 11, marginBottom: 12 },
   securityTitle: { fontSize: 11, fontWeight: "700", color: "#48605B" },
   securityText: { fontSize: 9, color: "#94A39F", marginTop: 2 },
@@ -383,9 +417,13 @@ const styles = StyleSheet.create({
   main: { flex: 1, minWidth: 0, height: "100%", backgroundColor: "#F4FAF8" },
   stackContainer: { flex: 1, minWidth: 0 },
   mainMobile: { width: "100%" },
-  mobileHeader: { height: 68, backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: "#E2ECEA", paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  mobileHeader: { height: 68, backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: "#E2ECEA", paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   mobileBrand: { flexDirection: "row", alignItems: "center" },
   mobileLogo: { fontSize: 19, fontWeight: "800", color: "#247F76", letterSpacing: 1 },
-  mobileRole: { fontSize: 10, color: "#82938F", marginLeft: 10 },
-  mobileLogout: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#FFF5F5", alignItems: "center", justifyContent: "center" },
+  mobileRole: { fontSize: 10, color: "#82938F", marginLeft: 8 },
+  mobileActions: { flexDirection: "row", alignItems: "center" },
+  mobileIconButton: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 8, backgroundColor: "#F1F8F6", position: "relative" },
+  mobileIconButtonActive: { backgroundColor: "#DDF3EF" },
+  mobileOnlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#247F76", position: "absolute", top: 6, right: 6 },
+  mobileLogout: { width: 38, height: 38, borderRadius: 10, backgroundColor: "#FFF5F5", alignItems: "center", justifyContent: "center" },
 });
