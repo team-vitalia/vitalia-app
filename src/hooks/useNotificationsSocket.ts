@@ -158,6 +158,16 @@ export function useNotificationsSocket(
           parsedData = rawData;
         }
 
+        // connection_established, pong y echo son mensajes de protocolo y no deben considerarse notificaciones de usuario
+        const msgType = typeof parsedData === "object" ? parsedData?.type : null;
+        if (
+          msgType === "connection_established" ||
+          msgType === "pong" ||
+          msgType === "echo"
+        ) {
+          return;
+        }
+
         const newMessage: WSMessage = {
           id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           data: parsedData,

@@ -19,7 +19,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { usuario } = useAuth();
   const router = useRouter();
 
-  const clientId = usuario ? `user_${usuario.id}` : "invitado";
+  const userId = usuario ? (usuario.id ?? usuario.id_PK) : null;
+  const clientId = userId ? `user_${userId}` : "invitado";
 
   const handleToastRedirect = useCallback(() => {
     router.push("/notificaciones");

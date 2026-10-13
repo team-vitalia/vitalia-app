@@ -11,7 +11,7 @@ import {
 } from "react-native";
 
 import { AuthProvider, useAuth } from "../context/AuthContext";
-import { CalendarProvider, useGoogleCalendar } from "../context/CalendarContext";
+import { CalendarProvider } from "../context/CalendarContext";
 import { NotificationsProvider } from "../context/NotificationsContext";
 
 function AppLayout() {
@@ -19,7 +19,6 @@ function AppLayout() {
   const pathname = usePathname();
   const { usuario, logout } = useAuth();
   const { width } = useWindowDimensions();
-  const { isCalendarConnected } = useGoogleCalendar();
 
   const isMobile = width < 700;
 
@@ -60,8 +59,9 @@ function AppLayout() {
     pathname === "/recepcion";
   const esUsuarios = pathname.includes("/admin/usuarios");
   const esNotificaciones = pathname === "/notificaciones";
-  const esCalendar = pathname === "/calendar";
   const esCitas = pathname.includes("/recepcion/citas");
+  const esConsultas = pathname.includes("/doctor/consultas");
+  const esPacientesDoc = pathname.includes("/doctor/pacientes");
   const esInventario = pathname.includes("/admin/inventario");
 
   return (
@@ -136,42 +136,6 @@ function AppLayout() {
             <Pressable
               style={[
                 styles.menuItem,
-                esCalendar && styles.menuItemActive,
-              ]}
-              onPress={() => router.push("/calendar")}
-            >
-              <View
-                style={[
-                  styles.iconBox,
-                  esCalendar && styles.iconBoxActive,
-                ]}
-              >
-                <FontAwesome
-                  name="calendar"
-                  size={16}
-                  color={esCalendar ? "#247F76" : "#82938F"}
-                />
-              </View>
-              <View style={styles.menuLabelContainer}>
-                <Text
-                  style={[
-                    styles.menuText,
-                    esCalendar && styles.menuTextActive,
-                  ]}
-                >
-                  Google Calendar
-                </Text>
-                {isCalendarConnected && (
-                  <View style={styles.onlineBadge}>
-                    <View style={styles.onlineDot} />
-                  </View>
-                )}
-              </View>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.menuItem,
                 esNotificaciones && styles.menuItemActive,
               ]}
               onPress={() => router.push("/notificaciones")}
@@ -197,6 +161,99 @@ function AppLayout() {
                 Notificaciones
               </Text>
             </Pressable>
+
+            {(usuario.rol_id === 1 || usuario.rol_id === 4) && (
+              <Pressable
+                style={[
+                  styles.menuItem,
+                  esCitas && styles.menuItemActive,
+                ]}
+                onPress={() => router.push("/recepcion/citas")}
+              >
+                <View
+                  style={[
+                    styles.iconBox,
+                    esCitas && styles.iconBoxActive,
+                  ]}
+                >
+                  <FontAwesome
+                    name="calendar-check-o"
+                    size={16}
+                    color={esCitas ? "#247F76" : "#82938F"}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.menuText,
+                    esCitas && styles.menuTextActive,
+                  ]}
+                >
+                  Citas
+                </Text>
+              </Pressable>
+            )}
+
+            {usuario.rol_id === 2 && (
+              <Pressable
+                style={[
+                  styles.menuItem,
+                  esConsultas && styles.menuItemActive,
+                ]}
+                onPress={() => router.push("/doctor/consultas")}
+              >
+                <View
+                  style={[
+                    styles.iconBox,
+                    esConsultas && styles.iconBoxActive,
+                  ]}
+                >
+                  <FontAwesome
+                    name="calendar-check-o"
+                    size={16}
+                    color={esConsultas ? "#247F76" : "#82938F"}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.menuText,
+                    esConsultas && styles.menuTextActive,
+                  ]}
+                >
+                  Mis Consultas
+                </Text>
+              </Pressable>
+            )}
+
+            {usuario.rol_id === 2 && (
+              <Pressable
+                style={[
+                  styles.menuItem,
+                  esPacientesDoc && styles.menuItemActive,
+                ]}
+                onPress={() => router.push("/doctor/pacientes")}
+              >
+                <View
+                  style={[
+                    styles.iconBox,
+                    esPacientesDoc && styles.iconBoxActive,
+                  ]}
+                >
+                  <FontAwesome
+                    name="users"
+                    size={16}
+                    color={esPacientesDoc ? "#247F76" : "#82938F"}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.menuText,
+                    esPacientesDoc && styles.menuTextActive,
+                  ]}
+                >
+                  Mis Pacientes
+                </Text>
+              </Pressable>
+            )}
 
             {usuario.rol_id === 1 && (
               <Pressable
@@ -259,37 +316,6 @@ function AppLayout() {
                 </Text>
               </Pressable>
             )}
-
-            {usuario.rol_id === 4 && (
-              <Pressable
-                style={[
-                  styles.menuItem,
-                  esCitas && styles.menuItemActive,
-                ]}
-                onPress={() => router.push("/recepcion/citas")}
-              >
-                <View
-                  style={[
-                    styles.iconBox,
-                    esCitas && styles.iconBoxActive,
-                  ]}
-                >
-                  <FontAwesome
-                    name="calendar-check-o"
-                    size={16}
-                    color={esCitas ? "#247F76" : "#82938F"}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.menuText,
-                    esCitas && styles.menuTextActive,
-                  ]}
-                >
-                  Citas
-                </Text>
-              </Pressable>
-            )}
           </ScrollView>
 
           <View style={styles.sidebarBottom}>
@@ -341,14 +367,6 @@ function AppLayout() {
             </Pressable>
 
             <View style={styles.mobileActions}>
-              <Pressable
-                style={[styles.mobileIconButton, esCalendar && styles.mobileIconButtonActive]}
-                onPress={() => router.push("/calendar")}
-              >
-                <FontAwesome name="calendar" size={16} color={esCalendar ? "#247F76" : "#82938F"} />
-                {isCalendarConnected && <View style={styles.mobileOnlineDot} />}
-              </Pressable>
-
               <Pressable
                 style={[styles.mobileIconButton, esNotificaciones && styles.mobileIconButtonActive]}
                 onPress={() => router.push("/notificaciones")}
