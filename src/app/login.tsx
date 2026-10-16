@@ -441,6 +441,7 @@ export default function LoginScreen() {
                     </View>
 
                     <TextInput
+                      testID="login-email"
                       style={[
                         styles.input,
                         {
@@ -515,6 +516,7 @@ export default function LoginScreen() {
                     </View>
 
                     <TextInput
+                      testID="login-password"
                       style={[
                         styles.input,
                         {
@@ -582,6 +584,7 @@ export default function LoginScreen() {
                 ================================================= */}
 
                 <Pressable
+                  testID="login-submit"
                   onPress={iniciarSesion}
                   disabled={cargando}
                   style={({ pressed }) => [
