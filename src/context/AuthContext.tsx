@@ -54,7 +54,9 @@ export function AuthProvider({
   ============================================================
   */
   useEffect(() => {
-    const cargarSesionPersistente = () => {
+    let montado = true;
+
+    const cargarSesionPersistente = async () => {
       try {
         if (typeof window !== "undefined") {
           const tokenGuardado = localStorage.getItem("vitalia_token");
@@ -62,20 +64,50 @@ export function AuthProvider({
 
           if (tokenGuardado && usuarioGuardado) {
             const parsedUser = JSON.parse(usuarioGuardado);
-            setToken(tokenGuardado);
-            setUsuario(parsedUser);
+            if (montado) {
+              setToken(tokenGuardado);
+              setUsuario(parsedUser);
+            }
 
             api.defaults.headers.common["Authorization"] = `Bearer ${tokenGuardado}`;
+
+            // Validar en segundo plano que el token siga activo
+            try {
+              const res = await api.get("/api/auth/me", {
+                headers: { Authorization: `Bearer ${tokenGuardado}` },
+              });
+              if (res.data && montado) {
+                setUsuario(res.data);
+                localStorage.setItem("vitalia_usuario", JSON.stringify(res.data));
+              }
+            } catch (err: any) {
+              if (err?.response?.status === 401) {
+                console.warn("Sesión expirada en el servidor. Limpiando almacenamiento.");
+                if (montado) {
+                  setToken(null);
+                  setUsuario(null);
+                }
+                localStorage.removeItem("vitalia_token");
+                localStorage.removeItem("vitalia_usuario");
+                delete api.defaults.headers.common["Authorization"];
+              }
+            }
           }
         }
       } catch (e) {
         console.error("Error al rehidratar sesión:", e);
       } finally {
-        setCargando(false);
+        if (montado) {
+          setCargando(false);
+        }
       }
     };
 
     cargarSesionPersistente();
+
+    return () => {
+      montado = false;
+    };
   }, []);
 
   /*

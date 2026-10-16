@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { FontAwesome } from "@expo/vector-icons";
 import { Stack, usePathname, useRouter } from "expo-router";
 import {
@@ -17,10 +18,12 @@ import { NotificationsProvider } from "../context/NotificationsContext";
 function AppLayout() {
   const router = useRouter();
   const pathname = usePathname();
-  const { usuario, logout } = useAuth();
+  const { usuario, logout, cargando } = useAuth();
   const { width } = useWindowDimensions();
 
   const isMobile = width < 700;
+  const isAuthPage = pathname === "/login" || pathname === "/";
+  const rolId = usuario?.rol_id ?? usuario?.rol_id_FK;
 
   const cerrarSesion = () => {
     logout();
@@ -30,7 +33,7 @@ function AppLayout() {
   const irInicio = () => {
     if (!usuario) return;
 
-    switch (usuario.rol_id) {
+    switch (rolId) {
       case 1:
         router.replace("/admin");
         break;
@@ -52,6 +55,13 @@ function AppLayout() {
     }
   };
 
+  // Proteger rutas privadas si el usuario no ha iniciado sesión
+  useEffect(() => {
+    if (!cargando && !usuario && !isAuthPage) {
+      router.replace("/login");
+    }
+  }, [cargando, usuario, isAuthPage, pathname]);
+
   const esInicio =
     pathname === "/admin" ||
     pathname === "/doctor" ||
@@ -66,7 +76,7 @@ function AppLayout() {
 
   return (
     <View style={styles.container}>
-      {usuario && !isMobile && (
+      {!isAuthPage && usuario && !isMobile && (
         <View style={styles.sidebar}>
           <View style={styles.logoContainer}>
             <Image
@@ -162,7 +172,7 @@ function AppLayout() {
               </Text>
             </Pressable>
 
-            {(usuario.rol_id === 1 || usuario.rol_id === 4) && (
+            {(rolId === 1 || rolId === 4) && (
               <Pressable
                 style={[
                   styles.menuItem,
@@ -193,7 +203,7 @@ function AppLayout() {
               </Pressable>
             )}
 
-            {usuario.rol_id === 2 && (
+            {rolId === 2 && (
               <Pressable
                 style={[
                   styles.menuItem,
@@ -224,7 +234,7 @@ function AppLayout() {
               </Pressable>
             )}
 
-            {usuario.rol_id === 2 && (
+            {rolId === 2 && (
               <Pressable
                 style={[
                   styles.menuItem,
@@ -255,7 +265,7 @@ function AppLayout() {
               </Pressable>
             )}
 
-            {usuario.rol_id === 1 && (
+            {rolId === 1 && (
               <Pressable
                 style={[
                   styles.menuItem,
@@ -286,7 +296,7 @@ function AppLayout() {
               </Pressable>
             )}
 
-            {usuario.rol_id === 1 && (
+            {rolId === 1 && (
               <Pressable
                 style={[
                   styles.menuItem,
@@ -351,16 +361,16 @@ function AppLayout() {
           isMobile && styles.mainMobile,
         ]}
       >
-        {usuario && isMobile && (
+        {!isAuthPage && usuario && isMobile && (
           <View style={styles.mobileHeader}>
             <Pressable style={styles.mobileBrand} onPress={irInicio}>
               <Text style={styles.mobileLogo}>VITALIA</Text>
               <Text style={styles.mobileRole}>
-                {usuario.rol_id === 1
+                {rolId === 1
                   ? "Administrador"
-                  : usuario.rol_id === 2
+                  : rolId === 2
                   ? "Doctor"
-                  : usuario.rol_id === 3
+                  : rolId === 3
                   ? "Paciente"
                   : "Recepción"}
               </Text>

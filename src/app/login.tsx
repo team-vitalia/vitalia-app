@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -21,7 +21,7 @@ import { useAuth } from "../context/AuthContext";
 export default function LoginScreen() {
   const router = useRouter();
 
-  const { login, cargando } = useAuth();
+  const { login, cargando, usuario } = useAuth();
 
   const { width, height } = useWindowDimensions();
 
@@ -29,6 +29,48 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [errorLogin, setErrorLogin] = useState("");
+  const [recordarSesion, setRecordarSesion] = useState(true);
+
+  // Redirigir automáticamente si ya existe una sesión activa
+  useEffect(() => {
+    if (!cargando && usuario) {
+      const rolId = usuario.rol_id ?? usuario.rol_id_FK;
+      switch (rolId) {
+        case 1:
+          router.replace("/admin");
+          break;
+        case 2:
+          router.replace("/doctor");
+          break;
+        case 3:
+          router.replace("/paciente");
+          break;
+        case 4:
+          router.replace("/recepcion");
+          break;
+        default:
+          break;
+      }
+    }
+  }, [cargando, usuario]);
+
+  // Cargar correo y preferencia guardada
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedEmail = localStorage.getItem("vitalia_remember_email");
+        const savedRemember = localStorage.getItem("vitalia_remember_me");
+        if (savedEmail) {
+          setCorreo(savedEmail);
+        }
+        if (savedRemember !== null) {
+          setRecordarSesion(savedRemember === "true");
+        }
+      } catch (e) {
+        console.warn("No se pudo leer el almacenamiento local:", e);
+      }
+    }
+  }, []);
 
   /*
   ============================================================
@@ -103,14 +145,26 @@ export default function LoginScreen() {
     }
 
     try {
-      const usuario = await login(
+      const usuarioLogueado = await login(
         correoLimpio,
         passwordLimpia
       );
 
+      // Persistir o limpiar datos recordados según la opción del usuario
+      if (typeof window !== "undefined") {
+        if (recordarSesion) {
+          localStorage.setItem("vitalia_remember_me", "true");
+          localStorage.setItem("vitalia_remember_email", correoLimpio);
+        } else {
+          localStorage.removeItem("vitalia_remember_me");
+          localStorage.removeItem("vitalia_remember_email");
+        }
+      }
+
       setErrorLogin("");
 
-      switch (usuario.rol_id) {
+      const rolId = usuarioLogueado.rol_id ?? usuarioLogueado.rol_id_FK;
+      switch (rolId) {
         case 1:
           router.replace("/admin");
           break;
@@ -173,6 +227,15 @@ export default function LoginScreen() {
       );
     }
   };
+
+  if (usuario) {
+    return (
+      <View style={[styles.container, styles.centerLoading]}>
+        <ActivityIndicator size="large" color="#247F76" />
+        <Text style={styles.redirectLoadingText}>Accediendo a tu cuenta...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -566,6 +629,35 @@ export default function LoginScreen() {
                   </View>
 
                 </View>
+
+                {/* =================================================
+                    RECORDAR SESIÓN (REMINDER / CACHÉ)
+                ================================================= */}
+
+                <Pressable
+                  testID="login-remember-me"
+                  style={styles.rememberRow}
+                  onPress={() => setRecordarSesion(!recordarSesion)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: recordarSesion }}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      recordarSesion && styles.checkboxActive,
+                    ]}
+                  >
+                    {recordarSesion && (
+                      <Text style={styles.checkmark}>✓</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.rememberTextContainer}>
+                    <Text style={styles.rememberText}>
+                      Recordar mis datos / Mantener sesión activa
+                    </Text>
+                  </View>
+                </Pressable>
 
                 {errorLogin ? (
                   <View style={styles.errorBox}>
@@ -1176,6 +1268,64 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#B33A35",
     fontSize: 12,
+    fontWeight: "700",
+  },
+
+  /* =========================================================
+     RECORDAR SESIÓN Y CARGA
+  ========================================================= */
+
+  rememberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    marginTop: -4,
+    paddingVertical: 4,
+  },
+
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "#A9BCB9",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+
+  checkboxActive: {
+    backgroundColor: "#247F76",
+    borderColor: "#247F76",
+  },
+
+  checkmark: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+    lineHeight: 14,
+  },
+
+  rememberTextContainer: {
+    flex: 1,
+  },
+
+  rememberText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#46625D",
+  },
+
+  centerLoading: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  redirectLoadingText: {
+    marginTop: 14,
+    fontSize: 14,
+    color: "#247F76",
     fontWeight: "700",
   },
 });
