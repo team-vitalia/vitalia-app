@@ -55,7 +55,6 @@ function AppLayout() {
     }
   };
 
-  // Proteger rutas privadas si el usuario no ha iniciado sesión
   useEffect(() => {
     if (!cargando && !usuario && !isAuthPage) {
       router.replace("/login");
@@ -70,6 +69,7 @@ function AppLayout() {
   const esUsuarios = pathname.includes("/admin/usuarios");
   const esNotificaciones = pathname === "/notificaciones";
   const esCitas = pathname.includes("/recepcion/citas");
+  const esCola = pathname.includes("/recepcion/cola");
   const esConsultas = pathname.includes("/doctor/consultas");
   const esPacientesDoc = pathname.includes("/doctor/pacientes");
   const esInventario = pathname.includes("/admin/inventario");
@@ -172,7 +172,7 @@ function AppLayout() {
               </Text>
             </Pressable>
 
-            {(rolId === 1 || rolId === 4) && (
+            {rolId === 4 && (
               <Pressable
                 style={[
                   styles.menuItem,
@@ -198,7 +198,38 @@ function AppLayout() {
                     esCitas && styles.menuTextActive,
                   ]}
                 >
-                  Citas
+                  Citas Médicas
+                </Text>
+              </Pressable>
+            )}
+
+            {rolId === 4 && (
+              <Pressable
+                style={[
+                  styles.menuItem,
+                  esCola && styles.menuItemActive,
+                ]}
+                onPress={() => router.push("/recepcion/cola")}
+              >
+                <View
+                  style={[
+                    styles.iconBox,
+                    esCola && styles.iconBoxActive,
+                  ]}
+                >
+                  <FontAwesome
+                    name="list-ol"
+                    size={16}
+                    color={esCola ? "#247F76" : "#82938F"}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.menuText,
+                    esCola && styles.menuTextActive,
+                  ]}
+                >
+                  Lista de Espera
                 </Text>
               </Pressable>
             )}

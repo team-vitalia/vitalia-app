@@ -1,22 +1,27 @@
-
 import { View } from "react-native";
 
 interface SelectorFechaProps {
   value: string;
   onChange: (fecha: string) => void;
   placeholder?: string;
+  min?: string;
+  max?: string;
 }
 
 export default function SelectorFecha({
   value,
   onChange,
   placeholder = "Seleccionar fecha",
+  min,
+  max,
 }: SelectorFechaProps) {
   return (
     <View style={{ width: "100%" }}>
       <input
         type="date"
         value={value}
+        min={min}
+        max={max}
         aria-label={placeholder}
         onChange={(event) => onChange(event.target.value)}
         style={{

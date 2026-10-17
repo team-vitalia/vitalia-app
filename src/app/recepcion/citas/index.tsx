@@ -22,6 +22,7 @@ import {
   registrarLlegada,
 } from "../../../services/colasService";
 import SelectorFecha from "../../../components/SelectorFecha";
+import SelectorHora from "../../../components/SelectorHora";
 
 interface Cita {
   id_PK: number;
@@ -51,12 +52,10 @@ interface Doctor {
 
 type FiltroTemporal = "todas" | "hoy" | "semana" | "fecha";
 
-/**
- * Pantalla principal de gestión de citas en recepción con vista híbrida,
- * sincronización con Google Calendar, reprogramación y notificaciones en tiempo real.
- */
+
 export default function CitasScreen() {
-  const { token } = useAuth();
+  const { token, usuario, cargando: cargandoAuth } = useAuth();
+  const rolId = usuario?.rol_id ?? usuario?.rol_id_FK;
   const { messages } = useNotifications();
   const {
     isCalendarConnected,
@@ -95,9 +94,7 @@ export default function CitasScreen() {
   const [citaAEliminar, setCitaAEliminar] = useState<Cita | null>(null);
   const [eliminando, setEliminando] = useState(false);
 
-  /**
-   * Carga las citas, pacientes, doctores y estados de cola en paralelo desde el servidor.
-   */
+  
   const cargarDatos = async () => {
     if (!token) return;
 
@@ -148,16 +145,12 @@ export default function CitasScreen() {
     }
   }, [messages.length]);
 
-  /**
-   * Retorna el elemento en sala de espera asociado al identificador de cita proporcionado.
-   */
+  
   const obtenerColaDeCita = (citaId: number): Cola | undefined => {
     return colas.find((cola) => cola.cita_id_FK === citaId);
   };
 
-  /**
-   * Obtiene el nombre completo del paciente a partir de su ID.
-   */
+  
   const obtenerNombrePaciente = (pacienteId: number | null): string => {
     if (!pacienteId) return "—";
     const paciente = pacientes.find((p) => p.id_PK === pacienteId);
@@ -165,9 +158,7 @@ export default function CitasScreen() {
     return `${paciente.nombre} ${paciente.apellido}`;
   };
 
-  /**
-   * Obtiene el nombre del médico a partir de su ID.
-   */
+  
   const obtenerNombreDoctor = (doctorId: number | null): string => {
     if (!doctorId) return "—";
     const doctor = doctores.find((d) => d.id_PK === doctorId);
@@ -175,9 +166,7 @@ export default function CitasScreen() {
     return doctor.nombre;
   };
 
-  /**
-   * Retorna la fecha de hoy en formato AAAA-MM-DD.
-   */
+  
   const obtenerFechaHoy = (): string => {
     const hoy = new Date();
     const anio = hoy.getFullYear();
@@ -186,9 +175,7 @@ export default function CitasScreen() {
     return `${anio}-${mes}-${dia}`;
   };
 
-  /**
-   * Retorna la fecha límite para el rango de días en formato AAAA-MM-DD.
-   */
+  
   const obtenerFechaLimite = (dias: number): string => {
     const fecha = new Date();
     fecha.setDate(fecha.getDate() + dias);
@@ -198,9 +185,7 @@ export default function CitasScreen() {
     return `${anio}-${mes}-${dia}`;
   };
 
-  /**
-   * Filtra y ordena cronológicamente la lista de citas médicas.
-   */
+  
   const citasFiltradas = useMemo(() => {
     let resultado = [...citas];
 
@@ -244,9 +229,7 @@ export default function CitasScreen() {
     });
   }, [citas, busqueda, filtroTiempo, fechaFiltro, pacientes, doctores]);
 
-  /**
-   * Dispara una prueba manual del sistema de recordatorios de citas próximas (CU-11).
-   */
+  
   const dispararRecordatorios = async () => {
     if (!token) return;
 
@@ -269,9 +252,7 @@ export default function CitasScreen() {
     }
   };
 
-  /**
-   * Despliega la ventana modal para registrar la llegada del paciente a la sala de espera.
-   */
+  
   const abrirModalLlegada = (cita: Cita) => {
     const colaExistente = obtenerColaDeCita(cita.id_PK);
 
@@ -288,9 +269,7 @@ export default function CitasScreen() {
     setModalLlegada(true);
   };
 
-  /**
-   * Confirma el registro de llegada del paciente en la cola de atención.
-   */
+  
   const confirmarLlegada = async () => {
     if (!citaSeleccionada) return;
 
@@ -336,9 +315,7 @@ export default function CitasScreen() {
     }
   };
 
-  /**
-   * Abre la ventana modal para reprogramar la fecha y hora de la cita médica (CU-07).
-   */
+  
   const abrirModalReprogramar = (cita: Cita) => {
     setCitaAReprogramar(cita);
     setNuevaFecha(cita.fecha || "");
@@ -349,14 +326,20 @@ export default function CitasScreen() {
     setModalReprogramar(true);
   };
 
-  /**
-   * Envía la solicitud de reprogramación sincronizando con la base de datos y Google Calendar (CU-07, CU-12).
-   */
+  
   const confirmarReprogramacion = async () => {
     if (!token || !citaAReprogramar) return;
 
+    const hoy = new Date().toISOString().split("T")[0];
+    const patronHora = /^([01]\d|2[0-3]):[0-5]\d$/;
+
     if (!nuevaFecha.trim()) {
       Alert.alert("Falta información", "Selecciona una nueva fecha.");
+      return;
+    }
+
+    if (nuevaFecha.trim() < hoy) {
+      Alert.alert("Fecha inválida", "La fecha de reprogramación no puede ser anterior al día de hoy.");
       return;
     }
 
@@ -365,8 +348,23 @@ export default function CitasScreen() {
       return;
     }
 
+    if (!patronHora.test(nuevaHoraInicio.trim())) {
+      Alert.alert("Hora inválida", "El formato de la hora de inicio debe ser HH:MM.");
+      return;
+    }
+
     if (!nuevaHoraFin.trim()) {
       Alert.alert("Falta información", "Ingresa la hora de fin.");
+      return;
+    }
+
+    if (!patronHora.test(nuevaHoraFin.trim())) {
+      Alert.alert("Hora inválida", "El formato de la hora de fin debe ser HH:MM.");
+      return;
+    }
+
+    if (nuevaHoraFin.trim() <= nuevaHoraInicio.trim()) {
+      Alert.alert("Horario inválido", "La hora de finalización debe ser posterior a la hora de inicio.");
       return;
     }
 
@@ -406,17 +404,13 @@ export default function CitasScreen() {
     }
   };
 
-  /**
-   * Abre el modal de confirmación para eliminar o cancelar la cita médica (CU-08).
-   */
+  
   const abrirModalEliminar = (cita: Cita) => {
     setCitaAEliminar(cita);
     setModalEliminar(true);
   };
 
-  /**
-   * Ejecuta la eliminación de la cita en la base de datos y Google Calendar (CU-08).
-   */
+  
   const confirmarEliminar = async () => {
     if (!token || !citaAEliminar) return;
 
@@ -464,13 +458,41 @@ export default function CitasScreen() {
     }
   };
 
+  if (!cargandoAuth && rolId !== 4) {
+    return (
+      <View style={styles.deniedContainer}>
+        <View style={styles.deniedCard}>
+          <View style={styles.deniedIconBox}>
+            <FontAwesome name="lock" size={32} color="#D65A5A" />
+          </View>
+          <Text style={styles.deniedTitle}>Acceso Restringido</Text>
+          <Text style={styles.deniedSubtitle}>
+            El módulo de gestión y agenda de citas médicas está reservado exclusivamente para el personal con rol de Recepción.
+          </Text>
+          <Pressable
+            style={styles.deniedButton}
+            onPress={() => {
+              if (rolId === 1) router.replace("/admin");
+              else if (rolId === 2) router.replace("/doctor");
+              else if (rolId === 3) router.replace("/paciente");
+              else router.replace("/login");
+            }}
+          >
+            <FontAwesome name="arrow-left" size={14} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.deniedButtonText}>Volver a mi Panel Principal</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* ENCABEZADO */}
+      
       <View style={styles.header}>
         <View>
           <Text style={styles.smallTitle}>RECEPCIÓN</Text>
@@ -518,7 +540,7 @@ export default function CitasScreen() {
         </View>
       </View>
 
-      {/* VINCULACIÓN CON GOOGLE CALENDAR */}
+      
       <View style={styles.calendarIntegrationCard}>
         <View style={styles.calendarIntegrationLeft}>
           <FontAwesome name="calendar" size={16} color="#247F76" style={{ marginRight: 10 }} />
@@ -549,7 +571,7 @@ export default function CitasScreen() {
         </View>
       </View>
 
-      {/* BUSCADOR */}
+      
       <View style={styles.searchContainer}>
         <FontAwesome name="search" size={15} color="#8A9A98" style={styles.searchIcon} />
         <TextInput
@@ -569,7 +591,7 @@ export default function CitasScreen() {
         ) : null}
       </View>
 
-      {/* VISTA HÍBRIDA: FILTROS DE FECHA */}
+      
       <View style={styles.filtersWrapper}>
         <View style={styles.filterChipsRow}>
           <Pressable
@@ -683,7 +705,7 @@ export default function CitasScreen() {
         )}
       </View>
 
-      {/* RESUMEN DE CITAS */}
+      
       <View style={styles.summaryCard}>
         <View style={styles.summaryLeft}>
           <Text style={styles.summaryNumber}>{citasFiltradas.length}</Text>
@@ -700,7 +722,7 @@ export default function CitasScreen() {
         <FontAwesome name="calendar" size={38} color="#A7DFD6" />
       </View>
 
-      {/* LISTADO DE CITAS */}
+      
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>Agenda Cronológica</Text>
         <Pressable style={styles.refreshButton} onPress={cargarDatos}>
@@ -744,7 +766,7 @@ export default function CitasScreen() {
               key={cita.id_PK}
               style={[styles.citaCard, atendida && styles.citaCardAtendida]}
             >
-              {/* ENCABEZADO DE TARJETA */}
+              
               <View style={styles.citaHeader}>
                 <View style={{ flex: 1 }}>
                   <View style={styles.citaTitleRow}>
@@ -778,7 +800,7 @@ export default function CitasScreen() {
                     </Text>
                   </View>
 
-                  {/* BOTÓN REPROGRAMAR (CU-07) */}
+                  
                   {!atendida && (
                     <Pressable
                       style={styles.rescheduleButton}
@@ -788,7 +810,7 @@ export default function CitasScreen() {
                     </Pressable>
                   )}
 
-                  {/* BOTÓN ELIMINAR (CU-08) */}
+                  
                   {!registrada && (
                     <Pressable
                       style={styles.deleteButton}
@@ -802,7 +824,7 @@ export default function CitasScreen() {
 
               <View style={styles.divider} />
 
-              {/* DATOS DEL PACIENTE */}
+              
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelContainer}>
                   <FontAwesome name="user" size={12} color="#247F76" style={styles.infoIcon} />
@@ -813,7 +835,7 @@ export default function CitasScreen() {
                 </Text>
               </View>
 
-              {/* DATOS DEL DOCTOR */}
+              
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelContainer}>
                   <FontAwesome name="user-md" size={13} color="#247F76" style={styles.infoIcon} />
@@ -824,7 +846,7 @@ export default function CitasScreen() {
                 </Text>
               </View>
 
-              {/* MOTIVO */}
+              
               {cita.motivo && (
                 <View style={styles.infoRow}>
                   <View style={styles.infoLabelContainer}>
@@ -835,7 +857,7 @@ export default function CitasScreen() {
                 </View>
               )}
 
-              {/* NOTAS */}
+              
               {cita.notas && (
                 <View style={styles.infoRow}>
                   <View style={styles.infoLabelContainer}>
@@ -846,7 +868,7 @@ export default function CitasScreen() {
                 </View>
               )}
 
-              {/* BANNERS DE ESTADO */}
+              
               {atendida ? (
                 <View style={styles.attendedBanner}>
                   <View style={styles.attendedHeader}>
@@ -928,7 +950,7 @@ export default function CitasScreen() {
         })
       )}
 
-      {/* MODAL DE REGISTRAR LLEGADA */}
+      
       <Modal
         visible={modalLlegada}
         transparent
@@ -1005,7 +1027,7 @@ export default function CitasScreen() {
         </View>
       </Modal>
 
-      {/* MODAL DE REPROGRAMAR CITA (CU-07) */}
+      
       <Modal
         visible={modalReprogramar}
         transparent
@@ -1027,6 +1049,7 @@ export default function CitasScreen() {
             <View style={{ marginBottom: 14 }}>
               <SelectorFecha
                 value={nuevaFecha}
+                min={new Date().toISOString().split("T")[0]}
                 onChange={setNuevaFecha}
                 placeholder="Seleccionar nueva fecha"
               />
@@ -1035,25 +1058,20 @@ export default function CitasScreen() {
             <View style={styles.modalTimeRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalLabel}>Hora Inicio</Text>
-                <TextInput
-                  style={styles.modalInput}
+                <SelectorHora
                   value={nuevaHoraInicio}
-                  onChangeText={setNuevaHoraInicio}
+                  onChange={setNuevaHoraInicio}
                   placeholder="10:00"
-                  placeholderTextColor="#8A9A98"
-                  maxLength={5}
                 />
               </View>
 
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalLabel}>Hora Fin</Text>
-                <TextInput
-                  style={styles.modalInput}
+                <SelectorHora
                   value={nuevaHoraFin}
-                  onChangeText={setNuevaHoraFin}
+                  min={nuevaHoraInicio || undefined}
+                  onChange={setNuevaHoraFin}
                   placeholder="10:30"
-                  placeholderTextColor="#8A9A98"
-                  maxLength={5}
                 />
               </View>
             </View>
@@ -1065,6 +1083,7 @@ export default function CitasScreen() {
               onChangeText={setNuevoMotivo}
               placeholder="Motivo de la consulta"
               placeholderTextColor="#8A9A98"
+              maxLength={250}
             />
 
             <View style={styles.syncHintBox}>
@@ -1100,7 +1119,7 @@ export default function CitasScreen() {
         </View>
       </Modal>
 
-      {/* MODAL DE ELIMINAR CITA (CU-08) */}
+      
       <Modal
         visible={modalEliminar}
         transparent
@@ -1859,6 +1878,73 @@ const styles = StyleSheet.create({
   unlinkSmallBtnText: {
     color: "#FFFFFF",
     fontSize: 11,
+    fontWeight: "800",
+  },
+
+  deniedContainer: {
+    flex: 1,
+    backgroundColor: "#F4FAF8",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+
+  deniedCard: {
+    width: "100%",
+    maxWidth: 480,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 32,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2ECEA",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+
+  deniedIconBox: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#FFF0EF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#FAD2CE",
+  },
+
+  deniedTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#173F3A",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+
+  deniedSubtitle: {
+    fontSize: 14,
+    color: "#718581",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 26,
+  },
+
+  deniedButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#247F76",
+    paddingVertical: 13,
+    paddingHorizontal: 22,
+    borderRadius: 14,
+  },
+
+  deniedButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
     fontWeight: "800",
   },
 });

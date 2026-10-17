@@ -1,4 +1,3 @@
-
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
@@ -7,6 +6,8 @@ interface SelectorFechaProps {
   value: string;
   onChange: (fecha: string) => void;
   placeholder?: string;
+  min?: string;
+  max?: string;
 }
 
 function fechaLocal(fecha: Date) {
@@ -21,12 +22,17 @@ export default function SelectorFecha({
   value,
   onChange,
   placeholder = "Seleccionar fecha",
+  min,
+  max,
 }: SelectorFechaProps) {
   const [visible, setVisible] = useState(false);
 
   const fechaSeleccionada = value
     ? new Date(`${value}T12:00:00`)
     : new Date();
+
+  const minDate = min ? new Date(`${min}T00:00:00`) : undefined;
+  const maxDate = max ? new Date(`${max}T23:59:59`) : undefined;
 
   return (
     <View>
@@ -48,6 +54,8 @@ export default function SelectorFecha({
       {visible && (
         <DateTimePicker
           value={fechaSeleccionada}
+          minimumDate={minDate}
+          maximumDate={maxDate}
           mode="date"
           display={Platform.OS === "ios" ? "spinner" : "default"}
           onChange={(_, fecha) => {
