@@ -24,6 +24,8 @@ export default function Index() {
         return <Redirect href="/paciente" />;
       case 4:
         return <Redirect href="/recepcion" />;
+      case 5:
+        return <Redirect href="/coordinador" />;
       default:
         return <Redirect href="/login" />;
     }

@@ -70,6 +70,42 @@ export default function AdminScreen() {
         </View>
         <Text style={styles.actionArrow}>→</Text>
       </Pressable>
+
+      <Pressable style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]} onPress={() => router.push("/admin/salas")}>
+        <View style={styles.actionIcon}><Text style={styles.actionIconText}>🏥</Text></View>
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>Salas y equipamiento</Text>
+          <Text style={styles.actionDescription}>Gestiona salas, su estado y los equipos de cada una.</Text>
+        </View>
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
+
+      <Pressable style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]} onPress={() => router.push("/admin/doctores/salas")}>
+        <View style={styles.actionIcon}><Text style={styles.actionIconText}>🗓️</Text></View>
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>Salas por doctor</Text>
+          <Text style={styles.actionDescription}>Asigna salas y horarios de uso a cada médico.</Text>
+        </View>
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
+
+      <Pressable style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]} onPress={() => router.push("/admin/reportes")}>
+        <View style={styles.actionIcon}><Text style={styles.actionIconText}>📊</Text></View>
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>Reportes</Text>
+          <Text style={styles.actionDescription}>Ocupación, citas, tiempos de espera, inventario y recetas.</Text>
+        </View>
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
+
+      <Pressable style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]} onPress={() => router.push("/admin/auditoria")}>
+        <View style={styles.actionIcon}><Text style={styles.actionIconText}>🧾</Text></View>
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>Auditoría</Text>
+          <Text style={styles.actionDescription}>Historial de cambios realizados en el sistema.</Text>
+        </View>
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
     </ScrollView>
   );
 }

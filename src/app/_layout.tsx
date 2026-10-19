@@ -50,6 +50,10 @@ function AppLayout() {
         router.replace("/recepcion");
         break;
 
+      case 5:
+        router.replace("/coordinador");
+        break;
+
       default:
         break;
     }
@@ -65,7 +69,8 @@ function AppLayout() {
     pathname === "/admin" ||
     pathname === "/doctor" ||
     pathname === "/paciente" ||
-    pathname === "/recepcion";
+    pathname === "/recepcion" ||
+    pathname === "/coordinador";
   const esUsuarios = pathname.includes("/admin/usuarios");
   const esNotificaciones = pathname === "/notificaciones";
   const esCitas = pathname.includes("/recepcion/citas");
@@ -73,6 +78,12 @@ function AppLayout() {
   const esConsultas = pathname.includes("/doctor/consultas");
   const esPacientesDoc = pathname.includes("/doctor/pacientes");
   const esInventario = pathname.includes("/admin/inventario");
+  const esAdminOCoordinador = rolId === 1 || rolId === 5;
+  const itemsC2 = [
+    { ruta: "/admin/salas", etiqueta: "Salas y Equipamiento", icono: "hospital-o", activo: pathname.includes("/admin/salas") },
+    { ruta: "/admin/auditoria", etiqueta: "Auditoría", icono: "history", activo: pathname.includes("/admin/auditoria") },
+    { ruta: "/admin/reportes", etiqueta: "Reportes", icono: "bar-chart", activo: pathname.includes("/admin/reportes") },
+  ] as const;
 
   return (
     <View style={styles.container}>
@@ -296,7 +307,7 @@ function AppLayout() {
               </Pressable>
             )}
 
-            {rolId === 1 && (
+            {esAdminOCoordinador && (
               <Pressable
                 style={[
                   styles.menuItem,
@@ -357,6 +368,25 @@ function AppLayout() {
                 </Text>
               </Pressable>
             )}
+            {esAdminOCoordinador &&
+              itemsC2.map((item) => (
+                <Pressable
+                  key={item.ruta}
+                  style={[styles.menuItem, item.activo && styles.menuItemActive]}
+                  onPress={() => router.push(item.ruta)}
+                >
+                  <View style={[styles.iconBox, item.activo && styles.iconBoxActive]}>
+                    <FontAwesome
+                      name={item.icono}
+                      size={16}
+                      color={item.activo ? "#247F76" : "#82938F"}
+                    />
+                  </View>
+                  <Text style={[styles.menuText, item.activo && styles.menuTextActive]}>
+                    {item.etiqueta}
+                  </Text>
+                </Pressable>
+              ))}
           </ScrollView>
 
           <View style={styles.sidebarBottom}>
@@ -403,6 +433,8 @@ function AppLayout() {
                   ? "Doctor"
                   : rolId === 3
                   ? "Paciente"
+                  : rolId === 5
+                  ? "Coordinador"
                   : "Recepción"}
               </Text>
             </Pressable>

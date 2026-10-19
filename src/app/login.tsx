@@ -48,6 +48,9 @@ export default function LoginScreen() {
         case 4:
           router.replace("/recepcion");
           break;
+        case 5:
+          router.replace("/coordinador");
+          break;
         default:
           break;
       }
@@ -179,6 +182,10 @@ export default function LoginScreen() {
 
         case 4:
           router.replace("/recepcion");
+          break;
+
+        case 5:
+          router.replace("/coordinador");
           break;
 
         default:

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +16,17 @@ import { useAuth } from "../../../context/AuthContext";
 import api from "../../../services/api";
 import SelectorFecha from "../../../components/SelectorFecha";
 import SelectorHora from "../../../components/SelectorHora";
+import { AsignacionSala, Equipo, hhmm, nombreDia } from "../../../services/c2Service";
+
+/** Alert.alert no muestra nada en web; este helper funciona en ambas plataformas. */
+function avisar(titulo: string, mensaje: string, alAceptar?: () => void) {
+  if (Platform.OS === "web") {
+    if (typeof window !== "undefined") window.alert(`${titulo}\n\n${mensaje}`);
+    alAceptar?.();
+    return;
+  }
+  Alert.alert(titulo, mensaje, [{ text: "Aceptar", onPress: alAceptar }]);
+}
 
 interface Paciente {
   id_PK: number;
@@ -46,6 +58,13 @@ export default function CrearCita() {
   const [horaFin, setHoraFin] = useState("");
   const [motivo, setMotivo] = useState("");
   const [notas, setNotas] = useState("");
+
+  const [asignaciones, setAsignaciones] = useState<AsignacionSala[]>([]);
+  const [salaId, setSalaId] = useState<number | null>(null);
+  const [requiereEquipo, setRequiereEquipo] = useState(false);
+  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [equipoId, setEquipoId] = useState<number | null>(null);
+  const [accionEquipo, setAccionEquipo] = useState("");
 
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [cargando, setCargando] = useState(true);
@@ -89,6 +108,31 @@ export default function CrearCita() {
     }
   };
 
+  // Salas asignadas al doctor elegido
+  useEffect(() => {
+    setSalaId(null);
+    setAsignaciones([]);
+    if (!doctorId || !token) return;
+    api
+      .get(`/api/doctor-salas/doctor/${doctorId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => setAsignaciones(r.data))
+      .catch(() => setAsignaciones([]));
+  }, [doctorId, token]);
+
+  // Equipo de la sala elegida
+  useEffect(() => {
+    setEquipoId(null);
+    setEquipos([]);
+    if (!salaId || !token) return;
+    api
+      .get(`/api/salas/${salaId}/equipamiento`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => setEquipos(r.data))
+      .catch(() => setEquipos([]));
+  }, [salaId, token]);
+
+  const salasDoctor = Array.from(new Map(asignaciones.map((a) => [a.sala_id_FK, a])).values());
+  const horariosSala = asignaciones.filter((a) => a.sala_id_FK === salaId);
+
   const validarFormulario = (): boolean => {
     const nuevosErrores: Record<string, string> = {};
 
@@ -122,18 +166,24 @@ export default function CrearCita() {
       nuevosErrores.horaFin = "La hora de fin debe ser posterior a la de inicio.";
     }
 
+    if (requiereEquipo) {
+      if (!salaId) nuevosErrores.sala = "Selecciona una sala para poder usar equipo.";
+      else if (!equipoId) nuevosErrores.equipo = "Selecciona el equipo a utilizar.";
+      if (!accionEquipo.trim()) nuevosErrores.accion = "Indica la acción a realizar con el equipo.";
+    }
+
     setErrores(nuevosErrores);
     return Object.keys(nuevosErrores).length === 0;
   };
 
   const crearCita = async () => {
     if (!token) {
-      Alert.alert("Error", "No hay sesión activa.");
+      avisar("Error", "No hay sesión activa.");
       return;
     }
 
     if (!validarFormulario()) {
-      Alert.alert("Formulario incompleto", "Por favor revisa los campos señalados.");
+      avisar("Formulario incompleto", "Por favor revisa los campos señalados.");
       return;
     }
 
@@ -151,6 +201,10 @@ export default function CrearCita() {
           estado: "programada",
           motivo: motivo.trim() || null,
           notas: notas.trim() || null,
+          sala_id_FK: salaId,
+          requiere_equipo: requiereEquipo,
+          equipo_id_FK: requiereEquipo ? equipoId : null,
+          accion_equipo: requiereEquipo ? accionEquipo.trim() : null,
         },
         {
           headers: {
@@ -159,21 +213,18 @@ export default function CrearCita() {
         }
       );
 
-      Alert.alert(
+      avisar(
         "Cita creada",
         "La cita se registró y sincronizó correctamente.",
-        [
-          {
-            text: "Aceptar",
-            onPress: () => router.replace("/recepcion/citas"),
-          },
-        ]
+        () => router.replace("/recepcion/citas")
       );
     } catch (error: any) {
       console.error("Error creando cita:", error);
-      Alert.alert(
+      avisar(
         "Error",
-        error?.response?.data?.detail || "No fue posible crear la cita."
+        typeof error?.response?.data?.detail === "string"
+          ? error.response.data.detail
+          : "No fue posible crear la cita."
       );
     } finally {
       setGuardando(false);
@@ -478,6 +529,84 @@ export default function CrearCita() {
           )}
         </View>
       </View>
+
+      {!!doctorId && (
+        <View style={styles.seccion}>
+          <View style={styles.labelRow}>
+            <FontAwesome name="building-o" size={13} color="#247F76" style={styles.labelIcon} />
+            <Text style={styles.etiqueta}>Sala (asignadas al doctor)</Text>
+          </View>
+
+          {salasDoctor.length === 0 ? (
+            <Text style={ex.ayuda}>Este doctor no tiene salas asignadas. Pide a coordinación que se las asigne.</Text>
+          ) : (
+            <View style={ex.chips}>
+              {salasDoctor.map((a) => (
+                <Pressable
+                  key={a.sala_id_FK}
+                  onPress={() => setSalaId(salaId === a.sala_id_FK ? null : a.sala_id_FK)}
+                  style={[ex.chip, salaId === a.sala_id_FK && ex.chipActivo]}
+                >
+                  <Text style={[ex.chipTexto, salaId === a.sala_id_FK && ex.chipTextoActivo]}>{a.sala_nombre}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {horariosSala.map((a) => (
+            <Text key={a.id_PK} style={ex.ayuda}>
+              Horario: {nombreDia(a.dia_semana)} {hhmm(a.hora_inicio)} – {hhmm(a.hora_fin)}
+            </Text>
+          ))}
+          {!!errores.sala && <Text style={styles.errorTexto}>{errores.sala}</Text>}
+
+          {!!salaId && (
+            <>
+              <Pressable style={ex.toggle} onPress={() => setRequiereEquipo((v) => !v)}>
+                <View style={[ex.check, requiereEquipo && ex.checkActivo]}>
+                  {requiereEquipo && <Text style={ex.checkMark}>✓</Text>}
+                </View>
+                <Text style={styles.etiqueta}>La cita requiere tomar equipo de la sala</Text>
+              </Pressable>
+
+              {requiereEquipo && (
+                <>
+                  {equipos.length === 0 ? (
+                    <Text style={ex.ayuda}>Esta sala no tiene equipos registrados.</Text>
+                  ) : (
+                    <View style={ex.chips}>
+                      {equipos.map((e) => (
+                        <Pressable
+                          key={e.id_PK}
+                          onPress={() => setEquipoId(e.id_PK)}
+                          style={[ex.chip, equipoId === e.id_PK && ex.chipActivo]}
+                        >
+                          <Text style={[ex.chipTexto, equipoId === e.id_PK && ex.chipTextoActivo]}>
+                            {e.nombre_equipo}
+                            {e.estado ? ` · ${e.estado}` : ""}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                  {!!errores.equipo && <Text style={styles.errorTexto}>{errores.equipo}</Text>}
+
+                  <Text style={[styles.etiqueta, { marginTop: 10 }]}>Acción a realizar con el equipo</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={accionEquipo}
+                    onChangeText={setAccionEquipo}
+                    placeholder="Ej. Electrocardiograma, toma de rayos X, ultrasonido..."
+                    placeholderTextColor="#8A9A98"
+                    maxLength={250}
+                  />
+                  {!!errores.accion && <Text style={styles.errorTexto}>{errores.accion}</Text>}
+                </>
+              )}
+            </>
+          )}
+        </View>
+      )}
 
       <View style={styles.seccion}>
         <View style={styles.labelRow}>
@@ -863,4 +992,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
   },
+});
+const ex = StyleSheet.create({
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: "#247F76", backgroundColor: "#FFFFFF" },
+  chipActivo: { backgroundColor: "#247F76" },
+  chipTexto: { fontSize: 12, fontWeight: "700", color: "#247F76" },
+  chipTextoActivo: { color: "#FFFFFF" },
+  ayuda: { fontSize: 12, color: "#6F8581", marginTop: 6 },
+  toggle: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 },
+  check: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: "#247F76", alignItems: "center", justifyContent: "center" },
+  checkActivo: { backgroundColor: "#247F76" },
+  checkMark: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
 });

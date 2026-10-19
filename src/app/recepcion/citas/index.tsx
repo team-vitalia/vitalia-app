@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Modal,
   Pressable,
   ScrollView,
@@ -36,6 +37,13 @@ interface Cita {
   notas: string | null;
   creado_por: number | null;
   google_event_id?: string | null;
+  sala_id_FK?: number | null;
+  sala_nombre?: string | null;
+  requiere_equipo?: boolean;
+  equipo_id_FK?: number | null;
+  equipo_nombre?: string | null;
+  accion_equipo?: string | null;
+  no_realizada?: boolean;
 }
 
 interface Paciente {
@@ -95,6 +103,32 @@ export default function CitasScreen() {
   const [eliminando, setEliminando] = useState(false);
 
   
+  const marcarNoAsistio = (cita: Cita) => {
+    const ejecutar = async () => {
+      try {
+        await api.patch(
+          `/api/citas/${cita.id_PK}/estado`,
+          { estado: "no_asistio" },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        await cargarDatos();
+      } catch (e: any) {
+        const msg = e?.response?.data?.detail || "No se pudo actualizar la cita.";
+        if (Platform.OS === "web") window.alert(String(msg));
+        else Alert.alert("Error", String(msg));
+      }
+    };
+    const texto = `¿Marcar la cita #${cita.id_PK} como «no asistió»?`;
+    if (Platform.OS === "web") {
+      if (window.confirm(texto)) ejecutar();
+    } else {
+      Alert.alert("Confirmar", texto, [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Sí, marcar", onPress: ejecutar },
+      ]);
+    }
+  };
+
   const cargarDatos = async () => {
     if (!token) return;
 
@@ -796,7 +830,11 @@ export default function CitasScreen() {
                 <View style={styles.headerRight}>
                   <View style={styles.status}>
                     <Text style={styles.statusText}>
-                      {cita.estado || "programada"}
+                      {cita.estado === "no_asistio"
+                        ? "no asistió"
+                        : cita.no_realizada && cita.estado !== "cancelada"
+                        ? "no realizada"
+                        : cita.estado || "programada"}
                     </Text>
                   </View>
 
@@ -865,6 +903,29 @@ export default function CitasScreen() {
                     <Text style={styles.infoLabel}>Notas:</Text>
                   </View>
                   <Text style={styles.infoValue}>{cita.notas}</Text>
+                </View>
+              )}
+
+              {!!cita.sala_nombre && (
+                <View style={styles.infoRow}>
+                  <View style={styles.infoLabelContainer}>
+                    <FontAwesome name="building-o" size={12} color="#247F76" style={styles.infoIcon} />
+                    <Text style={styles.infoLabel}>Sala:</Text>
+                  </View>
+                  <Text style={styles.infoValue}>{cita.sala_nombre}</Text>
+                </View>
+              )}
+
+              {cita.requiere_equipo && (
+                <View style={styles.infoRow}>
+                  <View style={styles.infoLabelContainer}>
+                    <FontAwesome name="wrench" size={12} color="#247F76" style={styles.infoIcon} />
+                    <Text style={styles.infoLabel}>Equipo:</Text>
+                  </View>
+                  <Text style={styles.infoValue}>
+                    {cita.equipo_nombre || "—"}
+                    {cita.accion_equipo ? ` · Acción: ${cita.accion_equipo}` : ""}
+                  </Text>
                 </View>
               )}
 
@@ -943,6 +1004,12 @@ export default function CitasScreen() {
                     <FontAwesome name="check" size={13} color="#FFFFFF" style={{ marginRight: 7 }} />
                     <Text style={styles.arrivalButtonText}>Registrar llegada</Text>
                   </Pressable>
+                  {cita.estado !== "no_asistio" && cita.estado !== "cancelada" && (
+                    <Pressable style={ex2.noAsistio} onPress={() => marcarNoAsistio(cita)}>
+                      <FontAwesome name="user-times" size={13} color="#B42318" style={{ marginRight: 7 }} />
+                      <Text style={ex2.noAsistioTexto}>Marcar no asistió</Text>
+                    </Pressable>
+                  )}
                 </View>
               )}
             </View>
@@ -1947,4 +2014,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
   },
+});
+const ex2 = StyleSheet.create({
+  noAsistio: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#B42318", backgroundColor: "#FEE4E2", marginLeft: 10 },
+  noAsistioTexto: { fontSize: 12, fontWeight: "800", color: "#B42318" },
 });

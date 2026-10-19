@@ -17,6 +17,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useState } from "react";
 import DocumentoContrato from "../../components/DocumentoContrato";
 import api from "../../services/api";
+import SalasDoctor from "../../components/SalasDoctor";
 
 export default function DoctorScreen() {
   const router = useRouter();
@@ -179,6 +180,8 @@ export default function DoctorScreen() {
       {/* =========================
           RESUMEN
       ========================== */}
+
+      <SalasDoctor />
 
       <Text style={styles.sectionTitle}>
         Resumen de hoy
