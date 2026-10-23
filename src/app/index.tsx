@@ -1,5 +1,5 @@
-import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { Redirect } from "expo-router";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 
 export default function Index() {
@@ -24,8 +24,6 @@ export default function Index() {
         return <Redirect href="/paciente" />;
       case 4:
         return <Redirect href="/recepcion" />;
-      case 5:
-        return <Redirect href="/coordinador" />;
       default:
         return <Redirect href="/login" />;
     }
