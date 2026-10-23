@@ -1,6 +1,9 @@
-import axios from "axios";
 
-const API_URL = "http://127.0.0.1:8000";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { Platform } from "react-native";
+
+const API_URL = "http://localhost:8000";
 
 const api = axios.create({
   baseURL: API_URL,
@@ -9,13 +12,21 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("vitalia_token");
-    if (token && !config.headers["Authorization"]) {
-      config.headers["Authorization"] = `Bearer ${token}`;
+api.interceptors.request.use(async (config) => {
+  let token: string | null = null;
+
+  if (Platform.OS === "web") {
+    if (typeof localStorage !== "undefined") {
+      token = localStorage.getItem("vitalia_token");
     }
+  } else {
+    token = await AsyncStorage.getItem("vitalia_token");
   }
+
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   return config;
 });
 

@@ -1,21 +1,27 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  useWindowDimensions,
-} from "react-native";
-
+/**
+ * Registro de usuarios — vista de administrador (tablet / laptop).
+ *
+ * Layout: 2 columnas fluidas (≥ 900 px) que colapsan a 1 en pantallas angostas.
+ *   Columna izquierda : Datos personales + Credenciales
+ *   Columna derecha   : Perfil según el rol (médico / paciente) + Resumen y acciones
+ *
+ * Tablas que escribe la API según el rol (POST /api/usuarios/):
+ *   Administrador / Recepción / Coordinador → usuarios
+ *   Doctor   → usuarios + doctores + doctor_especialidades
+ *   Paciente → usuarios + pacientes
+ */
+import { FontAwesome } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+
+import { Aviso, Boton, C, Campo, Chip, Seccion } from "../../../components/admin/ui";
+import { hoyISO, vCorreo, vCosto, vFecha, vNombre, vPassword, vTelefono } from "../../../components/admin/validaciones";
+import EspecialidadSelector from "../../../components/EspecialidadSelector";
+import SelectorFecha from "../../../components/SelectorFecha";
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../services/api";
+import { authHeaders, mensajeError } from "../../../services/util";
 
 interface Rol {
   id_PK: number;
@@ -23,2698 +29,457 @@ interface Rol {
   descripcion: string | null;
 }
 
-interface Especialidad {
-  id_PK: number;
-  nombre: string;
-  descripcion: string | null;
-  codigo: string | null;
-  esta_activo: boolean;
-}
-
-
-type TipoAlerta = "exito" | "error";
-
-type AlertaProps = {
-  visible: boolean;
-  titulo: string;
-  mensaje: string;
-  tipo: TipoAlerta;
-  onCerrar: () => void;
+const ICONO_ROL: Record<number, React.ComponentProps<typeof FontAwesome>["name"]> = {
+  1: "shield",
+  2: "user-md",
+  3: "user",
+  4: "id-card-o",
+  5: "sitemap",
 };
 
-function AlertaPersonalizada({
-  visible,
-  titulo,
-  mensaje,
-  tipo,
-  onCerrar,
-}: AlertaProps) {
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onCerrar}
-      statusBarTranslucent
-    >
-      <View style={styles.alertaOverlay}>
-        <View style={styles.alertaCaja}>
-          <View
-            style={[
-              styles.alertaIconoContainer,
-              tipo === "error" && styles.alertaIconoError,
-            ]}
-          >
-            <Text
-              style={[
-                styles.alertaIcono,
-                tipo === "error" && styles.alertaIconoTextoError,
-              ]}
-            >
-              {tipo === "exito" ? "✓" : "!"}
-            </Text>
-          </View>
+const ROL_ADMIN = 1;
+const ROL_DOCTOR = 2;
+const ROL_PACIENTE = 3;
+const ROL_COORDINADOR = 5;
 
-          <Text style={styles.alertaTitulo}>{titulo}</Text>
-          <Text style={styles.alertaMensaje}>{mensaje}</Text>
+/* ───────────── Fortaleza de contraseña ───────────── */
 
-          <Pressable
-            onPress={onCerrar}
-            style={styles.alertaBoton}
-          >
-            <Text style={styles.alertaBotonTexto}>Aceptar</Text>
-          </Pressable>
-        </View>
-      </View>
-    </Modal>
-  );
+function fortaleza(p: string) {
+  const reglas = [
+    { ok: p.length >= 8, texto: "8+ caracteres" },
+    { ok: /[a-z]/.test(p) && /[A-Z]/.test(p), texto: "Mayúscula y minúscula" },
+    { ok: /\d/.test(p), texto: "Un número" },
+    { ok: /[^A-Za-z0-9]/.test(p), texto: "Un símbolo" },
+  ];
+  const puntos = reglas.filter((r) => r.ok).length;
+  const nivel = puntos <= 1 ? "Débil" : puntos === 2 ? "Regular" : puntos === 3 ? "Buena" : "Excelente";
+  const color = puntos <= 1 ? C.peligro : puntos === 2 ? C.aviso : puntos === 3 ? C.primarioClaro : C.ok;
+  return { reglas, puntos, nivel, color };
 }
 
+function generarPassword(): string {
+  const grupos = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnpqrstuvwxyz", "23456789", "!@#$%&*?"];
+  const todos = grupos.join("");
+  const azar = (n: number) => {
+    const c = (globalThis as any).crypto;
+    if (c?.getRandomValues) return c.getRandomValues(new Uint32Array(1))[0] % n;
+    return Math.floor(Math.random() * n);
+  };
+  const chars = grupos.map((g) => g[azar(g.length)]);
+  while (chars.length < 12) chars.push(todos[azar(todos.length)]);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = azar(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
+}
+
+const FORM_VACIO = {
+  nombre: "", apellido: "", correo: "", telefono: "",
+  password: "", confirmar: "",
+  fechaNacimiento: "", genero: "", direccion: "",
+  licencia: "", costo: "",
+};
 
 export default function CrearUsuarioScreen() {
   const router = useRouter();
-  const { token } = useAuth();
-  const { width } = useWindowDimensions();
-
-  const esMovil = width < 700;
-
-  const scrollRef = useRef<ScrollView>(null);
-
-  const passwordShake = useRef(
-    new Animated.Value(0)
-  ).current;
-
-  // =========================================================
-  // DATOS GENERALES
-  // =========================================================
-
-  const [nombre, setNombre] = useState("");
-  const [correo, setCorreo] = useState("");
-  const [password, setPassword] = useState("");
-
-  // =========================================================
-  // DATOS DE PACIENTE
-  // =========================================================
-
-  const [apellido, setApellido] = useState("");
-  const [fechaNacimiento, setFechaNacimiento] = useState("");
-  const [genero, setGenero] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [direccion, setDireccion] = useState("");
-
-  // =========================================================
-  // DATOS DE DOCTOR
-  // =========================================================
-
-  const [especialidadId, setEspecialidadId] = useState("");
-  const [numeroLicencia, setNumeroLicencia] = useState("");
-  const [costoConsulta, setCostoConsulta] = useState("");
-
-  const [alerta, setAlerta] = useState({
-    visible: false,
-    titulo: "",
-    mensaje: "",
-    tipo: "exito" as TipoAlerta,
-  });
-
-  const [accionAlAceptar, setAccionAlAceptar] =
-    useState<(() => void) | null>(null);
-
-  const mostrarAlerta = (
-    titulo: string,
-    mensaje: string,
-    tipo: TipoAlerta = "error",
-    alAceptar?: () => void
-  ) => {
-    setAccionAlAceptar(() => alAceptar ?? null);
-    setAlerta({
-      visible: true,
-      titulo,
-      mensaje,
-      tipo,
-    });
-  };
-
-  const cerrarAlerta = () => {
-    setAlerta((actual) => ({
-      ...actual,
-      visible: false,
-    }));
-
-    const accion = accionAlAceptar;
-    setAccionAlAceptar(null);
-    accion?.();
-  };
-
-  // =========================================================
-  // ESTADOS
-  // =========================================================
-
-  const [passwordError, setPasswordError] =
-    useState(false);
-
-  const [mostrarPassword, setMostrarPassword] =
-    useState(false);
+  const { token, usuario } = useAuth();
+  const rolActor = usuario?.rol_id ?? usuario?.rol_id_FK;
 
   const [roles, setRoles] = useState<Rol[]>([]);
+  const [cargandoRoles, setCargandoRoles] = useState(true);
+  const [errorRoles, setErrorRoles] = useState("");
+  const [rolId, setRolId] = useState<number | null>(null);
 
-  const [rolSeleccionado, setRolSeleccionado] =
-    useState<number | null>(null);
+  const [f, setF] = useState(FORM_VACIO);
+  const [especialidades, setEspecialidades] = useState<number[]>([]);
+  const [verPassword, setVerPassword] = useState(false);
 
-  const [cargandoRoles, setCargandoRoles] =
-    useState(true);
+  const [intento, setIntento] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [errorGeneral, setErrorGeneral] = useState("");
+  const [errorServidor, setErrorServidor] = useState<{ correo?: string; licencia?: string }>({});
+  const [creado, setCreado] = useState<{ nombre: string; rol: string } | null>(null);
 
-  const [especialidades, setEspecialidades] =
-    useState<Especialidad[]>([]);
+  const esDoctor = rolId === ROL_DOCTOR;
+  const esPaciente = rolId === ROL_PACIENTE;
 
-  const [cargandoEspecialidades, setCargandoEspecialidades] =
-    useState(false);
-
-  const [guardando, setGuardando] =
-    useState(false);
-
-  const [mostrarGuardando, setMostrarGuardando] =
-    useState(false);
-
-  // =========================================================
-  // IDENTIFICAR ROL
-  // =========================================================
-
-  const esDoctor = rolSeleccionado === 2;
-  const esPaciente = rolSeleccionado === 3;
-
-  // =========================================================
-  // OBTENER ROLES
-  // =========================================================
-
-  const obtenerRoles = async () => {
-    if (!token) {
-      return;
-    }
-
-    try {
-      setCargandoRoles(true);
-
-      const respuesta = await api.get("/api/roles/", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setRoles(respuesta.data);
-
-      if (respuesta.data.length > 0) {
-        setRolSeleccionado(respuesta.data[0].id_PK);
-      } else {
-        setRolSeleccionado(null);
-      }
-    } catch (error: any) {
-      console.error(
-        "ERROR AL OBTENER ROLES:",
-        error.response?.status,
-        error.response?.data
-      );
-
-      mostrarAlerta(
-        "Error",
-        error.response?.data?.detail ||
-          "No se pudieron cargar los roles."
-      );
-    } finally {
-      setCargandoRoles(false);
-    }
+  const set = <K extends keyof typeof FORM_VACIO>(campo: K) => (valor: string) => {
+    setF((a) => ({ ...a, [campo]: valor }));
+    if (campo === "correo") setErrorServidor((e) => ({ ...e, correo: undefined }));
+    if (campo === "licencia") setErrorServidor((e) => ({ ...e, licencia: undefined }));
   };
 
-  // =========================================================
-  // OBTENER ESPECIALIDADES
-  // =========================================================
-
-  const obtenerEspecialidades = async () => {
-    try {
-      setCargandoEspecialidades(true);
-
-      const respuesta = await api.get(
-        "/api/especialidades/",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setEspecialidades(respuesta.data);
-    } catch (error: any) {
-      console.error(error);
-
-      mostrarAlerta(
-        "Error",
-        error.response?.data?.detail ||
-          "No se pudieron cargar las especialidades."
-      );
-    } finally {
-      setCargandoEspecialidades(false);
-    }
-  };
-
+  /* ── Roles disponibles (el coordinador no puede crear admins ni coordinadores) ── */
   useEffect(() => {
-    if (token) {
-      obtenerRoles();
-    }
+    if (!token) return;
+    (async () => {
+      try {
+        setCargandoRoles(true);
+        const r = await api.get<Rol[]>("/api/roles/", authHeaders(token));
+        setRoles(r.data);
+      } catch (e) {
+        setErrorRoles(mensajeError(e, "No se pudieron cargar los roles."));
+      } finally {
+        setCargandoRoles(false);
+      }
+    })();
   }, [token]);
 
-  // =========================================================
-  // CARGAR ESPECIALIDADES CUANDO EL ROL ES DOCTOR
-  // =========================================================
+  const rolesPermitidos = useMemo(
+    () => roles.filter((r) => !(rolActor === ROL_COORDINADOR && (r.id_PK === ROL_ADMIN || r.id_PK === ROL_COORDINADOR))),
+    [roles, rolActor]
+  );
+  const rolActual = roles.find((r) => r.id_PK === rolId);
 
-  useEffect(() => {
-    if (rolSeleccionado === 2 && token) {
-      obtenerEspecialidades();
-    }
-  }, [rolSeleccionado, token]);
-
-  // =========================================================
-  // CAMBIAR ROL
-  // =========================================================
-
-  const cambiarRol = (rolId: number) => {
-    setRolSeleccionado(rolId);
-
-    // Limpiar datos específicos cuando
-    // ya no corresponden al rol.
-
-    if (rolId !== 2) {
-      setEspecialidadId("");
-      setNumeroLicencia("");
-      setCostoConsulta("");
-    }
-
-    if (rolId !== 3) {
-      setApellido("");
-      setFechaNacimiento("");
-      setGenero("");
-      setTelefono("");
-      setDireccion("");
-    }
+  /* ── Errores por campo (vacío = válido) ── */
+  const errores = {
+    nombre: vNombre(f.nombre),
+    apellido: esPaciente && !f.apellido.trim() ? "El apellido es obligatorio para pacientes." : "",
+    correo: errorServidor.correo ?? vCorreo(f.correo),
+    telefono: vTelefono(f.telefono),
+    password: vPassword(f.password),
+    confirmar: f.confirmar !== f.password ? "Las contraseñas no coinciden." : !f.confirmar ? "Confirma la contraseña." : "",
+    fecha: vFecha(f.fechaNacimiento),
+    licencia: esDoctor ? (errorServidor.licencia ?? (f.licencia.trim() ? "" : "Ingresa el número de licencia.")) : "",
+    costo: esDoctor ? vCosto(f.costo) : "",
+    especialidades: esDoctor && especialidades.length === 0 ? "Selecciona al menos una especialidad." : "",
   };
 
-  // =========================================================
-  // SELECCIONAR ESPECIALIDAD
-  // =========================================================
+  const checklist = [
+    { texto: "Rol seleccionado", ok: rolId !== null },
+    { texto: "Nombre completo", ok: !errores.nombre && (!esPaciente || !errores.apellido) },
+    { texto: "Correo válido", ok: !errores.correo },
+    { texto: "Contraseña segura y confirmada", ok: !errores.password && !errores.confirmar },
+    ...(esDoctor ? [
+      { texto: "Especialidad(es)", ok: !errores.especialidades },
+      { texto: "Licencia y costo", ok: !errores.licencia && !errores.costo },
+    ] : []),
+  ];
+  const completados = checklist.filter((c) => c.ok).length;
+  const todoValido = completados === checklist.length && !errores.telefono && !errores.fecha;
 
-  const seleccionarEspecialidad = (
-    especialidad: Especialidad
-  ) => {
-    setEspecialidadId(
-      String(especialidad.id_PK)
-    );
-  };
+  const fort = fortaleza(f.password);
 
-  // =========================================================
-  // ANIMACIÓN PASSWORD
-  // =========================================================
+  /* ── Guardar ── */
+  const guardar = async () => {
+    setIntento(true);
+    setErrorGeneral("");
 
-  const animarErrorPassword = () => {
-    passwordShake.setValue(0);
-
-    Animated.sequence([
-      Animated.timing(passwordShake, {
-        toValue: 1,
-        duration: 70,
-        useNativeDriver: true,
-      }),
-
-      Animated.timing(passwordShake, {
-        toValue: -1,
-        duration: 70,
-        useNativeDriver: true,
-      }),
-
-      Animated.timing(passwordShake, {
-        toValue: 1,
-        duration: 70,
-        useNativeDriver: true,
-      }),
-
-      Animated.timing(passwordShake, {
-        toValue: -1,
-        duration: 70,
-        useNativeDriver: true,
-      }),
-
-      Animated.timing(passwordShake, {
-        toValue: 1,
-        duration: 70,
-        useNativeDriver: true,
-      }),
-
-      Animated.timing(passwordShake, {
-        toValue: 0,
-        duration: 70,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  // =========================================================
-  // SCROLL PASSWORD
-  // =========================================================
-
-  const enfocarPassword = () => {
-    scrollRef.current?.scrollTo({
-      y: 280,
-      animated: true,
-    });
-
-    setTimeout(() => {
-      animarErrorPassword();
-    }, 250);
-  };
-
-  // =========================================================
-  // VALIDAR PASSWORD
-  // =========================================================
-
-  const validarPassword = (texto: string) => {
-    setPassword(texto);
-
-    if (
-      texto.length > 0 &&
-      texto.length < 8
-    ) {
-      setPasswordError(true);
-    } else {
-      setPasswordError(false);
-    }
-  };
-
-  // =========================================================
-  // CREAR USUARIO
-  // =========================================================
-
-  const crearUsuario = async () => {
-    // -------------------------------------------------------
-    // NOMBRE
-    // -------------------------------------------------------
-
-    if (!nombre.trim()) {
-      mostrarAlerta(
-        "Campo requerido",
-        "Ingresa el nombre."
-      );
+    if (!todoValido) {
+      setErrorGeneral("Revisa los campos marcados en rojo antes de continuar.");
       return;
     }
 
-    // -------------------------------------------------------
-    // APELLIDO PACIENTE
-    // -------------------------------------------------------
-
-    if (
-      esPaciente &&
-      !apellido.trim()
-    ) {
-      mostrarAlerta(
-        "Campo requerido",
-        "Ingresa el apellido del paciente."
-      );
-
-      return;
-    }
-
-    // -------------------------------------------------------
-    // CORREO
-    // -------------------------------------------------------
-
-    if (!correo.trim()) {
-      mostrarAlerta(
-        "Campo requerido",
-        "Ingresa el correo electrónico."
-      );
-
-      return;
-    }
-
-    // -------------------------------------------------------
-    // PASSWORD VACÍA
-    // -------------------------------------------------------
-
-    if (!password) {
-      setPasswordError(true);
-
-      enfocarPassword();
-
-      mostrarAlerta(
-        "Contraseña requerida",
-        "Ingresa una contraseña de al menos 8 caracteres."
-      );
-
-      return;
-    }
-
-    // -------------------------------------------------------
-    // PASSWORD MÍNIMO
-    // -------------------------------------------------------
-
-    if (password.length < 8) {
-      setPasswordError(true);
-
-      enfocarPassword();
-
-      mostrarAlerta(
-        "Contraseña inválida",
-        "La contraseña debe tener al menos 8 caracteres."
-      );
-
-      return;
-    }
-
-    setPasswordError(false);
-
-    // -------------------------------------------------------
-    // ROL
-    // -------------------------------------------------------
-
-    if (!rolSeleccionado) {
-      mostrarAlerta(
-        "Rol requerido",
-        "Selecciona un rol para el usuario."
-      );
-
-      return;
-    }
-
-    // -------------------------------------------------------
-    // VALIDACIONES DOCTOR
-    // -------------------------------------------------------
+    const datos: Record<string, unknown> = {
+      nombre: f.nombre.trim(),
+      correo_electronico: f.correo.trim().toLowerCase(),
+      password: f.password,
+      rol_id_FK: rolId,
+      telefono: f.telefono.trim() || null,
+    };
 
     if (esDoctor) {
-      if (!especialidadId) {
-        mostrarAlerta(
-          "Especialidad requerida",
-          "Selecciona la especialidad del doctor."
-        );
-
-        return;
-      }
-
-      if (!numeroLicencia.trim()) {
-        mostrarAlerta(
-          "Campo requerido",
-          "Ingresa el número de licencia del doctor."
-        );
-
-        return;
-      }
-
-      if (!costoConsulta.trim()) {
-        mostrarAlerta(
-          "Campo requerido",
-          "Ingresa el costo de consulta."
-        );
-
-        return;
-      }
-
-      const costo = Number(
-        costoConsulta
-      );
-
-      if (isNaN(costo) || costo < 0) {
-        mostrarAlerta(
-          "Costo inválido",
-          "Ingresa un costo de consulta válido."
-        );
-
-        return;
-      }
+      datos.especialidad_id_FK = especialidades[0]; // columna heredada (compatibilidad)
+      datos.especialidad_ids = especialidades; // tabla doctor_especialidades
+      datos.numero_licencia = f.licencia.trim();
+      datos.costo_consulta = Number(f.costo);
     }
 
-    // -------------------------------------------------------
-    // GUARDAR
-    // -------------------------------------------------------
+    if (esPaciente) {
+      datos.apellido = f.apellido.trim();
+      datos.fecha_nacimiento = f.fechaNacimiento || null;
+      datos.genero = f.genero || null;
+      datos.direccion = f.direccion.trim() || null;
+    }
 
     try {
       setGuardando(true);
-      setMostrarGuardando(true);
-
-      const datos: any = {
-        nombre: nombre.trim(),
-        correo_electronico: correo.trim(),
-        password: password,
-        rol_id_FK: rolSeleccionado,
-      };
-
-      // =====================================================
-      // DATOS DOCTOR
-      // =====================================================
-
-      if (esDoctor) {
-        datos.especialidad_id_FK =
-          Number(especialidadId);
-
-        datos.numero_licencia =
-          numeroLicencia.trim();
-
-        datos.costo_consulta =
-          Number(costoConsulta);
-      }
-
-      // =====================================================
-      // DATOS PACIENTE
-      // =====================================================
-
-      if (esPaciente) {
-        datos.apellido =
-          apellido.trim();
-
-        datos.fecha_nacimiento =
-          fechaNacimiento.trim()
-            ? fechaNacimiento.trim()
-            : null;
-
-        datos.genero =
-          genero.trim()
-            ? genero.trim()
-            : null;
-
-        datos.telefono =
-          telefono.trim()
-            ? telefono.trim()
-            : null;
-
-        datos.direccion =
-          direccion.trim()
-            ? direccion.trim()
-            : null;
-      }
-
-      console.log(
-        "Datos enviados:",
-        datos
-      );
-
-      await api.post(
-        "/api/usuarios/",
-        datos,
-        {
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
-        }
-      );
-
-      setMostrarGuardando(false);
-
-      mostrarAlerta(
-        "¡Usuario creado!",
-        "El usuario se registró correctamente en VITALIA.",
-        "exito",
-        () => router.replace("/admin/usuarios")
-      );
-
-    } catch (error: any) {
-      console.error(error);
-
-      setMostrarGuardando(false);
-
-      mostrarAlerta(
-        "No se pudo crear el usuario",
-        error.response?.data?.detail ||
-          "Ocurrió un error al crear el usuario.",
-        "error"
-      );
+      await api.post("/api/usuarios/", datos, authHeaders(token));
+      setCreado({ nombre: `${f.nombre.trim()} ${esPaciente ? f.apellido.trim() : ""}`.trim(), rol: rolActual?.nombre ?? "" });
+    } catch (e: any) {
+      const msg = mensajeError(e, "No se pudo crear el usuario.");
+      // Errores de negocio → se muestran junto al campo correspondiente.
+      if (/correo/i.test(msg)) setErrorServidor((x) => ({ ...x, correo: msg }));
+      else if (/licencia/i.test(msg)) setErrorServidor((x) => ({ ...x, licencia: msg }));
+      else setErrorGeneral(msg);
     } finally {
       setGuardando(false);
     }
   };
 
-  // =========================================================
-  // PANTALLA GUARDANDO
-  // =========================================================
+  const registrarOtro = () => {
+    setF(FORM_VACIO);
+    setEspecialidades([]);
+    setRolId(null);
+    setIntento(false);
+    setErrorGeneral("");
+    setErrorServidor({});
+    setCreado(null);
+  };
 
-  if (mostrarGuardando) {
+  /* ───────────── Éxito ───────────── */
+  if (creado) {
     return (
-      <View
-        style={
-          styles.savingContainer
-        }
-      >
-        <View
-          style={styles.savingCard}
-        >
-          <View
-            style={styles.savingIcon}
-          >
-            <ActivityIndicator
-              size="large"
-              color="#247F76"
-            />
+      <View style={s.exitoPagina}>
+        <View style={s.exitoTarjeta}>
+          <View style={s.exitoIcono}>
+            <FontAwesome name="check" size={30} color="#FFFFFF" />
           </View>
-
-          <Text
-            style={styles.savingTitle}
-          >
-            Guardando usuario
+          <Text style={s.exitoTitulo}>¡Usuario registrado!</Text>
+          <Text style={s.exitoTexto}>
+            <Text style={{ fontWeight: "800", color: C.oscuro }}>{creado.nombre}</Text> ya puede iniciar sesión como {creado.rol}.
           </Text>
-
-          <Text
-            style={styles.savingText}
-          >
-            Estamos registrando la información...
-          </Text>
-
-          <Text
-            style={styles.savingSubtext}
-          >
-            Por favor, espera un momento.
-          </Text>
+          <View style={s.exitoAcciones}>
+            <Boton texto="Registrar otro" icono="plus" variante="secundario" onPress={registrarOtro} />
+            <Boton texto="Ver usuarios" icono="list" onPress={() => router.replace("/admin/usuarios")} />
+          </View>
         </View>
       </View>
     );
   }
 
-  // =========================================================
-  // VISTA PRINCIPAL
-  // =========================================================
-
+  /* ───────────── Formulario ───────────── */
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView
-        ref={scrollRef}
-        style={styles.container}
-        contentContainerStyle={[
-          styles.content,
-          esMovil && styles.contentMovil,
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* =====================================================
-            ENCABEZADO
-        ===================================================== */}
-
-        <View style={styles.header}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.backButton,
-              pressed &&
-                styles.backButtonPressed,
-            ]}
-            onPress={() =>
-              router.back()
-            }
-            disabled={guardando}
-          >
-            <Text
-              style={styles.backIcon}
-            >
-              ←
-            </Text>
-
-            <Text
-              style={styles.backText}
-            >
-              Usuarios
-            </Text>
+    <ScrollView style={{ flex: 1, backgroundColor: C.fondo }} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+      <View style={s.pagina}>
+        {/* Encabezado */}
+        <View style={s.cabecera}>
+          <Pressable onPress={() => router.replace("/admin/usuarios")} accessibilityRole="button" accessibilityLabel="Volver a usuarios" style={s.volver}>
+            <FontAwesome name="angle-left" size={20} color={C.primario} />
           </Pressable>
-
-          <View
-            style={
-              styles.headerTitleContainer
-            }
-          >
-            <View
-              style={styles.titleIcon}
-            >
-              <Text
-                style={
-                  styles.titleIconText
-                }
-              >
-                +
-              </Text>
-            </View>
-
-            <View
-              style={styles.titleInfo}
-            >
-              <Text
-                style={styles.overline}
-              >
-                ADMINISTRACIÓN
-              </Text>
-
-              <Text
-                style={styles.title}
-              >
-                Crear usuario
-              </Text>
-
-              <Text
-                style={styles.subtitle}
-              >
-                Registra un nuevo usuario en VITALIA
-              </Text>
-            </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.titulo}>Registrar usuario</Text>
+            <Text style={s.subtitulo}>Completa los datos según el rol. Los campos con * son obligatorios.</Text>
           </View>
         </View>
 
-        {/* =====================================================
-            FORMULARIO
-        ===================================================== */}
-
-        <View style={styles.card}>
-
-          {/* ===================================================
-              ROL
-          =================================================== */}
-
-          <View
-            style={styles.sectionHeader}
-          >
-            <View
-              style={styles.sectionIcon}
-            >
-              <Text
-                style={
-                  styles.sectionIconText
-                }
-              >
-                1
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.sectionHeaderInfo
-              }
-            >
-              <Text
-                style={styles.sectionTitle}
-              >
-                Rol del usuario
-              </Text>
-
-              <Text
-                style={
-                  styles.sectionDescription
-                }
-              >
-                Selecciona los permisos que tendrá dentro
-                de VITALIA.
-              </Text>
-            </View>
-          </View>
-
-          {/* ROLES */}
-
+        {/* Selector de rol */}
+        <Seccion titulo="Tipo de usuario" subtitulo="El rol define qué datos adicionales se piden y en qué tablas se guarda." icono="users">
           {cargandoRoles ? (
-            <View
-              style={styles.loadingRoles}
-            >
-              <ActivityIndicator
-                size="small"
-                color="#247F76"
-              />
-
-              <Text
-                style={styles.loadingText}
-              >
-                Cargando roles...
-              </Text>
-            </View>
-          ) : roles.length === 0 ? (
-            <View
-              style={styles.noRoles}
-            >
-              <Text
-                style={styles.noRolesIcon}
-              >
-                !
-              </Text>
-
-              <View
-                style={styles.noRolesInfo}
-              >
-                <Text
-                  style={styles.noRolesTitle}
-                >
-                  No hay roles disponibles
-                </Text>
-
-                <Text
-                  style={styles.noRolesText}
-                >
-                  No se encontraron roles configurados en
-                  el sistema.
-                </Text>
-              </View>
-            </View>
+            <View style={s.cargando}><ActivityIndicator color={C.primario} /><Text style={s.suave}>Cargando roles…</Text></View>
+          ) : errorRoles ? (
+            <Aviso tipo="error" texto={errorRoles} />
+          ) : rolesPermitidos.length === 0 ? (
+            <Aviso tipo="aviso" texto="No hay roles configurados. Ejecuta las migraciones de la API (alembic upgrade head) para sembrarlos." />
           ) : (
-            <View
-              style={styles.rolesContainer}
-            >
-              {roles.map((rol) => {
-                const seleccionado =
-                  rolSeleccionado ===
-                  rol.id_PK;
-
+            <View style={s.roles}>
+              {rolesPermitidos.map((r) => {
+                const on = r.id_PK === rolId;
                 return (
                   <Pressable
-                    key={rol.id_PK}
-                    style={({
-                      pressed,
-                    }) => [
-                      styles.roleOption,
-                      seleccionado &&
-                        styles.roleSelected,
-                      pressed &&
-                        styles.rolePressed,
-                    ]}
-                    onPress={() =>
-                      cambiarRol(
-                        rol.id_PK
-                      )
-                    }
-                    disabled={
-                      guardando
-                    }
+                    key={r.id_PK}
+                    onPress={() => setRolId(r.id_PK)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on }}
+                    style={({ pressed }) => [s.rol, on && s.rolActivo, pressed && { opacity: 0.8 }]}
                   >
-                    <View
-                      style={[
-                        styles.radio,
-                        seleccionado &&
-                          styles.radioSelected,
-                      ]}
-                    >
-                      {seleccionado && (
-                        <View
-                          style={
-                            styles.radioInner
-                          }
-                        />
-                      )}
+                    <View style={[s.rolIcono, on && { backgroundColor: C.primario }]}>
+                      <FontAwesome name={ICONO_ROL[r.id_PK] ?? "user"} size={16} color={on ? "#FFFFFF" : C.primario} />
                     </View>
-
-                    <View
-                      style={styles.roleInfo}
-                    >
-                      <Text
-                        style={[
-                          styles.roleName,
-                          seleccionado &&
-                            styles.roleNameSelected,
-                        ]}
-                      >
-                        {rol.nombre}
-                      </Text>
-
-                      {rol.descripcion && (
-                        <Text
-                          style={
-                            styles.roleDescription
-                          }
-                        >
-                          {
-                            rol.descripcion
-                          }
-                        </Text>
-                      )}
-                    </View>
-
-                    {seleccionado && (
-                      <View
-                        style={
-                          styles.selectedBadge
-                        }
-                      >
-                        <Text
-                          style={
-                            styles.selectedBadgeText
-                          }
-                        >
-                          Seleccionado
-                        </Text>
-                      </View>
-                    )}
+                    <Text style={[s.rolNombre, on && { color: C.primario }]}>{r.nombre}</Text>
+                    {r.descripcion ? <Text style={s.rolDesc} numberOfLines={2}>{r.descripcion}</Text> : null}
                   </Pressable>
                 );
               })}
             </View>
           )}
+          {intento && rolId === null && <Text style={{ color: C.peligro, fontSize: 12 }}>Selecciona un rol para continuar.</Text>}
+        </Seccion>
 
-
-          {/* ===================================================
-              DIVISOR
-          =================================================== */}
-
-          <View
-            style={styles.divider}
-          />
-
-          {/* ===================================================
-              INFORMACIÓN GENERAL
-          =================================================== */}
-
-          <View
-            style={styles.sectionHeader}
-          >
-            <View
-              style={styles.sectionIcon}
-            >
-              <Text
-                style={
-                  styles.sectionIconText
-                }
-              >
-                2
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.sectionHeaderInfo
-              }
-            >
-              <Text
-                style={styles.sectionTitle}
-              >
-                Información del usuario
-              </Text>
-
-              <Text
-                style={
-                  styles.sectionDescription
-                }
-              >
-                Ingresa los datos básicos de acceso.
-              </Text>
-            </View>
-          </View>
-
-          {/* NOMBRE */}
-
-          <View
-            style={styles.formGroup}
-          >
-            <Text style={styles.label}>
-              Nombre
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="Ej. Juan"
-              placeholderTextColor="#A2B0AD"
-              value={nombre}
-              onChangeText={
-                setNombre
-              }
-              autoCapitalize="words"
-              editable={!guardando}
-            />
-          </View>
-
-          {/* APELLIDO SOLO PACIENTE */}
-
-          {esPaciente && (
-            <View
-              style={styles.formGroup}
-            >
-              <Text
-                style={styles.label}
-              >
-                Apellido
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ej. Pérez"
-                placeholderTextColor="#A2B0AD"
-                value={apellido}
-                onChangeText={
-                  setApellido
-                }
-                autoCapitalize="words"
-                editable={!guardando}
-              />
-            </View>
-          )}
-
-          {/* CORREO */}
-
-          <View
-            style={styles.formGroup}
-          >
-            <Text style={styles.label}>
-              Correo electrónico
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="correo@vitalia.com"
-              placeholderTextColor="#A2B0AD"
-              value={correo}
-              onChangeText={
-                setCorreo
-              }
-              autoCapitalize="none"
-              keyboardType="email-address"
-              editable={!guardando}
-            />
-          </View>
-
-          {/* TELEFONO SOLO PACIENTE */}
-
-          {esPaciente && (
-            <View
-              style={styles.formGroup}
-            >
-              <Text
-                style={styles.label}
-              >
-                Teléfono
-              </Text>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Ej. 7221234567"
-                placeholderTextColor="#A2B0AD"
-                value={telefono}
-                onChangeText={
-                  setTelefono
-                }
-                keyboardType="phone-pad"
-                editable={!guardando}
-              />
-            </View>
-          )}
-
-          {/* CONTRASEÑA */}
-
-          <View
-            style={styles.formGroup}
-          >
-            <View
-              style={styles.labelRow}
-            >
-              <Text
-                style={styles.label}
-              >
-                Contraseña
-              </Text>
-
-              <Text
-                style={[
-                  styles.requiredText,
-                  passwordError &&
-                    styles.requiredTextError,
-                ]}
-              >
-                Mínimo 8 caracteres
-              </Text>
-            </View>
-
-            <Animated.View
-              style={{
-                transform: [
-                  {
-                    translateX:
-                      passwordShake.interpolate(
-                        {
-                          inputRange: [
-                            -1,
-                            1,
-                          ],
-                          outputRange: [
-                            -7,
-                            7,
-                          ],
-                        }
-                      ),
-                  },
-                ],
-              }}
-            >
-              <View
-                style={[
-                  styles.passwordContainer,
-                  passwordError &&
-                    styles.passwordContainerError,
-                ]}
-              >
-                <TextInput
-                  style={
-                    styles.passwordInput
-                  }
-                  placeholder="Ingresa una contraseña segura"
-                  placeholderTextColor="#A2B0AD"
-                  value={password}
-                  onChangeText={
-                    validarPassword
-                  }
-                  secureTextEntry={
-                    !mostrarPassword
-                  }
-                  autoCapitalize="none"
-                  editable={!guardando}
-                />
-
-                <Pressable
-                  style={
-                    styles.passwordButton
-                  }
-                  onPress={() =>
-                    setMostrarPassword(
-                      !mostrarPassword
-                    )
-                  }
-                  disabled={guardando}
-                >
-                  <Text
-                    style={
-                      styles.passwordButtonText
-                    }
-                  >
-                    {mostrarPassword
-                      ? "Ocultar"
-                      : "Ver"}
-                  </Text>
-                </Pressable>
-              </View>
-            </Animated.View>
-
-            {passwordError ? (
-              <Animated.View
-                style={{
-                  transform: [
-                    {
-                      translateX:
-                        passwordShake.interpolate(
-                          {
-                            inputRange: [
-                              -1,
-                              1,
-                            ],
-                            outputRange: [
-                              -4,
-                              4,
-                            ],
-                          }
-                        ),
-                    },
-                  ],
-                }}
-              >
-                <View
-                  style={
-                    styles.passwordErrorBox
-                  }
-                >
-                  <View
-                    style={
-                      styles.passwordErrorIcon
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.passwordErrorIconText
-                      }
-                    >
-                      !
-                    </Text>
-                  </View>
-
-                  <Text
-                    style={styles.errorText}
-                  >
-                    La contraseña debe tener al menos
-                    8 caracteres.
-                  </Text>
+        <View style={s.columnas}>
+          {/* ── Columna izquierda ── */}
+          <View style={[s.columna, s.columnaIzq]}>
+            <Seccion titulo="Datos personales" icono="id-card-o">
+              <View style={s.dosCampos}>
+                <View style={s.mitad}>
+                  <Campo etiqueta={esPaciente ? "Nombre(s)" : "Nombre completo"} valor={f.nombre} onChange={set("nombre")} requerido error={errores.nombre} mostrarError={intento} placeholder="Ej. María Fernanda" autoCapitalize="words" icono="user" />
                 </View>
-              </Animated.View>
-            ) : (
-              <Text
-                style={styles.helperText}
-              >
-                Utiliza una contraseña segura para
-                proteger la cuenta.
-              </Text>
-            )}
-          </View>
-
-          {/* ===================================================
-              DATOS ESPECÍFICOS DEL PACIENTE
-          =================================================== */}
-
-          {esPaciente && (
-            <>
-              <View
-                style={styles.divider}
-              />
-
-              <View
-                style={styles.sectionHeader}
-              >
-                <View
-                  style={styles.sectionIcon}
-                >
-                  <Text
-                    style={
-                      styles.sectionIconText
-                    }
-                  >
-                    P
-                  </Text>
-                </View>
-
-                <View
-                  style={
-                    styles.sectionHeaderInfo
-                  }
-                >
-                  <Text
-                    style={
-                      styles.sectionTitle
-                    }
-                  >
-                    Información del paciente
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.sectionDescription
-                    }
-                  >
-                    Datos adicionales del expediente del paciente.
-                  </Text>
-                </View>
-              </View>
-
-              {/* FECHA NACIMIENTO */}
-
-              <View
-                style={styles.formGroup}
-              >
-                <Text
-                  style={styles.label}
-                >
-                  Fecha de nacimiento
-                </Text>
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="AAAA-MM-DD"
-                  placeholderTextColor="#A2B0AD"
-                  value={
-                    fechaNacimiento
-                  }
-                  onChangeText={
-                    setFechaNacimiento
-                  }
-                  keyboardType="numbers-and-punctuation"
-                  editable={!guardando}
-                />
-              </View>
-
-              {/* GENERO */}
-
-              <View
-                style={styles.formGroup}
-              >
-                <Text
-                  style={styles.label}
-                >
-                  Género
-                </Text>
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ej. Femenino"
-                  placeholderTextColor="#A2B0AD"
-                  value={genero}
-                  onChangeText={
-                    setGenero
-                  }
-                  editable={!guardando}
-                />
-              </View>
-
-              {/* DIRECCION */}
-
-              <View
-                style={styles.formGroup}
-              >
-                <Text
-                  style={styles.label}
-                >
-                  Dirección
-                </Text>
-
-                <TextInput
-                  style={[
-                    styles.input,
-                    styles.textArea,
-                  ]}
-                  placeholder="Ingresa la dirección"
-                  placeholderTextColor="#A2B0AD"
-                  value={direccion}
-                  onChangeText={
-                    setDireccion
-                  }
-                  multiline
-                  numberOfLines={4}
-                  editable={!guardando}
-                />
-              </View>
-            </>
-          )}
-
-          {/* ===================================================
-              DATOS ESPECÍFICOS DEL DOCTOR
-          =================================================== */}
-
-          {esDoctor && (
-            <>
-              <View
-                style={styles.divider}
-              />
-
-              <View
-                style={styles.sectionHeader}
-              >
-                <View
-                  style={styles.sectionIcon}
-                >
-                  <Text
-                    style={
-                      styles.sectionIconText
-                    }
-                  >
-                    D
-                  </Text>
-                </View>
-
-                <View
-                  style={
-                    styles.sectionHeaderInfo
-                  }
-                >
-                  <Text
-                    style={
-                      styles.sectionTitle
-                    }
-                  >
-                    Información del doctor
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.sectionDescription
-                    }
-                  >
-                    Datos profesionales del doctor.
-                  </Text>
-                </View>
-              </View>
-
-              {/* ESPECIALIDAD */}
-
-              <View
-                style={styles.formGroup}
-              >
-                <Text
-                  style={styles.label}
-                >
-                  Especialidad
-                </Text>
-
-                {cargandoEspecialidades ? (
-                  <View
-                    style={
-                      styles.loadingEspecialidades
-                    }
-                  >
-                    <ActivityIndicator
-                      size="small"
-                      color="#247F76"
-                    />
-
-                    <Text
-                      style={
-                        styles.loadingText
-                      }
-                    >
-                      Cargando especialidades...
-                    </Text>
-                  </View>
-                ) : especialidades.length === 0 ? (
-                  <View
-                    style={
-                      styles.noEspecialidades
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.noEspecialidadesIcon
-                      }
-                    >
-                      !
-                    </Text>
-
-                    <View
-                      style={
-                        styles.noEspecialidadesInfo
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.noEspecialidadesTitle
-                        }
-                      >
-                        No hay especialidades
-                      </Text>
-
-                      <Text
-                        style={
-                          styles.noEspecialidadesText
-                        }
-                      >
-                        Primero debes registrar una especialidad.
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  <View
-                    style={
-                      styles.especialidadesContainer
-                    }
-                  >
-                    {especialidades.map(
-                      (especialidad) => {
-                        const seleccionada =
-                          especialidadId ===
-                          String(
-                            especialidad.id_PK
-                          );
-
-                        return (
-                          <Pressable
-                            key={
-                              especialidad.id_PK
-                            }
-                            style={({
-                              pressed,
-                            }) => [
-                              styles.especialidadOption,
-                              seleccionada &&
-                                styles.especialidadSelected,
-                              pressed &&
-                                styles.especialidadPressed,
-                            ]}
-                            onPress={() =>
-                              seleccionarEspecialidad(
-                                especialidad
-                              )
-                            }
-                            disabled={
-                              guardando
-                            }
-                          >
-                            <View
-                              style={[
-                                styles.especialidadRadio,
-                                seleccionada &&
-                                  styles.especialidadRadioSelected,
-                              ]}
-                            >
-                              {seleccionada && (
-                                <View
-                                  style={
-                                    styles.especialidadRadioInner
-                                  }
-                                />
-                              )}
-                            </View>
-
-                            <View
-                              style={
-                                styles.especialidadInfo
-                              }
-                            >
-                              <Text
-                                style={[
-                                  styles.especialidadNombre,
-                                  seleccionada &&
-                                    styles.especialidadNombreSelected,
-                                ]}
-                              >
-                                {
-                                  especialidad.nombre
-                                }
-                              </Text>
-
-                              {especialidad.descripcion && (
-                                <Text
-                                  style={
-                                    styles.especialidadDescripcion
-                                  }
-                                >
-                                  {
-                                    especialidad.descripcion
-                                  }
-                                </Text>
-                              )}
-                            </View>
-
-                            {especialidad.codigo && (
-                              <View
-                                style={
-                                  styles.especialidadCodigo
-                                }
-                              >
-                                <Text
-                                  style={
-                                    styles.especialidadCodigoText
-                                  }
-                                >
-                                  {
-                                    especialidad.codigo
-                                  }
-                                </Text>
-                              </View>
-                            )}
-                          </Pressable>
-                        );
-                      }
-                    )}
+                {esPaciente && (
+                  <View style={s.mitad}>
+                    <Campo etiqueta="Apellidos" valor={f.apellido} onChange={set("apellido")} requerido error={errores.apellido} mostrarError={intento} placeholder="Ej. López Reyes" autoCapitalize="words" />
                   </View>
                 )}
               </View>
-
-              {/* LICENCIA */}
-
-              <View
-                style={styles.formGroup}
-              >
-                <Text
-                  style={styles.label}
-                >
-                  Número de licencia
-                </Text>
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ej. LIC-001"
-                  placeholderTextColor="#A2B0AD"
-                  value={
-                    numeroLicencia
-                  }
-                  onChangeText={
-                    setNumeroLicencia
-                  }
-                  autoCapitalize="characters"
-                  editable={!guardando}
-                />
+              <View style={s.dosCampos}>
+                <View style={s.mitad}>
+                  <Campo etiqueta="Teléfono" valor={f.telefono} onChange={set("telefono")} error={errores.telefono} mostrarError={intento} teclado="phone-pad" placeholder="722 123 4567" icono="phone" ayuda="Opcional" />
+                </View>
               </View>
+            </Seccion>
 
-              {/* COSTO */}
+            <Seccion titulo="Credenciales de acceso" subtitulo="Con estos datos iniciará sesión." icono="lock">
+              <Campo etiqueta="Correo electrónico" valor={f.correo} onChange={set("correo")} requerido error={errores.correo} mostrarError={intento} teclado="email-address" placeholder="nombre@clinica.com" icono="envelope-o" />
 
-              <View
-                style={styles.formGroup}
-              >
-                <Text
-                  style={styles.label}
-                >
-                  Costo de consulta
-                </Text>
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ej. 500"
-                  placeholderTextColor="#A2B0AD"
-                  value={
-                    costoConsulta
-                  }
-                  onChangeText={
-                    setCostoConsulta
-                  }
-                  keyboardType="decimal-pad"
-                  editable={!guardando}
-                />
-              </View>
-            </>
-          )}
-
-          {/* ===================================================
-              INFORMACIÓN
-          =================================================== */}
-
-          <View
-            style={styles.infoBox}
-          >
-            <View
-              style={styles.infoIcon}
-            >
-              <Text
-                style={styles.infoIconText}
-              >
-                i
-              </Text>
-            </View>
-
-            <View
-              style={styles.infoContent}
-            >
-              <Text
-                style={styles.infoTitle}
-              >
-                Acceso al sistema
-              </Text>
-
-              <Text
-                style={styles.infoText}
-              >
-                El usuario podrá iniciar sesión utilizando
-                el correo electrónico y la contraseña
-                registrados.
-              </Text>
-            </View>
-          </View>
-
-          {/* ===================================================
-              BOTONES
-          =================================================== */}
-
-          <View
-            style={[
-              styles.buttons,
-              esMovil &&
-                styles.buttonsMovil,
-            ]}
-          >
-            <Pressable
-              style={({ pressed }) => [
-                styles.cancelButton,
-                pressed &&
-                  styles.cancelButtonPressed,
-              ]}
-              onPress={() =>
-                router.back()
-              }
-              disabled={guardando}
-            >
-              <Text
-                style={styles.cancelText}
-              >
-                Cancelar
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.createButton,
-                guardando &&
-                  styles.buttonDisabled,
-                pressed &&
-                  !guardando &&
-                  styles.createButtonPressed,
-                esMovil &&
-                  styles.createButtonMovil,
-              ]}
-              onPress={
-                crearUsuario
-              }
-              disabled={
-                guardando ||
-                cargandoRoles ||
-                roles.length === 0
-              }
-            >
-              {guardando ? (
-                <>
-                  <ActivityIndicator
-                    color="#FFFFFF"
-                    size="small"
+              <View style={s.dosCampos}>
+                <View style={s.mitad}>
+                  <Campo
+                    etiqueta="Contraseña"
+                    valor={f.password}
+                    onChange={set("password")}
+                    requerido
+                    secreto={!verPassword}
+                    error={errores.password}
+                    mostrarError={intento}
+                    placeholder="Mínimo 8 caracteres"
+                    icono="key"
+                    derecha={
+                      <Pressable onPress={() => setVerPassword((v) => !v)} hitSlop={8} accessibilityLabel={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}>
+                        <FontAwesome name={verPassword ? "eye-slash" : "eye"} size={16} color={C.suave} />
+                      </Pressable>
+                    }
                   />
+                </View>
+                <View style={s.mitad}>
+                  <Campo etiqueta="Confirmar contraseña" valor={f.confirmar} onChange={set("confirmar")} requerido secreto={!verPassword} error={errores.confirmar} mostrarError={intento} placeholder="Repite la contraseña" icono="key" />
+                </View>
+              </View>
 
-                  <Text
-                    style={
-                      styles.createText
-                    }
-                  >
-                    Creando...
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text
-                    style={
-                      styles.createIcon
-                    }
-                  >
-                    ✓
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.createText
-                    }
-                  >
-                    Crear usuario
-                  </Text>
-                </>
+              {f.password.length > 0 && (
+                <View style={{ gap: 8 }}>
+                  <View style={s.fuerzaBarras}>
+                    {[0, 1, 2, 3].map((i) => (
+                      <View key={i} style={[s.fuerzaBarra, i < fort.puntos && { backgroundColor: fort.color }]} />
+                    ))}
+                  </View>
+                  <View style={s.fuerzaFila}>
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: fort.color }}>{fort.nivel}</Text>
+                    {fort.reglas.map((r) => (
+                      <Text key={r.texto} style={{ fontSize: 12, color: r.ok ? C.ok : C.suave }}>
+                        {r.ok ? "✓" : "•"} {r.texto}
+                      </Text>
+                    ))}
+                  </View>
+                </View>
               )}
-            </Pressable>
+
+              <Boton texto="Generar contraseña segura" icono="magic" variante="secundario" chico onPress={() => { const p = generarPassword(); setF((a) => ({ ...a, password: p, confirmar: p })); setVerPassword(true); }} />
+            </Seccion>
+          </View>
+
+          {/* ── Columna derecha ── */}
+          <View style={[s.columna, s.columnaDer]}>
+            {rolId === null && (
+              <View style={s.vacio}>
+                <FontAwesome name="hand-pointer-o" size={22} color={C.placeholder} />
+                <Text style={s.vacioTexto}>Elige un tipo de usuario para ver los datos adicionales que necesita.</Text>
+              </View>
+            )}
+
+            {esDoctor && (
+              <Seccion titulo="Perfil médico" subtitulo="Se guarda en las tablas doctores y doctor_especialidades." icono="user-md">
+                <EspecialidadSelector valor={especialidades} onChange={setEspecialidades} error={errores.especialidades} mostrarError={intento} />
+                <View style={s.dosCampos}>
+                  <View style={s.mitad}>
+                    <Campo etiqueta="Número de licencia" valor={f.licencia} onChange={set("licencia")} requerido error={errores.licencia} mostrarError={intento} placeholder="Cédula profesional" autoCapitalize="characters" icono="certificate" />
+                  </View>
+                  <View style={s.mitad}>
+                    <Campo etiqueta="Costo de consulta (MXN)" valor={f.costo} onChange={set("costo")} requerido error={errores.costo} mostrarError={intento} teclado="decimal-pad" placeholder="500" icono="usd" />
+                  </View>
+                </View>
+              </Seccion>
+            )}
+
+            {esPaciente && (
+              <Seccion titulo="Ficha del paciente" subtitulo="Se guarda en la tabla pacientes, ligada a la cuenta." icono="heartbeat">
+                <View style={{ gap: 6 }}>
+                  <Text style={s.etiqueta}>Fecha de nacimiento</Text>
+                  <SelectorFecha value={f.fechaNacimiento} onChange={set("fechaNacimiento")} max={hoyISO()} placeholder="Fecha de nacimiento" />
+                  {errores.fecha ? <Text style={{ color: C.peligro, fontSize: 12 }}>{errores.fecha}</Text> : null}
+                </View>
+                <View style={{ gap: 8 }}>
+                  <Text style={s.etiqueta}>Género</Text>
+                  <View style={s.chips}>
+                    {["Femenino", "Masculino", "Otro"].map((g) => (
+                      <Chip key={g} texto={g} activo={f.genero === g} onPress={() => set("genero")(f.genero === g ? "" : g)} />
+                    ))}
+                  </View>
+                </View>
+                <Campo etiqueta="Dirección" valor={f.direccion} onChange={set("direccion")} multilinea placeholder="Calle, número, colonia, municipio" autoCapitalize="sentences" ayuda="Opcional" />
+              </Seccion>
+            )}
+
+            {rolId !== null && !esDoctor && !esPaciente && (
+              <View style={s.nota}>
+                <FontAwesome name="info-circle" size={16} color={C.primario} />
+                <Text style={s.notaTexto}>
+                  El rol <Text style={{ fontWeight: "800" }}>{rolActual?.nombre}</Text> solo necesita los datos de cuenta; no requiere perfil adicional.
+                </Text>
+              </View>
+            )}
+
+            {/* Resumen y acciones */}
+            <Seccion titulo="Resumen" icono="check-square-o" derecha={<Text style={s.progreso}>{completados}/{checklist.length}</Text>}>
+              <View style={s.barraFondo}>
+                <View style={[s.barra, { width: `${(completados / checklist.length) * 100}%` }]} />
+              </View>
+              <View style={{ gap: 6 }}>
+                {checklist.map((c) => (
+                  <View key={c.texto} style={s.checkFila}>
+                    <FontAwesome name={c.ok ? "check-circle" : "circle-o"} size={15} color={c.ok ? C.ok : C.placeholder} />
+                    <Text style={{ fontSize: 13, color: c.ok ? C.texto : C.suave }}>{c.texto}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {errorGeneral ? <Aviso tipo="error" texto={errorGeneral} onCerrar={() => setErrorGeneral("")} /> : null}
+
+              <View style={s.acciones}>
+                <Boton texto="Cancelar" variante="fantasma" onPress={() => router.replace("/admin/usuarios")} />
+                <Boton texto="Registrar usuario" icono="user-plus" cargando={guardando} onPress={guardar} />
+              </View>
+            </Seccion>
           </View>
         </View>
-
-        {/* =====================================================
-            FOOTER
-        ===================================================== */}
-
-        <View
-          style={styles.footer}
-        >
-          <View
-            style={styles.footerLine}
-          />
-
-          <Text
-            style={styles.footerText}
-          >
-            VITALIA · Gestión clínica inteligente
-          </Text>
-        </View>
-      </ScrollView>
-      <AlertaPersonalizada
-        visible={alerta.visible}
-        titulo={alerta.titulo}
-        mensaje={alerta.mensaje}
-        tipo={alerta.tipo}
-        onCerrar={cerrarAlerta}
-      />
-    </View>
+      </View>
+    </ScrollView>
   );
 }
-//ALERTAS QUE APAREZCAN BIEN Y HACER CONTRATOS
-const styles = StyleSheet.create({
-  // =========================================================
-  // CONTENEDOR
-  // =========================================================
 
-  container: {
-    flex: 1,
-    backgroundColor: "#F4FAF8",
-  },
-
-  content: {
-    flexGrow: 1,
-    width: "100%",
-    maxWidth: 950,
-    alignSelf: "center",
-    padding: 30,
-    paddingBottom: 50,
-  },
-
-  contentMovil: {
-    padding: 18,
-    paddingBottom: 40,
-  },
-
-  // =========================================================
-  // HEADER
-  // =========================================================
-
-  header: {
-    marginBottom: 24,
-  },
-
-  backButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 5,
-    marginBottom: 20,
-  },
-
-  backButtonPressed: {
-    opacity: 0.6,
-    transform: [
-      {
-        translateX: -2,
-      },
-    ],
-  },
-
-  backIcon: {
-    fontSize: 22,
-    color: "#247F76",
-    marginRight: 7,
-  },
-
-  backText: {
-    color: "#247F76",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-
-  headerTitleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  titleIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    backgroundColor: "#DDF3EF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 15,
-  },
-
-  titleIconText: {
-    fontSize: 30,
-    fontWeight: "300",
-    color: "#247F76",
-  },
-
-  titleInfo: {
-    flex: 1,
-  },
-
-  overline: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.7,
-    color: "#2A8C82",
-    marginBottom: 3,
-  },
-
-  title: {
-    fontSize: 30,
-    fontWeight: "900",
-    color: "#173F3A",
-  },
-
-  subtitle: {
-    marginTop: 4,
-    fontSize: 13,
-    color: "#82938F",
-  },
-
-  // =========================================================
-  // CARD
-  // =========================================================
-
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 28,
-    borderWidth: 1,
-    borderColor: "#E2EEEB",
-    shadowColor: "#173F3A",
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowOpacity: 0.04,
-    shadowRadius: 15,
-    elevation: 2,
-  },
-
-  // =========================================================
-  // SECCIONES
-  // =========================================================
-
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-
-  sectionIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    backgroundColor: "#E2F4F0",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-
-  sectionIconText: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#247F76",
-  },
-
-  sectionHeaderInfo: {
-    flex: 1,
-  },
-
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#26443F",
-  },
-
-  sectionDescription: {
-    fontSize: 11,
-    color: "#8A9B98",
-    marginTop: 3,
-  },
-
-  // =========================================================
-  // FORMULARIO
-  // =========================================================
-
-  formGroup: {
-    marginBottom: 19,
-  },
-
-  labelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 7,
-  },
-
-  label: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#38534E",
-    marginBottom: 7,
-  },
-
-  requiredText: {
-    fontSize: 10,
-    color: "#9AA9A6",
-  },
-
-  requiredTextError: {
-    color: "#C84D4D",
-    fontWeight: "800",
-  },
-
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: "#DDE8E5",
-    borderRadius: 13,
-    paddingHorizontal: 15,
-    fontSize: 14,
-    color: "#173F3A",
-    backgroundColor: "#FBFDFC",
-  },
-
-  textArea: {
-    height: 100,
-    paddingTop: 14,
-    textAlignVertical: "top",
-  },
-
-  // =========================================================
-  // ESPECIALIDADES
-  // =========================================================
-
-  loadingEspecialidades: {
-    minHeight: 70,
-    borderWidth: 1,
-    borderColor: "#DDE8E5",
-    borderRadius: 13,
-    backgroundColor: "#FBFDFC",
-    justifyContent: "center",
-    alignItems: "center",
-    flexDirection: "row",
-  },
-
-  especialidadesContainer: {
-    gap: 9,
-  },
-
-  especialidadOption: {
-    minHeight: 68,
-    borderWidth: 1,
-    borderColor: "#DDE8E5",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  especialidadSelected: {
-    borderColor: "#2A8C82",
-    backgroundColor: "#F0F9F7",
-  },
-
-  especialidadPressed: {
-    transform: [
-      {
-        scale: 0.99,
-      },
-    ],
-    opacity: 0.85,
-  },
-
-  especialidadRadio: {
-    width: 21,
-    height: 21,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: "#A8B7B4",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-
-  especialidadRadioSelected: {
-    borderColor: "#247F76",
-  },
-
-  especialidadRadioInner: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: "#247F76",
-  },
-
-  especialidadInfo: {
-    flex: 1,
-  },
-
-  especialidadNombre: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#405852",
-  },
-
-  especialidadNombreSelected: {
-    color: "#247F76",
-  },
-
-  especialidadDescripcion: {
-    fontSize: 10,
-    color: "#8A9B98",
-    marginTop: 3,
-    lineHeight: 14,
-  },
-
-  especialidadCodigo: {
-    backgroundColor: "#E2F4F0",
-    borderRadius: 9,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    marginLeft: 8,
-  },
-
-  especialidadCodigoText: {
-    fontSize: 9,
-    fontWeight: "900",
-    color: "#247F76",
-  },
-
-  noEspecialidades: {
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: "#FFF7EF",
-    borderWidth: 1,
-    borderColor: "#F4DDC5",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  noEspecialidadesIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    backgroundColor: "#FBE8D4",
-    color: "#C66D25",
-    textAlign: "center",
-    textAlignVertical: "center",
-    fontSize: 17,
-    fontWeight: "900",
-    marginRight: 11,
-  },
-
-  noEspecialidadesInfo: {
-    flex: 1,
-  },
-
-  noEspecialidadesTitle: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#89531F",
-  },
-
-  noEspecialidadesText: {
-    fontSize: 10,
-    color: "#A87543",
-    marginTop: 3,
-  },
-
-  // =========================================================
-  // PASSWORD
-  // =========================================================
-
-  passwordContainer: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: "#DDE8E5",
-    borderRadius: 13,
-    backgroundColor: "#FBFDFC",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  passwordContainerError: {
-    borderColor: "#D84D4D",
-    borderWidth: 1.5,
-    backgroundColor: "#FFF9F9",
-  },
-
-  passwordInput: {
-    flex: 1,
-    height: "100%",
-    paddingHorizontal: 15,
-    fontSize: 14,
-    color: "#173F3A",
-  },
-
-  passwordButton: {
-    paddingHorizontal: 14,
-    height: "100%",
-    justifyContent: "center",
-  },
-
-  passwordButtonText: {
-    color: "#247F76",
-    fontSize: 11,
-    fontWeight: "800",
-  },
-
-  passwordErrorBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 7,
-  },
-
-  passwordErrorIcon: {
-    width: 17,
-    height: 17,
-    borderRadius: 6,
-    backgroundColor: "#FCE3E3",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 6,
-  },
-
-  passwordErrorIconText: {
-    color: "#C84D4D",
-    fontSize: 10,
-    fontWeight: "900",
-  },
-
-  helperText: {
-    fontSize: 10,
-    color: "#96A5A2",
-    marginTop: 6,
-  },
-
-  errorText: {
-    flex: 1,
-    fontSize: 10,
-    color: "#C84D4D",
-    fontWeight: "600",
-  },
-
-  // =========================================================
-  // DIVISOR
-  // =========================================================
-
-  divider: {
-    height: 1,
-    backgroundColor: "#EDF3F1",
-    marginVertical: 27,
-  },
-
-  // =========================================================
-  // ROLES
-  // =========================================================
-
-  loadingRoles: {
-    minHeight: 100,
-    justifyContent: "center",
-    alignItems: "center",
-    flexDirection: "row",
-  },
-
-  loadingText: {
-    color: "#82938F",
-    fontSize: 12,
-    marginLeft: 9,
-  },
-
-  rolesContainer: {
-    gap: 10,
-  },
-
-  roleOption: {
-    minHeight: 74,
-    borderWidth: 1,
-    borderColor: "#DDE8E5",
-    borderRadius: 15,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  roleSelected: {
-    borderColor: "#2A8C82",
-    backgroundColor: "#F0F9F7",
-  },
-
-  rolePressed: {
-    transform: [
-      {
-        scale: 0.99,
-      },
-    ],
-    opacity: 0.85,
-  },
-
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: "#A8B7B4",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 13,
-  },
-
-  radioSelected: {
-    borderColor: "#247F76",
-  },
-
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#247F76",
-  },
-
-  roleInfo: {
-    flex: 1,
-  },
-
-  roleName: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#405852",
-  },
-
-  roleNameSelected: {
-    color: "#247F76",
-  },
-
-  roleDescription: {
-    fontSize: 10,
-    color: "#8A9B98",
-    marginTop: 3,
-    lineHeight: 15,
-  },
-
-  selectedBadge: {
-    backgroundColor: "#DDF3EF",
-    borderRadius: 20,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    marginLeft: 8,
-  },
-
-  selectedBadgeText: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#247F76",
-  },
-
-  // =========================================================
-  // SIN ROLES
-  // =========================================================
-
-  noRoles: {
-    padding: 15,
-    borderRadius: 14,
-    backgroundColor: "#FFF7EF",
-    borderWidth: 1,
-    borderColor: "#F4DDC5",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  noRolesIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    backgroundColor: "#FBE8D4",
-    color: "#C66D25",
-    textAlign: "center",
-    textAlignVertical: "center",
-    fontSize: 17,
-    fontWeight: "900",
-    marginRight: 11,
-  },
-
-  noRolesInfo: {
-    flex: 1,
-  },
-
-  noRolesTitle: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#89531F",
-  },
-
-  noRolesText: {
-    fontSize: 10,
-    color: "#A87543",
-    marginTop: 3,
-  },
-  
-
-  // =========================================================
-  // INFORMACIÓN
-  // =========================================================
-
-  infoBox: {
-    marginTop: 24,
-    padding: 14,
-    borderRadius: 15,
-    backgroundColor: "#F0F8F6",
-    borderWidth: 1,
-    borderColor: "#DCEEEA",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  infoIcon: {
-    width: 35,
-    height: 35,
-    borderRadius: 11,
-    backgroundColor: "#DDF3EF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 11,
-  },
-
-  infoIconText: {
-    fontSize: 16,
-    fontWeight: "900",
-    fontStyle: "italic",
-    color: "#247F76",
-  },
-
-  infoContent: {
-    flex: 1,
-  },
-
-  infoTitle: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#31534D",
-  },
-
-  infoText: {
-    fontSize: 10,
-    lineHeight: 15,
-    color: "#82938F",
-    marginTop: 3,
-  },
-
-  // =========================================================
-  // BOTONES
-  // =========================================================
-
-  buttons: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    gap: 11,
-    marginTop: 28,
-  },
-
-  buttonsMovil: {
-    flexDirection: "column-reverse",
-    alignItems: "stretch",
-  },
-
-  cancelButton: {
-    minHeight: 48,
-    paddingHorizontal: 22,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: "#D8E4E1",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-  },
-
-  cancelButtonPressed: {
-    backgroundColor: "#F4F8F7",
-    transform: [
-      {
-        scale: 0.98,
-      },
-    ],
-  },
-
-  cancelText: {
-    color: "#536A65",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-
-  createButton: {
-    minHeight: 48,
-    minWidth: 165,
-    paddingHorizontal: 20,
-    borderRadius: 13,
-    backgroundColor: "#247F76",
-    justifyContent: "center",
-    alignItems: "center",
-    flexDirection: "row",
-    shadowColor: "#247F76",
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-
-  createButtonMovil: {
-    width: "100%",
-  },
-
-  createButtonPressed: {
-    transform: [
-      {
-        scale: 0.97,
-      },
-    ],
-    opacity: 0.9,
-  },
-
-  createIcon: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "900",
-    marginRight: 7,
-  },
-
-  createText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-
-  // =========================================================
-  // GUARDANDO
-  // =========================================================
-
-  savingContainer: {
-    flex: 1,
-    backgroundColor: "#F4FAF8",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 25,
-  },
-
-  savingCard: {
-    width: "100%",
-    maxWidth: 380,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 35,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E2EEEB",
-    shadowColor: "#173F3A",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 5,
-  },
-
-  savingIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 22,
-    backgroundColor: "#E2F4F0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  savingTitle: {
-    marginTop: 20,
-    fontSize: 19,
-    fontWeight: "900",
-    color: "#173F3A",
-  },
-
-  savingText: {
-    marginTop: 7,
-    fontSize: 12,
-    color: "#82938F",
-    textAlign: "center",
-  },
-
-  savingSubtext: {
-    marginTop: 4,
-    fontSize: 10,
-    color: "#A0AEAB",
-    textAlign: "center",
-  },
-
-  // =========================================================
-  // FOOTER
-  // =========================================================
-
-  footer: {
-    alignItems: "center",
-    marginTop: 30,
-  },
-
-  footerLine: {
-    width: 60,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "#CDE8E3",
-    marginBottom: 10,
-  },
-
-  footerText: {
-    fontSize: 10,
-    color: "#9AA9A6",
-    letterSpacing: 0.5,
-  },
-  
-  alertaOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(15, 35, 32, 0.55)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 24,
-  },
-
-  alertaCaja: {
-    width: "100%",
-    maxWidth: 390,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    paddingHorizontal: 28,
-    paddingTop: 30,
-    paddingBottom: 26,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E2EEEB",
-    elevation: 15,
-    shadowColor: "#173F3A",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-  },
-
-  alertaIconoContainer: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    backgroundColor: "#E5F6F1",
-    borderWidth: 1,
-    borderColor: "#C7EAE0",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-
-  alertaIconoError: {
-    backgroundColor: "#FFF0EF",
-    borderColor: "#F4D0CC",
-  },
-
-  alertaIcono: {
-    fontSize: 34,
-    fontWeight: "700",
-    color: "#247F76",
-  },
-
-  alertaIconoTextoError: {
-    color: "#C94D43",
-  },
-
-  alertaTitulo: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: "#173F3A",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-
-  alertaMensaje: {
-    fontSize: 15,
-    color: "#687D77",
-    textAlign: "center",
-    lineHeight: 23,
-    marginBottom: 26,
-  },
-
-  alertaBoton: {
-    width: "100%",
-    minHeight: 48,
-    backgroundColor: "#247F76",
-    borderRadius: 13,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 13,
-  },
-
-  alertaBotonTexto: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-  },
+const s = StyleSheet.create({
+  scroll: { padding: 20, paddingBottom: 48, alignItems: "center" },
+  pagina: { width: "100%", maxWidth: 1180, gap: 16 },
+  cabecera: { flexDirection: "row", alignItems: "center", gap: 14 },
+  volver: { width: 42, height: 42, borderRadius: 12, backgroundColor: C.tarjeta, borderWidth: 1, borderColor: C.borde, alignItems: "center", justifyContent: "center" },
+  titulo: { fontSize: 24, fontWeight: "800", color: C.oscuro },
+  subtitulo: { fontSize: 13.5, color: C.suave, marginTop: 2 },
+  columnas: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", gap: 16 },
+  columna: { flexShrink: 1, flexBasis: 340, minWidth: 0, gap: 16 },
+  columnaIzq: { flexGrow: 1.1 },
+  columnaDer: { flexGrow: 1 },
+  dosCampos: { flexDirection: "row", flexWrap: "wrap", gap: 14 },
+  mitad: { flexGrow: 1, flexShrink: 1, flexBasis: 210, minWidth: 0 },
+  etiqueta: { fontSize: 13, fontWeight: "700", color: C.texto },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  suave: { fontSize: 13, color: C.suave },
+  cargando: { flexDirection: "row", alignItems: "center", gap: 10 },
+
+  roles: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  rol: { flexGrow: 1, flexBasis: 160, minWidth: 150, maxWidth: 260, padding: 14, borderRadius: 14, borderWidth: 1.5, borderColor: C.borde, backgroundColor: "#FBFDFC", gap: 6 },
+  rolActivo: { borderColor: C.primario, backgroundColor: C.tinte },
+  rolIcono: { width: 36, height: 36, borderRadius: 10, backgroundColor: C.tinte, alignItems: "center", justifyContent: "center" },
+  rolNombre: { fontSize: 14.5, fontWeight: "800", color: C.oscuro },
+  rolDesc: { fontSize: 12, color: C.suave, lineHeight: 16 },
+
+  fuerzaBarras: { flexDirection: "row", gap: 6 },
+  fuerzaBarra: { flex: 1, height: 5, borderRadius: 3, backgroundColor: C.bordeSuave },
+  fuerzaFila: { flexDirection: "row", flexWrap: "wrap", gap: 12, alignItems: "center" },
+
+  vacio: { alignItems: "center", gap: 10, padding: 28, borderRadius: 18, borderWidth: 1.5, borderStyle: "dashed", borderColor: C.borde },
+  vacioTexto: { fontSize: 13.5, color: C.suave, textAlign: "center", lineHeight: 20 },
+  nota: { flexDirection: "row", gap: 12, padding: 16, borderRadius: 14, backgroundColor: C.tinte, alignItems: "flex-start" },
+  notaTexto: { flex: 1, fontSize: 13.5, color: C.texto, lineHeight: 20 },
+
+  progreso: { fontSize: 13, fontWeight: "800", color: C.primario },
+  barraFondo: { height: 6, borderRadius: 3, backgroundColor: C.bordeSuave, overflow: "hidden" },
+  barra: { height: 6, borderRadius: 3, backgroundColor: C.primario },
+  checkFila: { flexDirection: "row", alignItems: "center", gap: 10 },
+  acciones: { flexDirection: "row", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" },
+
+  exitoPagina: { flex: 1, backgroundColor: C.fondo, alignItems: "center", justifyContent: "center", padding: 20 },
+  exitoTarjeta: { width: "100%", maxWidth: 460, backgroundColor: C.tarjeta, borderRadius: 22, borderWidth: 1, borderColor: C.borde, padding: 32, alignItems: "center", gap: 12 },
+  exitoIcono: { width: 68, height: 68, borderRadius: 34, backgroundColor: C.ok, alignItems: "center", justifyContent: "center" },
+  exitoTitulo: { fontSize: 22, fontWeight: "800", color: C.oscuro },
+  exitoTexto: { fontSize: 14.5, color: C.suave, textAlign: "center", lineHeight: 22 },
+  exitoAcciones: { flexDirection: "row", gap: 10, marginTop: 10, flexWrap: "wrap", justifyContent: "center" },
 });
