@@ -1,8 +1,10 @@
 import { FontAwesome } from "@expo/vector-icons";
 import { Stack, usePathname, useRouter } from "expo-router";
+import { useEffect } from "react";
 import {
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -16,10 +18,13 @@ import { NotificationsProvider } from "../context/NotificationsContext";
 function AppLayout() {
   const router = useRouter();
   const pathname = usePathname();
-  const { usuario, logout } = useAuth();
+  const { usuario, logout, cargando } = useAuth();
   const { width } = useWindowDimensions();
 
   const isMobile = width < 700;
+  const isAuthPage =
+    pathname === "/login" || pathname === "/" || pathname === "/recuperar";
+  const rolId = usuario?.rol_id ?? usuario?.rol_id_FK;
 
   const cerrarSesion = () => {
     logout();
@@ -29,7 +34,7 @@ function AppLayout() {
   const irInicio = () => {
     if (!usuario) return;
 
-    switch (usuario.rol_id) {
+    switch (rolId) {
       case 1:
         router.replace("/admin");
         break;
@@ -46,24 +51,44 @@ function AppLayout() {
         router.replace("/recepcion");
         break;
 
+      case 5:
+        router.replace("/coordinador");
+        break;
+
       default:
         break;
     }
   };
 
+  useEffect(() => {
+    if (!cargando && !usuario && !isAuthPage) {
+      router.replace("/login");
+    }
+  }, [cargando, usuario, isAuthPage, pathname]);
+
   const esInicio =
     pathname === "/admin" ||
     pathname === "/doctor" ||
     pathname === "/paciente" ||
-    pathname === "/recepcion";
+    pathname === "/recepcion" ||
+    pathname === "/coordinador";
   const esUsuarios = pathname.includes("/admin/usuarios");
   const esNotificaciones = pathname === "/notificaciones";
-  const esCalendar = pathname === "/calendar";
   const esCitas = pathname.includes("/recepcion/citas");
+  const esCola = pathname.includes("/recepcion/cola");
+  const esConsultas = pathname.includes("/doctor/consultas");
+  const esPacientesDoc = pathname.includes("/doctor/pacientes");
+  const esInventario = pathname.includes("/admin/inventario");
+  const esAdminOCoordinador = rolId === 1 || rolId === 5;
+  const itemsC2 = [
+    { ruta: "/admin/salas", etiqueta: "Salas y Equipamiento", icono: "hospital-o", activo: pathname.includes("/admin/salas") },
+    { ruta: "/admin/auditoria", etiqueta: "Auditoría", icono: "history", activo: pathname.includes("/admin/auditoria") },
+    { ruta: "/admin/reportes", etiqueta: "Reportes", icono: "bar-chart", activo: pathname.includes("/admin/reportes") },
+  ] as const;
 
   return (
     <View style={styles.container}>
-      {usuario && !isMobile && (
+      {!isAuthPage && usuario && !isMobile && (
         <View style={styles.sidebar}>
           <View style={styles.logoContainer}>
             <Image
@@ -71,7 +96,6 @@ function AppLayout() {
               style={styles.logo}
               resizeMode="contain"
             />
-
             <Text style={styles.logoText}>VITALIA</Text>
             <Text style={styles.logoSubtitle}>
               Gestión clínica inteligente
@@ -86,26 +110,21 @@ function AppLayout() {
             </View>
 
             <View style={styles.profileInfo}>
-              <Text
-                style={styles.usuarioNombre}
-                numberOfLines={1}
-              >
+              <Text style={styles.usuarioNombre} numberOfLines={1}>
                 {usuario.nombre}
               </Text>
-
-              <Text
-                style={styles.usuarioCorreo}
-                numberOfLines={1}
-              >
-                {usuario.correo}
+              <Text style={styles.usuarioCorreo} numberOfLines={1}>
+                {usuario.correo || usuario.correo_electronico}
               </Text>
             </View>
           </View>
 
-          <View style={styles.menuSection}>
-            <Text style={styles.sectionTitle}>
-              MENÚ PRINCIPAL
-            </Text>
+          <ScrollView
+            style={styles.menuScroll}
+            contentContainerStyle={styles.menuScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.sectionTitle}>MENÚ PRINCIPAL</Text>
 
             <Pressable
               style={[
@@ -126,7 +145,6 @@ function AppLayout() {
                   color={esInicio ? "#247F76" : "#82938F"}
                 />
               </View>
-
               <Text
                 style={[
                   styles.menuText,
@@ -136,40 +154,6 @@ function AppLayout() {
                 Inicio
               </Text>
             </Pressable>
-            
-
-            {usuario.rol_id === 4 && (
-  <Pressable
-    style={[
-      styles.menuItem,
-      esCitas && styles.menuItemActive,
-    ]}
-    onPress={() => router.push("/recepcion/citas")}
-  >
-    <View
-      style={[
-        styles.iconBox,
-        esCitas && styles.iconBoxActive,
-      ]}
-    >
-      <FontAwesome
-        name="calendar-check-o"
-        size={16}
-        color={esCitas ? "#247F76" : "#82938F"}
-      />
-    </View>
-
-    <Text
-      style={[
-        styles.menuText,
-        esCitas && styles.menuTextActive,
-      ]}
-    >
-      Citas
-    </Text>
-  </Pressable>
-)}
-
 
             <Pressable
               style={[
@@ -190,7 +174,6 @@ function AppLayout() {
                   color={esNotificaciones ? "#247F76" : "#82938F"}
                 />
               </View>
-
               <Text
                 style={[
                   styles.menuText,
@@ -201,37 +184,131 @@ function AppLayout() {
               </Text>
             </Pressable>
 
-            <Pressable
-              style={[
-                styles.menuItem,
-                esCalendar && styles.menuItemActive,
-              ]}
-              onPress={() => router.push("/calendar")}
-            >
-              <View
+            {rolId === 4 && (
+              <Pressable
                 style={[
-                  styles.iconBox,
-                  esCalendar && styles.iconBoxActive,
+                  styles.menuItem,
+                  esCitas && styles.menuItemActive,
                 ]}
+                onPress={() => router.push("/recepcion/citas")}
               >
-                <FontAwesome
-                  name="calendar"
-                  size={16}
-                  color={esCalendar ? "#247F76" : "#82938F"}
-                />
-              </View>
+                <View
+                  style={[
+                    styles.iconBox,
+                    esCitas && styles.iconBoxActive,
+                  ]}
+                >
+                  <FontAwesome
+                    name="calendar-check-o"
+                    size={16}
+                    color={esCitas ? "#247F76" : "#82938F"}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.menuText,
+                    esCitas && styles.menuTextActive,
+                  ]}
+                >
+                  Citas Médicas
+                </Text>
+              </Pressable>
+            )}
 
-              <Text
+            {rolId === 4 && (
+              <Pressable
                 style={[
-                  styles.menuText,
-                  esCalendar && styles.menuTextActive,
+                  styles.menuItem,
+                  esCola && styles.menuItemActive,
                 ]}
+                onPress={() => router.push("/recepcion/cola")}
               >
-                Google Calendar
-              </Text>
-            </Pressable>
+                <View
+                  style={[
+                    styles.iconBox,
+                    esCola && styles.iconBoxActive,
+                  ]}
+                >
+                  <FontAwesome
+                    name="list-ol"
+                    size={16}
+                    color={esCola ? "#247F76" : "#82938F"}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.menuText,
+                    esCola && styles.menuTextActive,
+                  ]}
+                >
+                  Lista de Espera
+                </Text>
+              </Pressable>
+            )}
 
-            {usuario.rol_id === 1 && (
+            {rolId === 2 && (
+              <Pressable
+                style={[
+                  styles.menuItem,
+                  esConsultas && styles.menuItemActive,
+                ]}
+                onPress={() => router.push("/doctor/consultas")}
+              >
+                <View
+                  style={[
+                    styles.iconBox,
+                    esConsultas && styles.iconBoxActive,
+                  ]}
+                >
+                  <FontAwesome
+                    name="calendar-check-o"
+                    size={16}
+                    color={esConsultas ? "#247F76" : "#82938F"}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.menuText,
+                    esConsultas && styles.menuTextActive,
+                  ]}
+                >
+                  Mis Consultas
+                </Text>
+              </Pressable>
+            )}
+
+            {rolId === 2 && (
+              <Pressable
+                style={[
+                  styles.menuItem,
+                  esPacientesDoc && styles.menuItemActive,
+                ]}
+                onPress={() => router.push("/doctor/pacientes")}
+              >
+                <View
+                  style={[
+                    styles.iconBox,
+                    esPacientesDoc && styles.iconBoxActive,
+                  ]}
+                >
+                  <FontAwesome
+                    name="users"
+                    size={16}
+                    color={esPacientesDoc ? "#247F76" : "#82938F"}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.menuText,
+                    esPacientesDoc && styles.menuTextActive,
+                  ]}
+                >
+                  Mis Pacientes
+                </Text>
+              </Pressable>
+            )}
+
+            {esAdminOCoordinador && (
               <Pressable
                 style={[
                   styles.menuItem,
@@ -251,7 +328,6 @@ function AppLayout() {
                     color={esUsuarios ? "#247F76" : "#82938F"}
                   />
                 </View>
-
                 <Text
                   style={[
                     styles.menuText,
@@ -263,7 +339,56 @@ function AppLayout() {
               </Pressable>
             )}
 
-          </View>
+            {rolId === 1 && (
+              <Pressable
+                style={[
+                  styles.menuItem,
+                  esInventario && styles.menuItemActive,
+                ]}
+                onPress={() => router.push("/admin/inventario")}
+              >
+                <View
+                  style={[
+                    styles.iconBox,
+                    esInventario && styles.iconBoxActive,
+                  ]}
+                >
+                  <FontAwesome
+                    name="cubes"
+                    size={16}
+                    color={esInventario ? "#247F76" : "#82938F"}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.menuText,
+                    esInventario && styles.menuTextActive,
+                  ]}
+                >
+                  Almacén e Inventario
+                </Text>
+              </Pressable>
+            )}
+            {esAdminOCoordinador &&
+              itemsC2.map((item) => (
+                <Pressable
+                  key={item.ruta}
+                  style={[styles.menuItem, item.activo && styles.menuItemActive]}
+                  onPress={() => router.push(item.ruta)}
+                >
+                  <View style={[styles.iconBox, item.activo && styles.iconBoxActive]}>
+                    <FontAwesome
+                      name={item.icono}
+                      size={16}
+                      color={item.activo ? "#247F76" : "#82938F"}
+                    />
+                  </View>
+                  <Text style={[styles.menuText, item.activo && styles.menuTextActive]}>
+                    {item.etiqueta}
+                  </Text>
+                </Pressable>
+              ))}
+          </ScrollView>
 
           <View style={styles.sidebarBottom}>
             <View style={styles.securityBox}>
@@ -273,32 +398,20 @@ function AppLayout() {
                 color="#247F76"
                 style={{ marginRight: 8 }}
               />
-
               <View>
-                <Text style={styles.securityTitle}>
-                  Sistema seguro
-                </Text>
-
-                <Text style={styles.securityText}>
-                  Sesión protegida
-                </Text>
+                <Text style={styles.securityTitle}>Sistema seguro</Text>
+                <Text style={styles.securityText}>Sesión protegida</Text>
               </View>
             </View>
 
-            <Pressable
-              style={styles.logoutButton}
-              onPress={cerrarSesion}
-            >
+            <Pressable style={styles.logoutButton} onPress={cerrarSesion}>
               <FontAwesome
                 name="sign-out"
                 size={16}
                 color="#D65A5A"
                 style={{ marginRight: 8 }}
               />
-
-              <Text style={styles.logoutText}>
-                Cerrar sesión
-              </Text>
+              <Text style={styles.logoutText}>Cerrar sesión</Text>
             </Pressable>
           </View>
         </View>
@@ -310,39 +423,40 @@ function AppLayout() {
           isMobile && styles.mainMobile,
         ]}
       >
-        {usuario && isMobile && (
+        {!isAuthPage && usuario && isMobile && (
           <View style={styles.mobileHeader}>
-            <View style={styles.mobileBrand}>
-              <Text style={styles.mobileLogo}>
-                VITALIA
-              </Text>
-
+            <Pressable style={styles.mobileBrand} onPress={irInicio}>
+              <Text style={styles.mobileLogo}>VITALIA</Text>
               <Text style={styles.mobileRole}>
-                {usuario.rol_id === 1
+                {rolId === 1
                   ? "Administrador"
-                  : usuario.rol_id === 2
+                  : rolId === 2
                   ? "Doctor"
-                  : usuario.rol_id === 3
+                  : rolId === 3
                   ? "Paciente"
+                  : rolId === 5
+                  ? "Coordinador"
                   : "Recepción"}
               </Text>
-            </View>
-
-            <Pressable
-              style={styles.mobileLogout}
-              onPress={cerrarSesion}
-            >
-              <FontAwesome name="sign-out" size={16} color="#D65A5A" />
             </Pressable>
+
+            <View style={styles.mobileActions}>
+              <Pressable
+                style={[styles.mobileIconButton, esNotificaciones && styles.mobileIconButtonActive]}
+                onPress={() => router.push("/notificaciones")}
+              >
+                <FontAwesome name="bell" size={16} color={esNotificaciones ? "#247F76" : "#82938F"} />
+              </Pressable>
+
+              <Pressable style={styles.mobileLogout} onPress={cerrarSesion}>
+                <FontAwesome name="sign-out" size={16} color="#D65A5A" />
+              </Pressable>
+            </View>
           </View>
         )}
 
         <View style={styles.stackContainer}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-          />
+          <Stack screenOptions={{ headerShown: false }} />
         </View>
       </View>
     </View>
@@ -362,231 +476,46 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: "row",
-    backgroundColor: "#F4FAF8",
-  },
-
-  sidebar: {
-    width: 270,
-    height: "100%",
-    backgroundColor: "#FFFFFF",
-    borderRightWidth: 1,
-    borderRightColor: "#E2ECEA",
-    paddingHorizontal: 18,
-    paddingTop: 28,
-    paddingBottom: 20,
-    flexDirection: "column",
-  },
-
-  logoContainer: {
-    alignItems: "center",
-    marginBottom: 28,
-  },
-
-  logo: {
-    width: 52,
-    height: 52,
-    marginBottom: 5,
-  },
-
-  logoText: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: "#247F76",
-    letterSpacing: 1.5,
-  },
-
-  logoSubtitle: {
-    fontSize: 10,
-    color: "#8A9B98",
-    marginTop: 3,
-  },
-
-  profileCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F1F8F6",
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    marginBottom: 28,
-  },
-
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#DDF3EF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
-
-  avatarText: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#247F76",
-  },
-
-  profileInfo: {
-    flex: 1,
-  },
-
-  usuarioNombre: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#173F3A",
-  },
-
-  usuarioCorreo: {
-    fontSize: 10,
-    color: "#82938F",
-    marginTop: 3,
-  },
-
-  menuSection: {
-    flex: 1,
-  },
-
-  sectionTitle: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#9AA9A6",
-    letterSpacing: 1,
-    marginLeft: 10,
-    marginBottom: 10,
-  },
-
-  menuItem: {
-    height: 50,
-    borderRadius: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    marginBottom: 7,
-  },
-
-  menuItemActive: {
-    backgroundColor: "#E7F5F2",
-  },
-
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-
-  iconBoxActive: {
-    backgroundColor: "#D5EFEB",
-  },
-
-  menuText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#667773",
-  },
-
-  menuTextActive: {
-    color: "#247F76",
-    fontWeight: "700",
-  },
-
-  sidebarBottom: {
-    marginTop: "auto",
-  },
-
-  securityBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F7FBFA",
-    borderRadius: 13,
-    padding: 11,
-    marginBottom: 12,
-  },
-
-  securityTitle: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#48605B",
-  },
-
-  securityText: {
-    fontSize: 9,
-    color: "#94A39F",
-    marginTop: 2,
-  },
-
-  logoutButton: {
-    height: 46,
-    borderRadius: 13,
-    backgroundColor: "#FFF5F5",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  logoutText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#D65A5A",
-  },
-
-  main: {
-    flex: 1,
-    minWidth: 0,
-    height: "100%",
-    backgroundColor: "#F4FAF8",
-  },
-
-  stackContainer: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  mainMobile: {
-    width: "100%",
-  },
-
-  mobileHeader: {
-    height: 68,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2ECEA",
-    paddingHorizontal: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  mobileBrand: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  mobileLogo: {
-    fontSize: 19,
-    fontWeight: "800",
-    color: "#247F76",
-    letterSpacing: 1,
-  },
-
-  mobileRole: {
-    fontSize: 10,
-    color: "#82938F",
-    marginLeft: 10,
-  },
-
-  mobileLogout: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#FFF5F5",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  container: { flex: 1, flexDirection: "row", backgroundColor: "#F4FAF8" },
+  sidebar: { width: 270, height: "100%", backgroundColor: "#FFFFFF", borderRightWidth: 1, borderRightColor: "#E2ECEA", paddingHorizontal: 18, paddingTop: 28, paddingBottom: 20 },
+  logoContainer: { alignItems: "center", marginBottom: 28 },
+  logo: { width: 52, height: 52, marginBottom: 5 },
+  logoText: { fontSize: 21, fontWeight: "800", color: "#247F76", letterSpacing: 1.5 },
+  logoSubtitle: { fontSize: 10, color: "#8A9B98", marginTop: 3 },
+  profileCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#F1F8F6", borderRadius: 16, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 20 },
+  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#DDF3EF", justifyContent: "center", alignItems: "center", marginRight: 10 },
+  avatarText: { fontSize: 17, fontWeight: "800", color: "#247F76" },
+  profileInfo: { flex: 1 },
+  usuarioNombre: { fontSize: 13, fontWeight: "700", color: "#173F3A" },
+  usuarioCorreo: { fontSize: 10, color: "#82938F", marginTop: 3 },
+  menuScroll: { flex: 1 },
+  menuScrollContent: { paddingBottom: 16 },
+  sectionTitle: { fontSize: 10, fontWeight: "700", color: "#9AA9A6", letterSpacing: 1, marginLeft: 10, marginBottom: 10 },
+  menuItem: { height: 50, borderRadius: 14, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, marginBottom: 7 },
+  menuItemActive: { backgroundColor: "#E7F5F2" },
+  iconBox: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center", marginRight: 10 },
+  iconBoxActive: { backgroundColor: "#D5EFEB" },
+  menuText: { fontSize: 13, fontWeight: "600", color: "#667773" },
+  menuTextActive: { color: "#247F76", fontWeight: "700" },
+  menuLabelContainer: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  onlineBadge: { marginLeft: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, backgroundColor: "#E6F7F2" },
+  onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#247F76" },
+  sidebarBottom: { marginTop: "auto", paddingTop: 10 },
+  securityBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#F7FBFA", borderRadius: 13, padding: 11, marginBottom: 12 },
+  securityTitle: { fontSize: 11, fontWeight: "700", color: "#48605B" },
+  securityText: { fontSize: 9, color: "#94A39F", marginTop: 2 },
+  logoutButton: { height: 46, borderRadius: 13, backgroundColor: "#FFF5F5", flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  logoutText: { fontSize: 12, fontWeight: "700", color: "#D65A5A" },
+  main: { flex: 1, minWidth: 0, height: "100%", backgroundColor: "#F4FAF8" },
+  stackContainer: { flex: 1, minWidth: 0 },
+  mainMobile: { width: "100%" },
+  mobileHeader: { height: 68, backgroundColor: "#FFFFFF", borderBottomWidth: 1, borderBottomColor: "#E2ECEA", paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  mobileBrand: { flexDirection: "row", alignItems: "center" },
+  mobileLogo: { fontSize: 19, fontWeight: "800", color: "#247F76", letterSpacing: 1 },
+  mobileRole: { fontSize: 10, color: "#82938F", marginLeft: 8 },
+  mobileActions: { flexDirection: "row", alignItems: "center" },
+  mobileIconButton: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 8, backgroundColor: "#F1F8F6", position: "relative" },
+  mobileIconButtonActive: { backgroundColor: "#DDF3EF" },
+  mobileOnlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#247F76", position: "absolute", top: 6, right: 6 },
+  mobileLogout: { width: 38, height: 38, borderRadius: 10, backgroundColor: "#FFF5F5", alignItems: "center", justifyContent: "center" },
 });

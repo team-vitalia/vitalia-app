@@ -1,3 +1,4 @@
+
 import {
   createContext,
   ReactNode,
@@ -6,6 +7,7 @@ import {
   useState,
 } from "react";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../services/api";
 
 export interface Usuario {
@@ -41,61 +43,83 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export function AuthProvider({
-  children,
-}: AuthProviderProps) {
+const TOKEN_KEY = "vitalia_token";
+const USER_KEY = "vitalia_usuario";
+
+export function AuthProvider({ children }: AuthProviderProps) {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [cargando, setCargando] = useState<boolean>(true);
+  const [cargando, setCargando] = useState(true);
 
-  /*
-  ============================================================
-  REHIDRATAR SESIÓN AL REFRESCAR (F5)
-  ============================================================
-  */
+  // Restaurar la sesión guardada al abrir la aplicación.
   useEffect(() => {
     let montado = true;
 
     const cargarSesionPersistente = async () => {
       try {
-        if (typeof window !== "undefined") {
-          const tokenGuardado = localStorage.getItem("vitalia_token");
-          const usuarioGuardado = localStorage.getItem("vitalia_usuario");
+        const valores = await AsyncStorage.multiGet([
+          TOKEN_KEY,
+          USER_KEY,
+        ]);
 
-          if (tokenGuardado && usuarioGuardado) {
-            const parsedUser = JSON.parse(usuarioGuardado);
+        const tokenGuardado = valores[0][1];
+        const usuarioGuardado = valores[1][1];
+
+        if (!tokenGuardado || !usuarioGuardado) {
+          return;
+        }
+
+        const usuarioParseado: Usuario = JSON.parse(usuarioGuardado);
+
+        if (montado) {
+          setToken(tokenGuardado);
+          setUsuario(usuarioParseado);
+        }
+
+        api.defaults.headers.common["Authorization"] =
+          `Bearer ${tokenGuardado}`;
+
+        // Comprobar si el token continúa siendo válido.
+        try {
+          const respuesta = await api.get("/api/auth/me", {
+            headers: {
+              Authorization: `Bearer ${tokenGuardado}`,
+            },
+          });
+
+          if (respuesta.data && montado) {
+            setUsuario(respuesta.data);
+
+            await AsyncStorage.setItem(
+              USER_KEY,
+              JSON.stringify(respuesta.data)
+            );
+          }
+        } catch (error: any) {
+          if (error?.response?.status === 401) {
+            await AsyncStorage.multiRemove([
+              TOKEN_KEY,
+              USER_KEY,
+            ]);
+
+            delete api.defaults.headers.common["Authorization"];
+
             if (montado) {
-              setToken(tokenGuardado);
-              setUsuario(parsedUser);
+              setToken(null);
+              setUsuario(null);
             }
-
-            api.defaults.headers.common["Authorization"] = `Bearer ${tokenGuardado}`;
-
-            // Validar en segundo plano que el token siga activo
-            try {
-              const res = await api.get("/api/auth/me", {
-                headers: { Authorization: `Bearer ${tokenGuardado}` },
-              });
-              if (res.data && montado) {
-                setUsuario(res.data);
-                localStorage.setItem("vitalia_usuario", JSON.stringify(res.data));
-              }
-            } catch (err: any) {
-              if (err?.response?.status === 401) {
-                console.warn("Sesión expirada en el servidor. Limpiando almacenamiento.");
-                if (montado) {
-                  setToken(null);
-                  setUsuario(null);
-                }
-                localStorage.removeItem("vitalia_token");
-                localStorage.removeItem("vitalia_usuario");
-                delete api.defaults.headers.common["Authorization"];
-              }
-            }
+          } else {
+            console.warn(
+              "No se pudo verificar la sesión en el servidor:",
+              error?.message ?? error
+            );
           }
         }
-      } catch (e) {
-        console.error("Error al rehidratar sesión:", e);
+      } catch (error) {
+        console.error(
+          "Error al rehidratar sesión:",
+          error
+        );
       } finally {
         if (montado) {
           setCargando(false);
@@ -103,19 +127,14 @@ export function AuthProvider({
       }
     };
 
-    cargarSesionPersistente();
+    void cargarSesionPersistente();
 
     return () => {
       montado = false;
     };
   }, []);
 
-  /*
-  ============================================================
-  LOGIN
-  ============================================================
-  */
-
+  // Iniciar sesión.
   const login = async (
     correo_electronico: string,
     password: string
@@ -123,22 +142,12 @@ export function AuthProvider({
     setCargando(true);
 
     try {
+      const respuesta = await api.post("/api/auth/login", {
+        correo_electronico,
+        password,
+      });
 
-
-
-
-
-
-      const respuesta = await api.post(
-        "/api/auth/login",
-        {
-          correo_electronico,
-          password,
-        }
-      );
-
-      const accessToken = respuesta.data.access_token;
-
+      const accessToken = respuesta.data?.access_token;
 
       if (!accessToken) {
         throw new Error(
@@ -146,105 +155,81 @@ export function AuthProvider({
         );
       }
 
-      api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+      api.defaults.headers.common["Authorization"] =
+        `Bearer ${accessToken}`;
 
+      const respuestaUsuario = await api.get("/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
+      const usuarioActual: Usuario = respuestaUsuario.data;
 
+      // Guardar la sesión en el almacenamiento multiplataforma.
+      await AsyncStorage.multiSet([
+        [TOKEN_KEY, accessToken],
+        [USER_KEY, JSON.stringify(usuarioActual)],
+      ]);
 
-
-      const respuestaUsuario = await api.get(
-        "/api/auth/me",
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      const usuarioActual = respuestaUsuario.data;
-
-
-
-
-
-
-
-
-      // Hapon ken iserrek iti memorya ken localStorage ti browser
       setToken(accessToken);
       setUsuario(usuarioActual);
 
-      if (typeof window !== "undefined") {
-        localStorage.setItem("vitalia_token", accessToken);
-        localStorage.setItem("vitalia_usuario", JSON.stringify(usuarioActual));
-      }
-
       return usuarioActual;
     } catch (error: any) {
-      const status = error?.response?.status;
-      const detail = error?.response?.data?.detail;
-
-
-
-
-
-
-
-
-
-
-      console.log(
-        "ERROR LOGIN:",
-        status,
+      console.error("ERROR LOGIN COMPLETO:", error);
+      console.error("URL DE LA API:", api.defaults.baseURL);
+      console.error("CÓDIGO HTTP:", error?.response?.status);
+      console.error(
+        "RESPUESTA DEL SERVIDOR:",
         error?.response?.data
       );
+      console.error("MENSAJE:", error?.message);
 
-
-
-
-
-
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.detail;
 
       if (
         status === 401 ||
         detail === "Correo o contraseña incorrectos"
-
       ) {
         throw new Error(
           "Correo o contraseña incorrectos"
         );
       }
 
-
-
-
-
-
+      if (!error?.response) {
+        throw new Error(
+          "No se pudo conectar con el servidor. Verifica la URL de la API y la conexión."
+        );
+      }
 
       throw new Error(
-        detail || "No se pudo iniciar sesión."
-
+        typeof detail === "string"
+          ? detail
+          : "No se pudo iniciar sesión."
       );
     } finally {
       setCargando(false);
     }
   };
 
-  /*
-  ============================================================
-  LOGOUT
-  ============================================================
-  */
-
+  // Cerrar sesión.
   const logout = () => {
     setUsuario(null);
     setToken(null);
+
     delete api.defaults.headers.common["Authorization"];
 
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("vitalia_token");
-      localStorage.removeItem("vitalia_usuario");
-    }
+    void AsyncStorage.multiRemove([
+      TOKEN_KEY,
+      USER_KEY,
+    ]).catch((error) => {
+      console.error(
+        "Error al limpiar la sesión:",
+        error
+      );
+    });
   };
 
   return (
@@ -262,12 +247,7 @@ export function AuthProvider({
   );
 }
 
-/*
-============================================================
-HOOK
-============================================================
-*/
-
+// Hook para acceder al contexto de autenticación.
 export function useAuth() {
   const context = useContext(AuthContext);
 
