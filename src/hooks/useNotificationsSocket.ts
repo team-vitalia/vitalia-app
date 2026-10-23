@@ -140,23 +140,39 @@ export function useNotificationsSocket(
         if (!isMountedRef.current || socketRef.current !== ws) return;
 
         const rawData = event.data;
-        const hash = typeof rawData === "string" ? rawData : JSON.stringify(rawData);
-
-        if (recentHashesRef.current.has(hash)) {
-          return;
-        }
-
-        recentHashesRef.current.add(hash);
-        setTimeout(() => {
-          recentHashesRef.current.delete(hash);
-        }, 3000);
-
         let parsedData: any;
         try {
           parsedData = JSON.parse(rawData);
         } catch (e) {
           parsedData = rawData;
         }
+
+        const msgType = typeof parsedData === "object" ? parsedData?.type : null;
+        if (
+          msgType === "connection_established" ||
+          msgType === "pong" ||
+          msgType === "echo"
+        ) {
+          return;
+        }
+
+        const dedupKey =
+          typeof parsedData === "object" && parsedData?.type && (parsedData?.cita_id || parsedData?.notificacion_id)
+            ? `${parsedData.type}_${parsedData.cita_id || parsedData.notificacion_id}`
+            : typeof parsedData === "object" && parsedData?.title && parsedData?.body
+            ? `${parsedData.title}_${parsedData.body}`
+            : typeof rawData === "string"
+            ? rawData
+            : JSON.stringify(rawData);
+
+        if (recentHashesRef.current.has(dedupKey)) {
+          return;
+        }
+
+        recentHashesRef.current.add(dedupKey);
+        setTimeout(() => {
+          recentHashesRef.current.delete(dedupKey);
+        }, 4000);
 
         const newMessage: WSMessage = {
           id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,

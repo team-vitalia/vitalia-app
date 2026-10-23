@@ -1,17 +1,32 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
+import { FontAwesome } from "@expo/vector-icons";
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../services/api";
+import SelectorFecha from "../../../components/SelectorFecha";
+import SelectorHora from "../../../components/SelectorHora";
+import { AsignacionSala, Equipo, hhmm, nombreDia } from "../../../services/c2Service";
+
+/** Alert.alert no muestra nada en web; este helper funciona en ambas plataformas. */
+function avisar(titulo: string, mensaje: string, alAceptar?: () => void) {
+  if (Platform.OS === "web") {
+    if (typeof window !== "undefined") window.alert(`${titulo}\n\n${mensaje}`);
+    alAceptar?.();
+    return;
+  }
+  Alert.alert(titulo, mensaje, [{ text: "Aceptar", onPress: alAceptar }]);
+}
 
 interface Paciente {
   id_PK: number;
@@ -27,7 +42,10 @@ interface Doctor {
 }
 
 export default function CrearCita() {
-  const { token } = useAuth();
+  const { token, usuario, cargando: cargandoAuth } = useAuth();
+  const rolId = usuario?.rol_id ?? usuario?.rol_id_FK;
+
+  const hoy = new Date().toISOString().split("T")[0];
 
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
   const [doctores, setDoctores] = useState<Doctor[]>([]);
@@ -41,14 +59,24 @@ export default function CrearCita() {
   const [motivo, setMotivo] = useState("");
   const [notas, setNotas] = useState("");
 
+  const [asignaciones, setAsignaciones] = useState<AsignacionSala[]>([]);
+  const [salaId, setSalaId] = useState<number | null>(null);
+  const [requiereEquipo, setRequiereEquipo] = useState(false);
+  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [equipoId, setEquipoId] = useState<number | null>(null);
+  const [accionEquipo, setAccionEquipo] = useState("");
+
+  const [errores, setErrores] = useState<Record<string, string>>({});
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [mostrarPacientes, setMostrarPacientes] = useState(false);
   const [mostrarDoctores, setMostrarDoctores] = useState(false);
 
   useEffect(() => {
-    cargarDatos();
-  }, []);
+    if (token) {
+      cargarDatos();
+    }
+  }, [token]);
 
   const cargarDatos = async () => {
     if (!token) return;
@@ -56,63 +84,108 @@ export default function CrearCita() {
     try {
       setCargando(true);
 
-      const [respuestaPacientes, respuestaDoctores] =
-        await Promise.all([
-          api.get("/api/pacientes/", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
-          api.get("/api/doctores/", {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
-        ]);
+      const [respuestaPacientes, respuestaDoctores] = await Promise.all([
+        api.get("/api/pacientes/", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+        api.get("/api/doctores/", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+      ]);
 
       setPacientes(respuestaPacientes.data);
       setDoctores(respuestaDoctores.data);
     } catch (error: any) {
       console.error("Error cargando datos:", error);
-
       Alert.alert(
         "Error",
-        error?.response?.data?.detail ||
-          "No fue posible cargar pacientes y doctores."
+        error?.response?.data?.detail || "No fue posible cargar pacientes y doctores."
       );
     } finally {
       setCargando(false);
     }
   };
 
-  const crearCita = async () => {
-    if (!token) {
-      Alert.alert("Error", "No hay sesión activa.");
-      return;
-    }
+  // Salas asignadas al doctor elegido
+  useEffect(() => {
+    setSalaId(null);
+    setAsignaciones([]);
+    if (!doctorId || !token) return;
+    api
+      .get(`/api/doctor-salas/doctor/${doctorId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => setAsignaciones(r.data))
+      .catch(() => setAsignaciones([]));
+  }, [doctorId, token]);
+
+  // Equipo de la sala elegida
+  useEffect(() => {
+    setEquipoId(null);
+    setEquipos([]);
+    if (!salaId || !token) return;
+    api
+      .get(`/api/salas/${salaId}/equipamiento`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => setEquipos(r.data))
+      .catch(() => setEquipos([]));
+  }, [salaId, token]);
+
+  const salasDoctor = Array.from(new Map(asignaciones.map((a) => [a.sala_id_FK, a])).values());
+  const horariosSala = asignaciones.filter((a) => a.sala_id_FK === salaId);
+
+  const validarFormulario = (): boolean => {
+    const nuevosErrores: Record<string, string> = {};
 
     if (!pacienteId) {
-      Alert.alert("Falta información", "Selecciona un paciente.");
-      return;
+      nuevosErrores.paciente = "Selecciona un paciente de la lista.";
     }
 
     if (!doctorId) {
-      Alert.alert("Falta información", "Selecciona un doctor.");
-      return;
+      nuevosErrores.doctor = "Selecciona un doctor para la atención médica.";
     }
 
     if (!fecha.trim()) {
-      Alert.alert("Falta información", "Ingresa la fecha.");
-      return;
+      nuevosErrores.fecha = "Selecciona la fecha programada.";
+    } else if (fecha.trim() < hoy) {
+      nuevosErrores.fecha = "La fecha no puede ser anterior a hoy.";
     }
 
+    const patronHora = /^([01]\d|2[0-3]):[0-5]\d$/;
+
     if (!horaInicio.trim()) {
-      Alert.alert("Falta información", "Ingresa la hora de inicio.");
-      return;
+      nuevosErrores.horaInicio = "Ingresa la hora de inicio.";
+    } else if (!patronHora.test(horaInicio.trim())) {
+      nuevosErrores.horaInicio = "Formato inválido (HH:MM).";
     }
 
     if (!horaFin.trim()) {
-      Alert.alert("Falta información", "Ingresa la hora de fin.");
+      nuevosErrores.horaFin = "Ingresa la hora de fin.";
+    } else if (!patronHora.test(horaFin.trim())) {
+      nuevosErrores.horaFin = "Formato inválido (HH:MM).";
+    } else if (horaInicio.trim() && horaFin.trim() <= horaInicio.trim()) {
+      nuevosErrores.horaFin = "La hora de fin debe ser posterior a la de inicio.";
+    }
+
+    if (requiereEquipo) {
+      if (!salaId) nuevosErrores.sala = "Selecciona una sala para poder usar equipo.";
+      else if (!equipoId) nuevosErrores.equipo = "Selecciona el equipo a utilizar.";
+      if (!accionEquipo.trim()) nuevosErrores.accion = "Indica la acción a realizar con el equipo.";
+    }
+
+    setErrores(nuevosErrores);
+    return Object.keys(nuevosErrores).length === 0;
+  };
+
+  const crearCita = async () => {
+    if (!token) {
+      avisar("Error", "No hay sesión activa.");
+      return;
+    }
+
+    if (!validarFormulario()) {
+      avisar("Formulario incompleto", "Por favor revisa los campos señalados.");
       return;
     }
 
@@ -130,6 +203,10 @@ export default function CrearCita() {
           estado: "programada",
           motivo: motivo.trim() || null,
           notas: notas.trim() || null,
+          sala_id_FK: salaId,
+          requiere_equipo: requiereEquipo,
+          equipo_id_FK: requiereEquipo ? equipoId : null,
+          accion_equipo: requiereEquipo ? accionEquipo.trim() : null,
         },
         {
           headers: {
@@ -138,23 +215,18 @@ export default function CrearCita() {
         }
       );
 
-      Alert.alert(
+      avisar(
         "Cita creada",
-        "La cita se registró correctamente.",
-        [
-          {
-            text: "Aceptar",
-            onPress: () => router.replace("/recepcion/citas"),
-          },
-        ]
+        "La cita se registró y sincronizó correctamente.",
+        () => router.replace("/recepcion/citas")
       );
     } catch (error: any) {
       console.error("Error creando cita:", error);
-
-      Alert.alert(
+      avisar(
         "Error",
-        error?.response?.data?.detail ||
-          "No fue posible crear la cita."
+        typeof error?.response?.data?.detail === "string"
+          ? error.response.data.detail
+          : "No fue posible crear la cita."
       );
     } finally {
       setGuardando(false);
@@ -172,42 +244,76 @@ export default function CrearCita() {
   if (cargando) {
     return (
       <View style={styles.cargando}>
-        <ActivityIndicator size="large" color="#2A8C82" />
-        <Text style={styles.textoCargando}>
-          Cargando información...
-        </Text>
+        <ActivityIndicator size="large" color="#247F76" />
+        <Text style={styles.textoCargando}>Cargando información...</Text>
+      </View>
+    );
+  }
+
+  if (!cargandoAuth && rolId !== 4) {
+    return (
+      <View style={styles.deniedContainer}>
+        <View style={styles.deniedCard}>
+          <View style={styles.deniedIconBox}>
+            <FontAwesome name="lock" size={32} color="#D65A5A" />
+          </View>
+          <Text style={styles.deniedTitle}>Acceso Restringido</Text>
+          <Text style={styles.deniedSubtitle}>
+            La programación de nuevas citas médicas está reservada exclusivamente para el personal con rol de Recepción.
+          </Text>
+          <Pressable
+            style={styles.deniedButton}
+            onPress={() => {
+              if (rolId === 1) router.replace("/admin");
+              else if (rolId === 2) router.replace("/doctor");
+              else if (rolId === 3) router.replace("/paciente");
+              else router.replace("/login");
+            }}
+          >
+            <FontAwesome name="arrow-left" size={14} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.deniedButtonText}>Volver al Portal</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contenido}
-      keyboardShouldPersistTaps="handled"
-    >
+    <ScrollView style={styles.container} contentContainerStyle={styles.contenido}>
       <View style={styles.encabezado}>
         <Pressable
           style={styles.botonRegresar}
           onPress={() => router.back()}
         >
-          <Text style={styles.textoRegresar}>‹</Text>
+          <FontAwesome name="arrow-left" size={14} color="#247F76" />
         </Pressable>
 
         <View>
-          <Text style={styles.titulo}>Nueva cita</Text>
+          <Text style={styles.titulo}>Agendar Cita</Text>
           <Text style={styles.subtitulo}>
-            Registra una nueva cita médica
+            Programa una nueva consulta médica vinculada a Google Calendar.
           </Text>
         </View>
       </View>
 
-      {/* PACIENTE */}
+      <View style={styles.syncCard}>
+        <FontAwesome name="info-circle" size={18} color="#247F76" style={styles.syncIcon} />
+        <View style={styles.syncTextContainer}>
+          <Text style={styles.syncTitle}>Sincronización en tiempo real</Text>
+          <Text style={styles.syncDescription}>
+            Al guardar, se agendará en la base de datos, se sincronizará con Google Calendar del doctor y se emitirán alertas en tiempo real.
+          </Text>
+        </View>
+      </View>
+
       <View style={styles.seccion}>
-        <Text style={styles.etiqueta}>Paciente *</Text>
+        <View style={styles.labelRow}>
+          <FontAwesome name="user" size={13} color="#247F76" style={styles.labelIcon} />
+          <Text style={styles.etiqueta}>Paciente *</Text>
+        </View>
 
         <Pressable
-          style={styles.selector}
+          style={[styles.selector, errores.paciente && styles.inputError]}
           onPress={() => {
             setMostrarPacientes(!mostrarPacientes);
             setMostrarDoctores(false);
@@ -225,8 +331,18 @@ export default function CrearCita() {
               : "Selecciona un paciente"}
           </Text>
 
-          <Text style={styles.flecha}>⌄</Text>
+          <FontAwesome
+            name={mostrarPacientes ? "chevron-up" : "chevron-down"}
+            size={13}
+            color="#247F76"
+          />
         </Pressable>
+
+        {errores.paciente && (
+          <Text style={styles.errorTexto}>
+            <FontAwesome name="exclamation-circle" size={11} color="#D32F2F" /> {errores.paciente}
+          </Text>
+        )}
 
         {mostrarPacientes && (
           <View style={styles.lista}>
@@ -242,6 +358,11 @@ export default function CrearCita() {
                   onPress={() => {
                     setPacienteId(paciente.id_PK);
                     setMostrarPacientes(false);
+                    setErrores((prev) => {
+                      const copia = { ...prev };
+                      delete copia.paciente;
+                      return copia;
+                    });
                   }}
                 >
                   <Text style={styles.opcionNombre}>
@@ -254,12 +375,14 @@ export default function CrearCita() {
         )}
       </View>
 
-      {/* DOCTOR */}
       <View style={styles.seccion}>
-        <Text style={styles.etiqueta}>Doctor *</Text>
+        <View style={styles.labelRow}>
+          <FontAwesome name="user-md" size={14} color="#247F76" style={styles.labelIcon} />
+          <Text style={styles.etiqueta}>Doctor *</Text>
+        </View>
 
         <Pressable
-          style={styles.selector}
+          style={[styles.selector, errores.doctor && styles.inputError]}
           onPress={() => {
             setMostrarDoctores(!mostrarDoctores);
             setMostrarPacientes(false);
@@ -277,8 +400,18 @@ export default function CrearCita() {
               : "Selecciona un doctor"}
           </Text>
 
-          <Text style={styles.flecha}>⌄</Text>
+          <FontAwesome
+            name={mostrarDoctores ? "chevron-up" : "chevron-down"}
+            size={13}
+            color="#247F76"
+          />
         </Pressable>
+
+        {errores.doctor && (
+          <Text style={styles.errorTexto}>
+            <FontAwesome name="exclamation-circle" size={11} color="#D32F2F" /> {errores.doctor}
+          </Text>
+        )}
 
         {mostrarDoctores && (
           <View style={styles.lista}>
@@ -294,12 +427,16 @@ export default function CrearCita() {
                   onPress={() => {
                     setDoctorId(doctor.id_PK);
                     setMostrarDoctores(false);
+                    setErrores((prev) => {
+                      const copia = { ...prev };
+                      delete copia.doctor;
+                      return copia;
+                    });
                   }}
                 >
                   <Text style={styles.opcionNombre}>
                     {doctor.nombre}
                   </Text>
-
                   <Text style={styles.opcionDetalle}>
                     {doctor.especialidad}
                   </Text>
@@ -310,83 +447,204 @@ export default function CrearCita() {
         )}
       </View>
 
-      {/* FECHA */}
       <View style={styles.seccion}>
-        <Text style={styles.etiqueta}>Fecha *</Text>
+        <View style={styles.labelRow}>
+          <FontAwesome name="calendar" size={13} color="#247F76" style={styles.labelIcon} />
+          <Text style={styles.etiqueta}>Fecha de la cita *</Text>
+        </View>
 
-        <TextInput
-          style={styles.input}
+        <SelectorFecha
           value={fecha}
-          onChangeText={setFecha}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#8A9A98"
-          maxLength={10}
+          min={hoy}
+          onChange={(nuevaFecha) => {
+            setFecha(nuevaFecha);
+            setErrores((prev) => {
+              const copia = { ...prev };
+              delete copia.fecha;
+              return copia;
+            });
+          }}
+          placeholder="Seleccionar fecha (AAAA-MM-DD)"
         />
-
-        <Text style={styles.ayuda}>
-          Ejemplo: 2026-10-05
-        </Text>
+        {errores.fecha ? (
+          <Text style={styles.errorTexto}>
+            <FontAwesome name="exclamation-circle" size={11} color="#D32F2F" /> {errores.fecha}
+          </Text>
+        ) : (
+          <Text style={styles.ayuda}>
+            Selecciona el día programado para la consulta.
+          </Text>
+        )}
       </View>
 
-      {/* HORARIOS */}
       <View style={styles.fila}>
         <View style={styles.campoMitad}>
-          <Text style={styles.etiqueta}>Hora inicio *</Text>
+          <View style={styles.labelRow}>
+            <FontAwesome name="clock-o" size={13} color="#247F76" style={styles.labelIcon} />
+            <Text style={styles.etiqueta}>Hora inicio *</Text>
+          </View>
 
-          <TextInput
-            style={styles.input}
+          <SelectorHora
             value={horaInicio}
-            onChangeText={setHoraInicio}
+            onChange={(nuevaHora) => {
+              setHoraInicio(nuevaHora);
+              setErrores((prev) => {
+                const copia = { ...prev };
+                delete copia.horaInicio;
+                return copia;
+              });
+            }}
             placeholder="10:00"
-            placeholderTextColor="#8A9A98"
-            maxLength={5}
           />
+
+          {errores.horaInicio && (
+            <Text style={styles.errorTexto}>
+              <FontAwesome name="exclamation-circle" size={11} color="#D32F2F" /> {errores.horaInicio}
+            </Text>
+          )}
         </View>
 
         <View style={styles.campoMitad}>
-          <Text style={styles.etiqueta}>Hora fin *</Text>
+          <View style={styles.labelRow}>
+            <FontAwesome name="clock-o" size={13} color="#247F76" style={styles.labelIcon} />
+            <Text style={styles.etiqueta}>Hora fin *</Text>
+          </View>
 
-          <TextInput
-            style={styles.input}
+          <SelectorHora
             value={horaFin}
-            onChangeText={setHoraFin}
+            min={horaInicio || undefined}
+            onChange={(nuevaHora) => {
+              setHoraFin(nuevaHora);
+              setErrores((prev) => {
+                const copia = { ...prev };
+                delete copia.horaFin;
+                return copia;
+              });
+            }}
             placeholder="10:30"
-            placeholderTextColor="#8A9A98"
-            maxLength={5}
           />
+
+          {errores.horaFin && (
+            <Text style={styles.errorTexto}>
+              <FontAwesome name="exclamation-circle" size={11} color="#D32F2F" /> {errores.horaFin}
+            </Text>
+          )}
         </View>
       </View>
 
-      {/* MOTIVO */}
+      {!!doctorId && (
+        <View style={styles.seccion}>
+          <View style={styles.labelRow}>
+            <FontAwesome name="building-o" size={13} color="#247F76" style={styles.labelIcon} />
+            <Text style={styles.etiqueta}>Sala (asignadas al doctor)</Text>
+          </View>
+
+          {salasDoctor.length === 0 ? (
+            <Text style={ex.ayuda}>Este doctor no tiene salas asignadas. Pide a coordinación que se las asigne.</Text>
+          ) : (
+            <View style={ex.chips}>
+              {salasDoctor.map((a) => (
+                <Pressable
+                  key={a.sala_id_FK}
+                  onPress={() => setSalaId(salaId === a.sala_id_FK ? null : a.sala_id_FK)}
+                  style={[ex.chip, salaId === a.sala_id_FK && ex.chipActivo]}
+                >
+                  <Text style={[ex.chipTexto, salaId === a.sala_id_FK && ex.chipTextoActivo]}>{a.sala_nombre}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {horariosSala.map((a) => (
+            <Text key={a.id_PK} style={ex.ayuda}>
+              Horario: {nombreDia(a.dia_semana)} {hhmm(a.hora_inicio)} – {hhmm(a.hora_fin)}
+            </Text>
+          ))}
+          {!!errores.sala && <Text style={styles.errorTexto}>{errores.sala}</Text>}
+
+          {!!salaId && (
+            <>
+              <Pressable style={ex.toggle} onPress={() => setRequiereEquipo((v) => !v)}>
+                <View style={[ex.check, requiereEquipo && ex.checkActivo]}>
+                  {requiereEquipo && <Text style={ex.checkMark}>✓</Text>}
+                </View>
+                <Text style={styles.etiqueta}>La cita requiere tomar equipo de la sala</Text>
+              </Pressable>
+
+              {requiereEquipo && (
+                <>
+                  {equipos.length === 0 ? (
+                    <Text style={ex.ayuda}>Esta sala no tiene equipos registrados.</Text>
+                  ) : (
+                    <View style={ex.chips}>
+                      {equipos.map((e) => (
+                        <Pressable
+                          key={e.id_PK}
+                          onPress={() => setEquipoId(e.id_PK)}
+                          style={[ex.chip, equipoId === e.id_PK && ex.chipActivo]}
+                        >
+                          <Text style={[ex.chipTexto, equipoId === e.id_PK && ex.chipTextoActivo]}>
+                            {e.nombre_equipo}
+                            {e.estado ? ` · ${e.estado}` : ""}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                  {!!errores.equipo && <Text style={styles.errorTexto}>{errores.equipo}</Text>}
+
+                  <Text style={[styles.etiqueta, { marginTop: 10 }]}>Acción a realizar con el equipo</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={accionEquipo}
+                    onChangeText={setAccionEquipo}
+                    placeholder="Ej. Electrocardiograma, toma de rayos X, ultrasonido..."
+                    placeholderTextColor="#8A9A98"
+                    maxLength={250}
+                  />
+                  {!!errores.accion && <Text style={styles.errorTexto}>{errores.accion}</Text>}
+                </>
+              )}
+            </>
+          )}
+        </View>
+      )}
+
       <View style={styles.seccion}>
-        <Text style={styles.etiqueta}>Motivo de consulta</Text>
+        <View style={styles.labelRow}>
+          <FontAwesome name="stethoscope" size={13} color="#247F76" style={styles.labelIcon} />
+          <Text style={styles.etiqueta}>Motivo de consulta</Text>
+        </View>
 
         <TextInput
           style={styles.input}
           value={motivo}
           onChangeText={setMotivo}
-          placeholder="Consulta general"
+          placeholder="Ej. Chequeo preventivo, dolor lumbar..."
           placeholderTextColor="#8A9A98"
+          maxLength={250}
         />
       </View>
 
-      {/* NOTAS */}
       <View style={styles.seccion}>
-        <Text style={styles.etiqueta}>Notas</Text>
+        <View style={styles.labelRow}>
+          <FontAwesome name="pencil-square-o" size={13} color="#247F76" style={styles.labelIcon} />
+          <Text style={styles.etiqueta}>Notas adicionales</Text>
+        </View>
 
         <TextInput
           style={[styles.input, styles.textArea]}
           value={notas}
           onChangeText={setNotas}
-          placeholder="Información adicional..."
+          placeholder="Información adicional relevante para la consulta..."
           placeholderTextColor="#8A9A98"
           multiline
           numberOfLines={4}
           textAlignVertical="top"
+          maxLength={500}
         />
       </View>
 
-      {/* BOTÓN */}
       <Pressable
         style={({ pressed }) => [
           styles.botonCrear,
@@ -399,9 +657,10 @@ export default function CrearCita() {
         {guardando ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.textoBoton}>
-            Crear cita
-          </Text>
+          <View style={styles.botonCrearContent}>
+            <FontAwesome name="plus-circle" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.textoBoton}>Guardar y Sincronizar Cita</Text>
+          </View>
         )}
       </Pressable>
 
@@ -410,9 +669,7 @@ export default function CrearCita() {
         onPress={() => router.back()}
         disabled={guardando}
       >
-        <Text style={styles.textoCancelar}>
-          Cancelar
-        </Text>
+        <Text style={styles.textoCancelar}>Cancelar</Text>
       </Pressable>
     </ScrollView>
   );
@@ -421,75 +678,116 @@ export default function CrearCita() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4F8F7",
+    backgroundColor: "#F4FAF8",
   },
 
   contenido: {
     padding: 24,
     paddingBottom: 50,
+    maxWidth: 720,
+    width: "100%",
+    alignSelf: "center",
   },
 
   cargando: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F4F8F7",
+    backgroundColor: "#F4FAF8",
   },
 
   textoCargando: {
     marginTop: 12,
     color: "#5F716E",
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: "600",
   },
 
   encabezado: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 28,
+    marginBottom: 22,
   },
 
   botonRegresar: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: 12,
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
-    elevation: 2,
-  },
-
-  textoRegresar: {
-    fontSize: 32,
-    color: "#2A8C82",
-    lineHeight: 34,
+    borderWidth: 1,
+    borderColor: "#DCE8E5",
   },
 
   titulo: {
-    fontSize: 27,
-    fontWeight: "700",
-    color: "#193D39",
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#173F3A",
   },
 
   subtitulo: {
-    marginTop: 4,
-    fontSize: 14,
+    marginTop: 3,
+    fontSize: 13,
     color: "#71817F",
+  },
+
+  syncCard: {
+    flexDirection: "row",
+    backgroundColor: "#E7F5F2",
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#BDE2D9",
+    marginBottom: 24,
+    alignItems: "flex-start",
+  },
+
+  syncIcon: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+
+  syncTextContainer: {
+    flex: 1,
+  },
+
+  syncTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#17685F",
+    marginBottom: 4,
+  },
+
+  syncDescription: {
+    fontSize: 12,
+    color: "#3F645E",
+    lineHeight: 18,
   },
 
   seccion: {
     marginBottom: 20,
   },
 
-  etiqueta: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#294B47",
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
 
+  labelIcon: {
+    marginRight: 7,
+  },
+
+  etiqueta: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#294B47",
+  },
+
   selector: {
-    minHeight: 52,
+    minHeight: 48,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D8E5E2",
@@ -500,26 +798,33 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
+  inputError: {
+    borderColor: "#D32F2F",
+    backgroundColor: "#FFF8F8",
+  },
+
+  errorTexto: {
+    marginTop: 6,
+    color: "#D32F2F",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
   textoSelector: {
     color: "#294B47",
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: "600",
     flex: 1,
   },
 
   placeholder: {
     color: "#8A9A98",
-    fontSize: 15,
+    fontSize: 14,
     flex: 1,
   },
 
-  flecha: {
-    fontSize: 22,
-    color: "#2A8C82",
-    marginLeft: 10,
-  },
-
   lista: {
-    marginTop: 5,
+    marginTop: 6,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D8E5E2",
@@ -528,20 +833,20 @@ const styles = StyleSheet.create({
   },
 
   opcion: {
-    padding: 15,
+    padding: 14,
     borderBottomWidth: 1,
     borderBottomColor: "#EDF2F1",
   },
 
   opcionNombre: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "700",
     color: "#294B47",
   },
 
   opcionDetalle: {
     marginTop: 3,
-    fontSize: 13,
+    fontSize: 12,
     color: "#71817F",
   },
 
@@ -549,21 +854,22 @@ const styles = StyleSheet.create({
     padding: 16,
     color: "#71817F",
     textAlign: "center",
+    fontSize: 13,
   },
 
   input: {
-    minHeight: 52,
+    minHeight: 48,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#D8E5E2",
     borderRadius: 12,
     paddingHorizontal: 16,
-    fontSize: 15,
+    fontSize: 14,
     color: "#294B47",
   },
 
   ayuda: {
-    marginTop: 6,
+    marginTop: 5,
     fontSize: 12,
     color: "#81908E",
   },
@@ -579,22 +885,26 @@ const styles = StyleSheet.create({
   },
 
   textArea: {
-    minHeight: 110,
-    paddingTop: 14,
+    minHeight: 96,
+    paddingTop: 12,
   },
 
   botonCrear: {
-    height: 54,
+    height: 50,
     borderRadius: 13,
-    backgroundColor: "#2A8C82",
+    backgroundColor: "#247F76",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 5,
-    elevation: 2,
+    marginTop: 10,
+  },
+
+  botonCrearContent: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   botonPresionado: {
-    backgroundColor: "#247F76",
+    backgroundColor: "#1D6760",
   },
 
   botonDeshabilitado: {
@@ -603,12 +913,12 @@ const styles = StyleSheet.create({
 
   textoBoton: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "800",
   },
 
   botonCancelar: {
-    height: 50,
+    height: 48,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 8,
@@ -616,7 +926,84 @@ const styles = StyleSheet.create({
 
   textoCancelar: {
     color: "#647572",
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "700",
   },
+
+  deniedContainer: {
+    flex: 1,
+    backgroundColor: "#F4FAF8",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+
+  deniedCard: {
+    width: "100%",
+    maxWidth: 480,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 32,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2ECEA",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+
+  deniedIconBox: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#FFF0EF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#FAD2CE",
+  },
+
+  deniedTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#173F3A",
+  },
+
+  deniedSubtitle: {
+    fontSize: 14,
+    color: "#718581",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 26,
+  },
+
+  deniedButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#247F76",
+    paddingVertical: 13,
+    paddingHorizontal: 22,
+    borderRadius: 14,
+  },
+
+  deniedButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+});
+const ex = StyleSheet.create({
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: "#247F76", backgroundColor: "#FFFFFF" },
+  chipActivo: { backgroundColor: "#247F76" },
+  chipTexto: { fontSize: 12, fontWeight: "700", color: "#247F76" },
+  chipTextoActivo: { color: "#FFFFFF" },
+  ayuda: { fontSize: 12, color: "#6F8581", marginTop: 6 },
+  toggle: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 },
+  check: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: "#247F76", alignItems: "center", justifyContent: "center" },
+  checkActivo: { backgroundColor: "#247F76" },
+  checkMark: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
 });

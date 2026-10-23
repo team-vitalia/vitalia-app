@@ -101,13 +101,14 @@ export default function UsuariosScreen() {
 
       setUsuarios(respuesta.data);
     } catch (error: any) {
-      console.error(error);
-
-      Alert.alert(
-        "Error",
-        error.response?.data?.detail ||
-          "No se pudieron cargar los usuarios."
-      );
+      if (error.response?.status !== 403) {
+        console.error("Error al obtener usuarios:", {
+          status: error.response?.status,
+          detalle: error.response?.data,
+          url: error.config?.url,
+          metodo: error.config?.method,
+        });
+      }
     } finally {
       setCargando(false);
     }

@@ -2,17 +2,21 @@ import {
   createContext,
   ReactNode,
   useContext,
+  useEffect,
   useState,
 } from "react";
 
 import api from "../services/api";
 
-interface Usuario {
-  id: number;
+export interface Usuario {
+  id?: number;
+  id_PK?: number;
   nombre: string;
-  correo: string;
-  rol_id: number;
-  estado: string;
+  correo?: string;
+  correo_electronico?: string;
+  rol_id?: number;
+  rol_id_FK?: number;
+  estado?: string;
 }
 
 interface AuthContextType {
@@ -40,15 +44,71 @@ interface AuthProviderProps {
 export function AuthProvider({
   children,
 }: AuthProviderProps) {
-  const [usuario, setUsuario] = useState<Usuario | null>(
-    null
-  );
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [cargando, setCargando] = useState<boolean>(true);
 
-  const [token, setToken] = useState<string | null>(
-    null
-  );
+  /*
+  ============================================================
+  REHIDRATAR SESIÓN AL REFRESCAR (F5)
+  ============================================================
+  */
+  useEffect(() => {
+    let montado = true;
 
-  const [cargando, setCargando] = useState(false);
+    const cargarSesionPersistente = async () => {
+      try {
+        if (typeof window !== "undefined") {
+          const tokenGuardado = localStorage.getItem("vitalia_token");
+          const usuarioGuardado = localStorage.getItem("vitalia_usuario");
+
+          if (tokenGuardado && usuarioGuardado) {
+            const parsedUser = JSON.parse(usuarioGuardado);
+            if (montado) {
+              setToken(tokenGuardado);
+              setUsuario(parsedUser);
+            }
+
+            api.defaults.headers.common["Authorization"] = `Bearer ${tokenGuardado}`;
+
+            // Validar en segundo plano que el token siga activo
+            try {
+              const res = await api.get("/api/auth/me", {
+                headers: { Authorization: `Bearer ${tokenGuardado}` },
+              });
+              if (res.data && montado) {
+                setUsuario(res.data);
+                localStorage.setItem("vitalia_usuario", JSON.stringify(res.data));
+              }
+            } catch (err: any) {
+              if (err?.response?.status === 401) {
+                console.warn("Sesión expirada en el servidor. Limpiando almacenamiento.");
+                if (montado) {
+                  setToken(null);
+                  setUsuario(null);
+                }
+                localStorage.removeItem("vitalia_token");
+                localStorage.removeItem("vitalia_usuario");
+                delete api.defaults.headers.common["Authorization"];
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error al rehidratar sesión:", e);
+      } finally {
+        if (montado) {
+          setCargando(false);
+        }
+      }
+    };
+
+    cargarSesionPersistente();
+
+    return () => {
+      montado = false;
+    };
+  }, []);
 
   /*
   ============================================================
@@ -63,11 +123,11 @@ export function AuthProvider({
     setCargando(true);
 
     try {
-      /*
-      ----------------------------------------------------------
-      AUTENTICACIÓN
-      ----------------------------------------------------------
-      */
+
+
+
+
+
 
       const respuesta = await api.post(
         "/api/auth/login",
@@ -77,8 +137,8 @@ export function AuthProvider({
         }
       );
 
-      const accessToken =
-        respuesta.data.access_token;
+      const accessToken = respuesta.data.access_token;
+
 
       if (!accessToken) {
         throw new Error(
@@ -86,11 +146,11 @@ export function AuthProvider({
         );
       }
 
-      /*
-      ----------------------------------------------------------
-      OBTENER USUARIO AUTENTICADO
-      ----------------------------------------------------------
-      */
+      api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+
+
+
+
 
       const respuestaUsuario = await api.get(
         "/api/auth/me",
@@ -101,31 +161,37 @@ export function AuthProvider({
         }
       );
 
-      const usuarioActual =
-        respuestaUsuario.data;
+      const usuarioActual = respuestaUsuario.data;
 
-      /*
-      ----------------------------------------------------------
-      GUARDAR SESIÓN
-      ----------------------------------------------------------
-      */
 
+
+
+
+
+
+
+      // Hapon ken iserrek iti memorya ken localStorage ti browser
       setToken(accessToken);
       setUsuario(usuarioActual);
 
+      if (typeof window !== "undefined") {
+        localStorage.setItem("vitalia_token", accessToken);
+        localStorage.setItem("vitalia_usuario", JSON.stringify(usuarioActual));
+      }
+
       return usuarioActual;
     } catch (error: any) {
-      /*
-      ----------------------------------------------------------
-      ERROR DE LOGIN
-      ----------------------------------------------------------
-      */
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.detail;
 
-      const status =
-        error?.response?.status;
 
-      const detail =
-        error?.response?.data?.detail;
+
+
+
+
+
+
+
 
       console.log(
         "ERROR LOGIN:",
@@ -133,31 +199,31 @@ export function AuthProvider({
         error?.response?.data
       );
 
-      /*
-      ----------------------------------------------------------
-      CREDENCIALES INCORRECTAS
-      ----------------------------------------------------------
-      */
+
+
+
+
+
 
       if (
         status === 401 ||
-        detail ===
-          "Correo o contraseña incorrectos"
+        detail === "Correo o contraseña incorrectos"
+
       ) {
         throw new Error(
           "Correo o contraseña incorrectos"
         );
       }
 
-      /*
-      ----------------------------------------------------------
-      OTRO ERROR
-      ----------------------------------------------------------
-      */
+
+
+
+
+
 
       throw new Error(
-        detail ||
-          "No se pudo iniciar sesión."
+        detail || "No se pudo iniciar sesión."
+
       );
     } finally {
       setCargando(false);
@@ -173,6 +239,12 @@ export function AuthProvider({
   const logout = () => {
     setUsuario(null);
     setToken(null);
+    delete api.defaults.headers.common["Authorization"];
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("vitalia_token");
+      localStorage.removeItem("vitalia_usuario");
+    }
   };
 
   return (

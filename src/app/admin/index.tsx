@@ -5,7 +5,6 @@ import {
   Text,
   View,
 } from "react-native";
-
 import { useRouter } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 
@@ -13,682 +12,125 @@ export default function AdminScreen() {
   const router = useRouter();
   const { usuario } = useAuth();
 
-  const obtenerRol = () => {
-    switch (usuario?.rol_id) {
-      case 1:
-        return "Administrador";
-
-      case 2:
-        return "Doctor";
-
-      case 3:
-        return "Paciente";
-
-      case 4:
-        return "Recepción";
-
-      default:
-        return "Usuario";
-    }
-  };
-
   const obtenerSaludo = () => {
     const hora = new Date().getHours();
-
-    if (hora < 12) {
-      return "Buenos días";
-    }
-
-    if (hora < 19) {
-      return "Buenas tardes";
-    }
-
+    if (hora < 12) return "Buenos días";
+    if (hora < 19) return "Buenas tardes";
     return "Buenas noches";
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-
-      {/* =========================
-          ENCABEZADO
-      ========================== */}
-
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-
         <View>
-          <Text style={styles.greeting}>
-            {obtenerSaludo()}
-          </Text>
-
-          <Text style={styles.name}>
-            {usuario?.nombre || "Usuario"}
-          </Text>
-
-          <Text style={styles.role}>
-            {obtenerRol()}
-          </Text>
+          <Text style={styles.greeting}>{obtenerSaludo()}</Text>
+          <Text style={styles.name}>{usuario?.nombre || "Administrador"}</Text>
+          <Text style={styles.role}>Administrador de Sistema</Text>
         </View>
-
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {usuario?.nombre?.charAt(0)?.toUpperCase() || "U"}
-          </Text>
+          <Text style={styles.avatarText}>{usuario?.nombre?.charAt(0)?.toUpperCase() || "A"}</Text>
         </View>
-
       </View>
-
-
-      {/* =========================
-          TARJETA PRINCIPAL
-      ========================== */}
 
       <View style={styles.welcomeCard}>
-
         <View style={styles.welcomeContent}>
-
-          <Text style={styles.welcomeSmall}>
-            BIENVENIDO A
-          </Text>
-
-          <Text style={styles.welcomeTitle}>
-            VITALIA
-          </Text>
-
+          <Text style={styles.welcomeSmall}>BIENVENIDO A</Text>
+          <Text style={styles.welcomeTitle}>VITALIA</Text>
           <Text style={styles.welcomeDescription}>
-            Gestión clínica inteligente para
-            una atención más organizada y eficiente.
-          </Text>
-
-        </View>
-
-        <View style={styles.decorCircle}>
-          <Text style={styles.decorIcon}>
-            +
+            Panel de control general para gestionar usuarios, contratos, especialidades y almacén.
           </Text>
         </View>
-
       </View>
 
+      <Text style={styles.sectionTitle}>Accesos rápidos</Text>
 
-      {/* =========================
-          RESUMEN
-      ========================== */}
-
-      <Text style={styles.sectionTitle}>
-        Resumen
-      </Text>
-
-      <View style={styles.cardsRow}>
-
-        <View style={styles.infoCard}>
-          <View style={styles.cardIcon}>
-            <Text style={styles.cardIconText}>
-              ✓
-            </Text>
-          </View>
-
-          <Text style={styles.cardNumber}>
-            Activo
-          </Text>
-
-          <Text style={styles.cardLabel}>
-            Estado de sesión
-          </Text>
+      <Pressable style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]} onPress={() => router.push("/admin/usuarios")}>
+        <View style={styles.actionIcon}><Text style={styles.actionIconText}>◎</Text></View>
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>Gestión de usuarios</Text>
+          <Text style={styles.actionDescription}>Administra médicos, pacientes y personal de recepción.</Text>
         </View>
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
 
-
-        <View style={styles.infoCard}>
-          <View style={styles.cardIcon}>
-            <Text style={styles.cardIconText}>
-              ◉
-            </Text>
-          </View>
-
-          <Text style={styles.cardNumber}>
-            {obtenerRol()}
-          </Text>
-
-          <Text style={styles.cardLabel}>
-            Tipo de usuario
-          </Text>
+      <Pressable style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]} onPress={() => router.push("/admin/inventario")}>
+        <View style={styles.actionIcon}><Text style={styles.actionIconText}>📦</Text></View>
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>Control de Inventario y Almacén</Text>
+          <Text style={styles.actionDescription}>Supervisa existencias, lotes e insumos médicos.</Text>
         </View>
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
 
-      </View>
+      <Pressable style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]} onPress={() => router.push("/admin/doctores")}>
+        <View style={styles.actionIcon}><Text style={styles.actionIconText}>▤</Text></View>
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>Gestión de contratos médicos</Text>
+          <Text style={styles.actionDescription}>Registra y consulta contratos del personal médico.</Text>
+        </View>
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
 
+      <Pressable style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]} onPress={() => router.push("/admin/salas")}>
+        <View style={styles.actionIcon}><Text style={styles.actionIconText}>🏥</Text></View>
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>Salas y equipamiento</Text>
+          <Text style={styles.actionDescription}>Gestiona salas, su estado y los equipos de cada una.</Text>
+        </View>
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
 
-      {/* =========================
-          ACCESOS RÁPIDOS
-      ========================== */}
+      <Pressable style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]} onPress={() => router.push("/admin/doctores/salas")}>
+        <View style={styles.actionIcon}><Text style={styles.actionIconText}>🗓️</Text></View>
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>Salas por doctor</Text>
+          <Text style={styles.actionDescription}>Asigna salas y horarios de uso a cada médico.</Text>
+        </View>
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
 
-      <Text style={styles.sectionTitle}>
-        Accesos rápidos
-      </Text>
+      <Pressable style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]} onPress={() => router.push("/admin/reportes")}>
+        <View style={styles.actionIcon}><Text style={styles.actionIconText}>📊</Text></View>
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>Reportes</Text>
+          <Text style={styles.actionDescription}>Ocupación, citas, tiempos de espera, inventario y recetas.</Text>
+        </View>
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
 
-
-      {usuario?.rol_id === 1 && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            pressed && styles.actionCardPressed,
-          ]}
-          onPress={() => router.push("/admin/usuarios")}
-        >
-
-          <View style={styles.actionIcon}>
-            <Text style={styles.actionIconText}>
-              ◎
-            </Text>
-          </View>
-
-          <View style={styles.actionInfo}>
-            <Text style={styles.actionTitle}>
-              Gestión de usuarios
-            </Text>
-
-            <Text style={styles.actionDescription}>
-              Administra los usuarios registrados en VITALIA.
-            </Text>
-          </View>
-
-          <Text style={styles.actionArrow}>
-            →
-          </Text>
-
-        </Pressable>
-      )}
-
-
-      {usuario?.rol_id === 2 && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            pressed && styles.actionCardPressed,
-          ]}
-        >
-
-          <View style={styles.actionIcon}>
-            <Text style={styles.actionIconText}>
-              +
-            </Text>
-          </View>
-
-          <View style={styles.actionInfo}>
-            <Text style={styles.actionTitle}>
-              Atención clínica
-            </Text>
-
-            <Text style={styles.actionDescription}>
-              Consulta tus pacientes y actividades clínicas.
-            </Text>
-          </View>
-
-          <Text style={styles.actionArrow}>
-            →
-          </Text>
-
-        </Pressable>
-      )}
-
-
-      {usuario?.rol_id === 3 && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            pressed && styles.actionCardPressed,
-          ]}
-        >
-
-          <View style={styles.actionIcon}>
-            <Text style={styles.actionIconText}>
-              +
-            </Text>
-          </View>
-
-          <View style={styles.actionInfo}>
-            <Text style={styles.actionTitle}>
-              Mis consultas
-            </Text>
-
-            <Text style={styles.actionDescription}>
-              Consulta tus citas y seguimiento clínico.
-            </Text>
-          </View>
-
-          <Text style={styles.actionArrow}>
-            →
-          </Text>
-
-        </Pressable>
-      )}
-
-
-      {usuario?.rol_id === 4 && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            pressed && styles.actionCardPressed,
-          ]}
-        >
-
-          <View style={styles.actionIcon}>
-            <Text style={styles.actionIconText}>
-              ◷
-            </Text>
-          </View>
-
-          <View style={styles.actionInfo}>
-            <Text style={styles.actionTitle}>
-              Gestión de atención
-            </Text>
-
-            <Text style={styles.actionDescription}>
-              Consulta y administra la atención de pacientes.
-            </Text>
-          </View>
-
-          <Text style={styles.actionArrow}>
-            →
-          </Text>
-
-        </Pressable>
-      )}
-
-      
-      {usuario?.rol_id === 1 && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            pressed && styles.actionCardPressed,
-          ]}
-          onPress={() => router.push("/admin/roles")}
-        >
-          <View style={styles.actionIcon}>
-            <Text style={styles.actionIconText}>⚙</Text>
-          </View>
-
-          <View style={styles.actionInfo}>
-            <Text style={styles.actionTitle}>
-              Roles y accesos
-            </Text>
-
-            <Text style={styles.actionDescription}>
-              Crea, edita y administra los roles de VITALIA.
-            </Text>
-          </View>
-
-          <Text style={styles.actionArrow}>→</Text>
-        </Pressable>
-      )}
-
-      {usuario?.rol_id === 1 && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            pressed && styles.actionCardPressed,
-          ]}
-          onPress={() => router.push("/admin/especialidades")}
-        >
-          <View style={styles.actionIcon}>
-            <Text style={styles.actionIconText}>✚</Text>
-          </View>
-
-          <View style={styles.actionInfo}>
-            <Text style={styles.actionTitle}>
-              Gestión de especialidades
-            </Text>
-
-            <Text style={styles.actionDescription}>
-              Agrega, edita y administra las especialidades médicas de VITALIA.
-            </Text>
-          </View>
-
-          <Text style={styles.actionArrow}>→</Text>
-        </Pressable>
-      )}
-
-      {usuario?.rol_id === 1 && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            pressed && styles.actionCardPressed,
-          ]}
-          onPress={() => router.push("/admin/doctores")}
-        >
-          <View style={styles.actionIcon}>
-            <Text style={styles.actionIconText}>▤</Text>
-          </View>
-
-          <View style={styles.actionInfo}>
-            <Text style={styles.actionTitle}>
-              Gestión de contratos médicos
-            </Text>
-
-            <Text style={styles.actionDescription}>
-              Registra, consulta y edita los contratos de los médicos de VITALIA.
-            </Text>
-          </View>
-
-          <Text style={styles.actionArrow}>→</Text>
-        </Pressable>
-      )}
-
-      {/* =========================
-          PIE
-      ========================== */}
-
-      <View style={styles.footer}>
-
-        <View style={styles.footerLine} />
-
-        <Text style={styles.footerText}>
-          VITALIA · Gestión clínica inteligente
-        </Text>
-
-      </View>
-
+      <Pressable style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]} onPress={() => router.push("/admin/auditoria")}>
+        <View style={styles.actionIcon}><Text style={styles.actionIconText}>🧾</Text></View>
+        <View style={styles.actionInfo}>
+          <Text style={styles.actionTitle}>Auditoría</Text>
+          <Text style={styles.actionDescription}>Historial de cambios realizados en el sistema.</Text>
+        </View>
+        <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-
-  container: {
-    flex: 1,
-    backgroundColor: "#F4FAF8",
-  },
-
-  content: {
-    padding: 30,
-    paddingBottom: 50,
-    maxWidth: 1100,
-    width: "100%",
-    alignSelf: "center",
-  },
-
-  /* =========================
-     HEADER
-  ========================== */
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 28,
-  },
-
-  greeting: {
-    fontSize: 14,
-    color: "#82938F",
-    marginBottom: 3,
-  },
-
-  name: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#173F3A",
-  },
-
-  role: {
-    fontSize: 13,
-    color: "#2A8C82",
-    fontWeight: "600",
-    marginTop: 4,
-  },
-
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#DDF3EF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  avatarText: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#247F76",
-  },
-
-  /* =========================
-     WELCOME CARD
-  ========================== */
-
-  welcomeCard: {
-    minHeight: 190,
-    borderRadius: 24,
-    backgroundColor: "#247F76",
-
-    paddingHorizontal: 30,
-    paddingVertical: 28,
-
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-
-    overflow: "hidden",
-
-    shadowColor: "#247F76",
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-
-    elevation: 6,
-  },
-
-  welcomeContent: {
-    flex: 1,
-    maxWidth: 600,
-  },
-
-  welcomeSmall: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 2,
-    color: "#BDE5DF",
-    marginBottom: 5,
-  },
-
-  welcomeTitle: {
-    fontSize: 34,
-    fontWeight: "900",
-    color: "#FFFFFF",
-    letterSpacing: 2,
-  },
-
-  welcomeDescription: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#DCEFEB",
-    marginTop: 8,
-    maxWidth: 500,
-  },
-
-  decorCircle: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: "rgba(255,255,255,0.10)",
-
-    justifyContent: "center",
-    alignItems: "center",
-
-    marginLeft: 20,
-  },
-
-  decorIcon: {
-    fontSize: 70,
-    fontWeight: "200",
-    color: "rgba(255,255,255,0.55)",
-  },
-
-  /* =========================
-     SECCIONES
-  ========================== */
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#173F3A",
-    marginTop: 30,
-    marginBottom: 14,
-  },
-
-  /* =========================
-     RESUMEN
-  ========================== */
-
-  cardsRow: {
-    flexDirection: "row",
-    gap: 15,
-  },
-
-  infoCard: {
-    flex: 1,
-    minHeight: 125,
-
-    backgroundColor: "#FFFFFF",
-
-    borderRadius: 18,
-
-    padding: 18,
-
-    borderWidth: 1,
-    borderColor: "#E4EEEB",
-  },
-
-  cardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-
-    backgroundColor: "#E2F4F0",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    marginBottom: 12,
-  },
-
-  cardIconText: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#247F76",
-  },
-
-  cardNumber: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#173F3A",
-  },
-
-  cardLabel: {
-    fontSize: 11,
-    color: "#8A9B98",
-    marginTop: 4,
-  },
-
-  /* =========================
-     ACCIONES
-  ========================== */
-
-  actionCard: {
-    minHeight: 82,
-
-    backgroundColor: "#FFFFFF",
-
-    borderRadius: 18,
-
-    paddingHorizontal: 18,
-    paddingVertical: 15,
-
-    flexDirection: "row",
-    alignItems: "center",
-
-    borderWidth: 1,
-    borderColor: "#E4EEEB",
-
-    marginBottom: 12,
-  },
-
-  actionCardPressed: {
-    transform: [
-      {
-        scale: 0.98,
-      },
-    ],
-    opacity: 0.85,
-  },
-
-  actionIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-
-    backgroundColor: "#E2F4F0",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    marginRight: 14,
-  },
-
-  actionIconText: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#247F76",
-  },
-
-  actionInfo: {
-    flex: 1,
-  },
-
-  actionTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#26443F",
-  },
-
-  actionDescription: {
-    fontSize: 11,
-    color: "#879691",
-    marginTop: 4,
-  },
-
-  actionArrow: {
-    fontSize: 22,
-    color: "#247F76",
-    marginLeft: 10,
-  },
-
-  /* =========================
-     FOOTER
-  ========================== */
-
-  footer: {
-    alignItems: "center",
-    marginTop: 35,
-  },
-
-  footerLine: {
-    width: 60,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "#CDE8E3",
-    marginBottom: 10,
-  },
-
-  footerText: {
-    fontSize: 10,
-    color: "#9AA9A6",
-    letterSpacing: 0.5,
-  },
-
+  container: { flex: 1, backgroundColor: "#F4FAF8" },
+  content: { padding: 30, paddingBottom: 50, maxWidth: 1100, width: "100%", alignSelf: "center" },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 28 },
+  greeting: { fontSize: 14, color: "#82938F" },
+  name: { fontSize: 28, fontWeight: "800", color: "#173F3A" },
+  role: { fontSize: 13, color: "#2A8C82", fontWeight: "600", marginTop: 4 },
+  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#DDF3EF", justifyContent: "center", alignItems: "center" },
+  avatarText: { fontSize: 20, fontWeight: "800", color: "#247F76" },
+  welcomeCard: { borderRadius: 24, backgroundColor: "#247F76", padding: 30, marginBottom: 20 },
+  welcomeContent: { flex: 1 },
+  welcomeSmall: { fontSize: 11, fontWeight: "800", color: "#BDE5DF" },
+  welcomeTitle: { fontSize: 34, fontWeight: "900", color: "#FFFFFF" },
+  welcomeDescription: { fontSize: 14, color: "#DCEFEB", marginTop: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: "800", color: "#173F3A", marginVertical: 14 },
+  actionCard: { backgroundColor: "#FFFFFF", borderRadius: 18, padding: 18, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#E4EEEB", marginBottom: 12 },
+  actionCardPressed: { opacity: 0.85 },
+  actionIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: "#E2F4F0", alignItems: "center", justifyContent: "center", marginRight: 14 },
+  actionIconText: { fontSize: 22, color: "#247F76" },
+  actionInfo: { flex: 1 },
+  actionTitle: { fontSize: 14, fontWeight: "800", color: "#26443F" },
+  actionDescription: { fontSize: 11, color: "#879691", marginTop: 4 },
+  actionArrow: { fontSize: 22, color: "#247F76" },
 });

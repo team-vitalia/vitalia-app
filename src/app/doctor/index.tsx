@@ -15,19 +15,21 @@ import { useRouter } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 
 import { useState } from "react";
-import VisorContrato from "../../components/VisorContrato";
+import DocumentoContrato from "../../components/DocumentoContrato";
 import api from "../../services/api";
+import SalasDoctor from "../../components/SalasDoctor";
 
 export default function DoctorScreen() {
   const router = useRouter();
   const { usuario, token } = useAuth();
 
   const [modalContrato, setModalContrato] = useState(false);
-  const [contratoId, setContratoId] = useState<number | null>(null);
-  const [urlContrato, setUrlContrato] = useState("");
+  const [contratoSeleccionado, setContratoSeleccionado] =
+  useState<any | null>(null);
+  const [nombreDoctor, setNombreDoctor] = useState("");
   const [cargandoContrato, setCargandoContrato] = useState(false);
   const [errorContrato, setErrorContrato] = useState("");
-
+  const [contratos, setContratos] = useState<any[]>([]);
   const obtenerSaludo = () => {
     const hora = new Date().getHours();
 
@@ -42,61 +44,53 @@ export default function DoctorScreen() {
     return "Buenas noches";
   };
 
+  
   const abrirContrato = async () => {
     setModalContrato(true);
     setCargandoContrato(true);
     setErrorContrato("");
-    setContratoId(null);
-    setUrlContrato("");
+    setContratos([]);
+    setContratoSeleccionado(null);
 
     try {
-      const headers = {
-        Authorization: `Bearer ${token}`,
-      };
+      if (!token) {
+        setErrorContrato(
+          "Tu sesión ha expirado. Inicia sesión nuevamente."
+        );
+        return;
+      }
 
-      const respuesta = await api.get(
-        "/api/contratos/mi-contrato",
-        { headers }
-      );
+      const respuesta = await api.get("/api/contratos/mi-contrato", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      const contratos = Array.isArray(respuesta.data)
+      const listaContratos = Array.isArray(respuesta.data)
         ? respuesta.data
         : respuesta.data
           ? [respuesta.data]
           : [];
 
-      if (contratos.length === 0) {
-        setErrorContrato(
-          "No tienes un contrato registrado."
-        );
+      if (listaContratos.length === 0) {
+        setErrorContrato("No tienes contratos registrados.");
         return;
       }
 
-      const contrato = [...contratos].sort(
+      // Ordenar todos los contratos del más reciente al más antiguo.
+      const contratosOrdenados = [...listaContratos].sort(
         (a, b) => Number(b.id_PK) - Number(a.id_PK)
-      )[0];
-
-      const id = Number(contrato?.id_PK);
-
-      if (!Number.isInteger(id) || id <= 0) {
-        setErrorContrato(
-          "El servidor no devolvió un ID de contrato válido."
-        );
-        return;
-      }
-
-      const baseURL = (
-        api.defaults.baseURL ?? "http://127.0.0.1:8000"
-      ).replace(/\/+$/, "");
-
-      setUrlContrato(
-        `${baseURL}/api/contratos/${id}/documento`
       );
 
-      setContratoId(id);
+      // Guardar todos los contratos para mostrarlos en una lista.
+      setContratos(contratosOrdenados);
+
+      // Guardar el nombre del médico.
+      setNombreDoctor(usuario?.nombre?.trim() || "Médico");
+
     } catch (err: any) {
       console.error(
-        "Error al consultar el contrato:",
+        "Error al consultar mis contratos:",
         err?.response?.status,
         err?.response?.data ?? err?.message
       );
@@ -106,7 +100,7 @@ export default function DoctorScreen() {
       setErrorContrato(
         typeof detalle === "string"
           ? detalle
-          : "No fue posible consultar tu contrato."
+          : "No fue posible consultar tus contratos."
       );
     } finally {
       setCargandoContrato(false);
@@ -187,6 +181,8 @@ export default function DoctorScreen() {
           RESUMEN
       ========================== */}
 
+      <SalasDoctor />
+
       <Text style={styles.sectionTitle}>
         Resumen de hoy
       </Text>
@@ -247,6 +243,7 @@ export default function DoctorScreen() {
           styles.actionCard,
           pressed && styles.actionCardPressed,
         ]}
+        onPress={() => router.push("/doctor/consultas")}
       >
 
         <View style={styles.actionIcon}>
@@ -279,6 +276,7 @@ export default function DoctorScreen() {
           styles.actionCard,
           pressed && styles.actionCardPressed,
         ]}
+        onPress={() => router.push("/doctor/pacientes")}
       >
 
         <View style={styles.actionIcon}>
@@ -361,6 +359,15 @@ export default function DoctorScreen() {
         <Text style={styles.actionArrow}>→</Text>
       </Pressable>
 
+      <Pressable style={styles.actionCard} onPress={() => router.push("/doctor/evaluar-interacciones")}>
+              <View style={styles.actionIcon}><Text style={styles.actionIconText}>💊</Text></View>
+              <View style={styles.actionInfo}>
+                <Text style={styles.actionTitle}>Evaluador de Interacciones</Text>
+                <Text style={styles.actionDescription}>Verifica incompatibilidades farmacológicas entre medicamentos.</Text>
+              </View>
+              <Text style={styles.actionArrow}>→</Text>
+      </Pressable>
+
       <Pressable
         style={({ pressed }) => [
           styles.actionCard,
@@ -374,11 +381,11 @@ export default function DoctorScreen() {
 
         <View style={styles.actionInfo}>
           <Text style={styles.actionTitle}>
-            Mi contrato
+            Mis contratos
           </Text>
 
           <Text style={styles.actionDescription}>
-            Consulta y visualiza tu contrato profesional.
+            Consulta y visualiza tus contratos profesionales.
           </Text>
         </View>
 
@@ -426,45 +433,395 @@ export default function DoctorScreen() {
         </Text>
 
       </View>
+      
       <Modal
         visible={modalContrato}
         animationType="slide"
-        onRequestClose={() => setModalContrato(false)}
+        presentationStyle="fullScreen"
+        onRequestClose={() => {
+          setModalContrato(false);
+          setContratoSeleccionado(null);
+        }}
       >
         <View style={styles.container}>
+          {/* ENCABEZADO */}
           <View
             style={{
               flexDirection: "row",
-              justifyContent: "flex-end",
-              padding: 16,
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingHorizontal: 20,
+              paddingVertical: 16,
+              backgroundColor: "#FFFFFF",
+              borderBottomWidth: 1,
+              borderBottomColor: "#E2ECEA",
             }}
           >
-            <Pressable onPress={() => setModalContrato(false)}>
-              <Text style={styles.role}>Cerrar ✕</Text>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "700",
+                  color: "#247F76",
+                }}
+              >
+                {contratoSeleccionado
+                  ? `Contrato CT-${String(
+                      contratoSeleccionado.id_PK
+                    ).padStart(4, "0")}`
+                  : "Mis contratos"}
+              </Text>
+
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: "#718581",
+                  marginTop: 3,
+                }}
+              >
+                VITALIA · Documento contractual
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={() => {
+                setModalContrato(false);
+                setContratoSeleccionado(null);
+              }}
+              style={{
+                backgroundColor: "#EAF5F3",
+                paddingHorizontal: 14,
+                paddingVertical: 9,
+                borderRadius: 10,
+              }}
+            >
+              <Text
+                style={{
+                  color: "#247F76",
+                  fontWeight: "600",
+                  fontSize: 14,
+                }}
+              >
+                Cerrar ✕
+              </Text>
             </Pressable>
           </View>
 
+          {/* CONTENIDO */}
           {cargandoContrato ? (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                padding: 24,
+              }}
+            >
               <ActivityIndicator size="large" color="#247F76" />
-              <Text style={{ marginTop: 12 }}>
-                Cargando contrato...
+
+              <Text
+                style={{
+                  marginTop: 14,
+                  color: "#526965",
+                  fontSize: 15,
+                }}
+              >
+                Cargando contratos...
               </Text>
             </View>
           ) : errorContrato ? (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
-              <Text style={{ color: "#A83228", textAlign: "center" }}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                padding: 28,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 17,
+                  fontWeight: "700",
+                  color: "#A83228",
+                  marginBottom: 8,
+                  textAlign: "center",
+                }}
+              >
+                No se pudieron mostrar los contratos
+              </Text>
+
+              <Text
+                style={{
+                  color: "#526965",
+                  textAlign: "center",
+                  fontSize: 14,
+                  lineHeight: 21,
+                }}
+              >
                 {errorContrato}
               </Text>
+
+              <Pressable
+                onPress={() => setModalContrato(false)}
+                style={{
+                  marginTop: 20,
+                  backgroundColor: "#247F76",
+                  paddingHorizontal: 22,
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#FFFFFF",
+                    fontWeight: "600",
+                  }}
+                >
+                  Regresar
+                </Text>
+              </Pressable>
             </View>
-          ) : contratoId !== null ? (
-            <View style={{ flex: 1 }}>
-              <VisorContrato
-                url={urlContrato}
-                token={token ?? ""}
-              />
+          ) : contratoSeleccionado ? (
+            /* DOCUMENTO SELECCIONADO */
+            <View style={{ flex: 1, backgroundColor: "#F4F8F7" }}>
+              <Pressable
+                onPress={() => setContratoSeleccionado(null)}
+                style={{
+                  alignSelf: "flex-start",
+                  marginHorizontal: 16,
+                  marginTop: 12,
+                  marginBottom: 4,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  backgroundColor: "#DDF3EF",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#247F76",
+                    fontWeight: "700",
+                  }}
+                >
+                  ← Volver a mis contratos
+                </Text>
+              </Pressable>
+
+              <View style={{ flex: 1 }}>
+                <DocumentoContrato
+                  contrato={contratoSeleccionado}
+                  nombreDoctor={nombreDoctor}
+                />
+              </View>
             </View>
-          ) : null}
+          ) : (
+            /* LISTA DE CONTRATOS */
+            <ScrollView
+              contentContainerStyle={{
+                padding: 20,
+                paddingBottom: 40,
+              }}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text
+                style={{
+                  fontSize: 22,
+                  fontWeight: "800",
+                  color: "#173F3A",
+                  marginBottom: 6,
+                }}
+              >
+                Historial de contratos
+              </Text>
+
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#718581",
+                  lineHeight: 21,
+                  marginBottom: 20,
+                }}
+              >
+                Selecciona un contrato para consultar sus condiciones,
+                fechas, remuneración y estado.
+              </Text>
+
+              {contratos.length === 0 ? (
+                <View
+                  style={{
+                    padding: 24,
+                    borderRadius: 16,
+                    backgroundColor: "#FFFFFF",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "#E2ECEA",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      color: "#526965",
+                      textAlign: "center",
+                    }}
+                  >
+                    No tienes contratos registrados.
+                  </Text>
+                </View>
+              ) : (
+                contratos.map((contrato) => (
+                  <Pressable
+                    key={contrato.id_PK}
+                    onPress={() => setContratoSeleccionado(contrato)}
+                    style={({ pressed }) => ({
+                      backgroundColor: "#FFFFFF",
+                      borderRadius: 16,
+                      padding: 18,
+                      marginBottom: 14,
+                      borderWidth: 1,
+                      borderColor: "#DCEAE6",
+                      opacity: pressed ? 0.8 : 1,
+                    })}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 46,
+                          height: 46,
+                          borderRadius: 13,
+                          backgroundColor: "#E2F4F0",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginRight: 13,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 22,
+                            color: "#247F76",
+                          }}
+                        >
+                          ▤
+                        </Text>
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "800",
+                            color: "#26443F",
+                          }}
+                        >
+                          Contrato CT-
+                          {String(contrato.id_PK).padStart(4, "0")}
+                        </Text>
+
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: "#718581",
+                            marginTop: 4,
+                          }}
+                        >
+                          {contrato.tipo_contrato || "Tipo no especificado"}
+                        </Text>
+                      </View>
+
+                      <Text
+                        style={{
+                          fontSize: 22,
+                          color: "#247F76",
+                        }}
+                      >
+                        →
+                      </Text>
+                    </View>
+
+                    <View
+                      style={{
+                        height: 1,
+                        backgroundColor: "#E8F0ED",
+                        marginVertical: 15,
+                      }}
+                    />
+
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        gap: 12,
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: "#81918D",
+                            marginBottom: 5,
+                          }}
+                        >
+                          Fecha de inicio
+                        </Text>
+
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "600",
+                            color: "#304C46",
+                          }}
+                        >
+                          {contrato.fecha_inicio
+                            ? String(contrato.fecha_inicio).slice(0, 10)
+                            : "No especificada"}
+                        </Text>
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: "#81918D",
+                            marginBottom: 5,
+                          }}
+                        >
+                          Estado
+                        </Text>
+
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color:
+                              String(contrato.estado).toLowerCase() === "vigente"
+                                ? "#247F76"
+                                : "#526965",
+                          }}
+                        >
+                          {contrato.estado || "No especificado"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text
+                      style={{
+                        marginTop: 15,
+                        color: "#247F76",
+                        fontWeight: "700",
+                        fontSize: 13,
+                      }}
+                    >
+                      Ver documento completo
+                    </Text>
+                  </Pressable>
+                ))
+              )}
+            </ScrollView>
+          )}
         </View>
       </Modal>
 

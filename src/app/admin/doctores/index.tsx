@@ -13,8 +13,8 @@ import {
 } from "react-native";
 
 import { useFocusEffect } from "expo-router";
+import DocumentoContrato from "../../../components/DocumentoContrato";
 import SelectorFecha from "../../../components/SelectorFecha";
-import VisorContrato from "../../../components/VisorContrato";
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../services/api";
 
@@ -45,7 +45,6 @@ interface FormularioContrato {
   estado: string;
   tipo_contrato: string;
   salario: string;
-  url_documento: string;
 }
 
 const formularioInicial: FormularioContrato = {
@@ -55,7 +54,6 @@ const formularioInicial: FormularioContrato = {
   estado: "Activo",
   tipo_contrato: "",
   salario: "",
-  url_documento: "",
 };
 
 const TIPOS_CONTRATO = [
@@ -82,6 +80,10 @@ export default function ContratosScreen() {
   const [formulario, setFormulario] =
     useState<FormularioContrato>(formularioInicial);
 
+  const [documentoVisible, setDocumentoVisible] = useState(false);
+  const [contratoDocumento, setContratoDocumento] =
+    useState<Contrato | null>(null);
+
   const [alerta, setAlerta] = useState({
     visible: false,
     titulo: "",
@@ -91,15 +93,6 @@ export default function ContratosScreen() {
 
   const headers = {
     Authorization: `Bearer ${token}`,
-  };
-
-  const [documentoVisible, setDocumentoVisible] = useState(false);
-  const [contratoDocumento, setContratoDocumento] =
-    useState<Contrato | null>(null);
-
-  const abrirDocumento = (contrato: Contrato) => {
-    setContratoDocumento(contrato);
-    setDocumentoVisible(true);
   };
 
   const mostrarAlerta = (
@@ -115,6 +108,11 @@ export default function ContratosScreen() {
     });
   };
 
+  const abrirDocumento = (contrato: Contrato) => {
+    setContratoDocumento(contrato);
+    setDocumentoVisible(true);
+  };
+
   const extraerLista = (data: any): any[] => {
     if (Array.isArray(data)) return data;
     if (Array.isArray(data?.items)) return data.items;
@@ -126,40 +124,44 @@ export default function ContratosScreen() {
 
   const cargarDatos = useCallback(async () => {
     if (!token) {
-        setCargando(false);
-        return;
+      setCargando(false);
+      return;
     }
 
     setCargando(true);
 
     try {
-        const headers = {
+      const encabezados = {
         Authorization: `Bearer ${token}`,
-        };
+      };
 
-        const [respuestaContratos, respuestaDoctores] =
+      const [respuestaContratos, respuestaDoctores] =
         await Promise.all([
-            api.get("/api/contratos/", { headers }),
-            api.get("/api/doctores/", { headers }),
+          api.get("/api/contratos/", {
+            headers: encabezados,
+          }),
+          api.get("/api/doctores/", {
+            headers: encabezados,
+          }),
         ]);
 
-        setContratos(extraerLista(respuestaContratos.data));
-        setDoctores(extraerLista(respuestaDoctores.data));
+      setContratos(extraerLista(respuestaContratos.data));
+      setDoctores(extraerLista(respuestaDoctores.data));
     } catch (error: any) {
-        console.error(
+      console.error(
         "Error al cargar contratos:",
         error?.response?.data ?? error?.message
-        );
+      );
 
-        mostrarAlerta(
+      mostrarAlerta(
         "No se pudieron cargar los datos",
         error?.response?.data?.detail ??
-            "Verifica tu sesión y que los endpoints de contratos y doctores estén disponibles."
-        );
+          "Verifica tu sesión y que los endpoints de contratos y doctores estén disponibles."
+      );
     } finally {
-        setCargando(false);
+      setCargando(false);
     }
-    }, [token]);
+  }, [token]);
 
   useFocusEffect(
     useCallback(() => {
@@ -180,24 +182,31 @@ export default function ContratosScreen() {
   const abrirNuevo = () => {
     setContratoEditar(null);
     setFormulario(formularioInicial);
+    setOtroTipoContrato("");
     setModalVisible(true);
   };
 
   const abrirEdicion = (contrato: Contrato) => {
     setContratoEditar(contrato.id_PK);
 
+    const tipoRegistrado = contrato.tipo_contrato ?? "";
+    const tipoConocido = TIPOS_CONTRATO.includes(tipoRegistrado);
+
     setFormulario({
       doctor_id_FK: String(contrato.doctor_id_FK),
       fecha_inicio: contrato.fecha_inicio ?? "",
       fecha_fin: contrato.fecha_fin ?? "",
       estado: contrato.estado ?? "",
-      tipo_contrato: contrato.tipo_contrato ?? "",
+      tipo_contrato: tipoConocido ? tipoRegistrado : "Otro",
       salario:
         contrato.salario == null
           ? ""
           : String(contrato.salario),
-      url_documento: contrato.url_documento ?? "",
     });
+
+    setOtroTipoContrato(
+      tipoConocido ? "" : tipoRegistrado
+    );
 
     setModalVisible(true);
   };
@@ -205,10 +214,12 @@ export default function ContratosScreen() {
   const guardarContrato = async () => {
     const inicio = formulario.fecha_inicio.trim();
     const fin = formulario.fecha_fin.trim();
+
     const tipo =
-    formulario.tipo_contrato === "Otro"
-    ? otroTipoContrato.trim()
-    : formulario.tipo_contrato.trim();
+      formulario.tipo_contrato === "Otro"
+        ? otroTipoContrato.trim()
+        : formulario.tipo_contrato.trim();
+
     const estado = formulario.estado.trim();
     const salarioTexto = formulario.salario.trim();
 
@@ -277,16 +288,14 @@ export default function ContratosScreen() {
     }
 
     const datos = {
-        doctor_id_FK: Number(formulario.doctor_id_FK),
-        fecha_inicio: inicio,
-        fecha_fin: fin || null,
-        estado,
-        tipo_contrato: tipo,
-        salario,
+      doctor_id_FK: Number(formulario.doctor_id_FK),
+      fecha_inicio: inicio,
+      fecha_fin: fin || null,
+      estado,
+      tipo_contrato: tipo,
+      salario,
     };
 
-
-    //CHECAR BIEN FORMATO DE CONTRATO, TAMBIEN PARA FIRMARLO DIGITAL, OBVIAMENTE LA FIRMA SOLO SE GUARDARA EN EL PDF, NO EN BD
     setGuardando(true);
 
     try {
@@ -319,6 +328,7 @@ export default function ContratosScreen() {
       setModalVisible(false);
       setFormulario(formularioInicial);
       setContratoEditar(null);
+      setOtroTipoContrato("");
 
       await cargarDatos();
     } catch (error: any) {
@@ -328,6 +338,7 @@ export default function ContratosScreen() {
       );
 
       const detalle = error?.response?.data?.detail;
+
       const mensaje = Array.isArray(detalle)
         ? detalle.map((item: any) => item.msg).join("\n")
         : typeof detalle === "string"
@@ -341,7 +352,9 @@ export default function ContratosScreen() {
   };
 
   const nombreDoctor = (id: number) => {
-    const doctor = doctores.find((item) => item.id_PK === id);
+    const doctor = doctores.find(
+      (item) => item.id_PK === id
+    );
 
     return (
       doctor?.nombre_completo ??
@@ -351,7 +364,11 @@ export default function ContratosScreen() {
     );
   };
 
-  const renderContrato = ({ item }: { item: Contrato }) => (
+  const renderContrato = ({
+    item,
+  }: {
+    item: Contrato;
+  }) => (
     <View style={styles.tarjeta}>
       <View style={styles.tarjetaEncabezado}>
         <View style={styles.flex}>
@@ -400,20 +417,14 @@ export default function ContratosScreen() {
         })}
       </Text>
 
-      {item.url_documento ? (
-        <Pressable
-          style={styles.botonDocumento}
-          onPress={() => abrirDocumento(item)}
-        >
-          <Text style={styles.botonDocumentoTexto}>
-            Ver documento
-          </Text>
-        </Pressable>
-      ) : (
-        <Text style={styles.documento}>
-          Documento no disponible
+      <Pressable
+        style={styles.botonDocumento}
+        onPress={() => abrirDocumento(item)}
+      >
+        <Text style={styles.botonDocumentoTexto}>
+          Ver documento
         </Text>
-      )}
+      </Pressable>
 
       <Pressable
         style={styles.botonEditar}
@@ -429,7 +440,9 @@ export default function ContratosScreen() {
   return (
     <View style={styles.contenedor}>
       <View style={styles.encabezado}>
-        <Text style={styles.titulo}>Contratos médicos</Text>
+        <Text style={styles.titulo}>
+          Contratos médicos
+        </Text>
 
         <Text style={styles.subtitulo}>
           Administra la contratación de los médicos de VITALIA.
@@ -473,6 +486,7 @@ export default function ContratosScreen() {
         />
       )}
 
+      {/* MODAL PARA REGISTRAR Y EDITAR */}
       <Modal
         visible={modalVisible}
         transparent
@@ -549,12 +563,14 @@ export default function ContratosScreen() {
               )}
 
               <Text style={styles.etiqueta}>
-                Fecha de inicio * (AAAA-MM-DD)
+                Fecha de inicio *
               </Text>
 
               <SelectorFecha
                 value={formulario.fecha_inicio}
-                onChange={(fecha) => actualizarCampo("fecha_inicio", fecha)}
+                onChange={(fecha) =>
+                  actualizarCampo("fecha_inicio", fecha)
+                }
                 placeholder="Seleccionar fecha de inicio"
               />
 
@@ -564,7 +580,9 @@ export default function ContratosScreen() {
 
               <SelectorFecha
                 value={formulario.fecha_fin}
-                onChange={(fecha) => actualizarCampo("fecha_fin", fecha)}
+                onChange={(fecha) =>
+                  actualizarCampo("fecha_fin", fecha)
+                }
                 placeholder="Seleccionar fecha de fin (opcional)"
               />
 
@@ -703,6 +721,7 @@ export default function ContratosScreen() {
         </View>
       </Modal>
 
+      {/* MODAL DE DOCUMENTO VISUAL, SIN PDF */}
       <Modal
         visible={documentoVisible}
         animationType="slide"
@@ -734,22 +753,18 @@ export default function ContratosScreen() {
             </Pressable>
           </View>
 
-          
-          {contratoDocumento?.url_documento ? (
-            <VisorContrato
-              url={`${(api.defaults.baseURL ?? "http://127.0.0.1:8000").replace(/\/$/, "")}/api/contratos/${contratoDocumento.id_PK}/documento`}
-              token={token ?? ""}
+          {contratoDocumento && (
+            <DocumentoContrato
+              contrato={contratoDocumento}
+              nombreDoctor={nombreDoctor(
+                contratoDocumento.doctor_id_FK
+              )}
             />
-          ) : (
-            <View style={styles.cargandoDocumento}>
-              <Text style={styles.textoCargandoDocumento}>
-                No hay un documento disponible para este contrato.
-              </Text>
-            </View>
           )}
         </View>
       </Modal>
 
+      {/* MODAL DE ALERTAS */}
       <Modal
         visible={alerta.visible}
         transparent
@@ -900,11 +915,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "800",
     marginTop: 5,
-  },
-  documento: {
-    color: "#507E77",
-    fontSize: 12,
-    marginTop: 8,
   },
   botonEditar: {
     alignSelf: "flex-start",
@@ -1113,18 +1123,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginTop: 12,
   },
-
   botonDocumentoTexto: {
     color: "#247F76",
     fontSize: 13,
     fontWeight: "700",
   },
-
   contenedorDocumento: {
     flex: 1,
     backgroundColor: "#F4F8F7",
   },
-
   encabezadoDocumento: {
     flexDirection: "row",
     alignItems: "center",
@@ -1135,48 +1142,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E2ECE9",
   },
-
   tituloDocumento: {
     color: "#245D57",
     fontSize: 18,
     fontWeight: "800",
   },
-
   subtituloDocumento: {
     color: "#718582",
     fontSize: 12,
     marginTop: 5,
   },
-
   botonCerrarDocumento: {
     backgroundColor: "#2A8C82",
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 9,
   },
-
   botonCerrarDocumentoTexto: {
     color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "700",
-  },
-
-  vistaPDF: {
-    flex: 1,
-    backgroundColor: "#F4F8F7",
-  },
-
-  cargandoDocumento: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-
-  textoCargandoDocumento: {
-    color: "#507E77",
-    fontSize: 14,
-    marginTop: 12,
-    textAlign: "center",
   },
 });

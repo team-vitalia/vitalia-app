@@ -9,4 +9,14 @@ const api = axios.create({
   },
 });
 
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("vitalia_token");
+    if (token && !config.headers["Authorization"]) {
+      config.headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 export default api;

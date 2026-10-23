@@ -235,7 +235,7 @@ export default function CrearUsuarioScreen() {
         error.response?.data
       );
 
-      Alert.alert(
+      mostrarAlerta(
         "Error",
         error.response?.data?.detail ||
           "No se pudieron cargar los roles."
@@ -266,7 +266,7 @@ export default function CrearUsuarioScreen() {
     } catch (error: any) {
       console.error(error);
 
-      Alert.alert(
+      mostrarAlerta(
         "Error",
         error.response?.data?.detail ||
           "No se pudieron cargar las especialidades."
@@ -432,7 +432,7 @@ export default function CrearUsuarioScreen() {
       esPaciente &&
       !apellido.trim()
     ) {
-      Alert.alert(
+      mostrarAlerta(
         "Campo requerido",
         "Ingresa el apellido del paciente."
       );
@@ -445,7 +445,7 @@ export default function CrearUsuarioScreen() {
     // -------------------------------------------------------
 
     if (!correo.trim()) {
-      Alert.alert(
+      mostrarAlerta(
         "Campo requerido",
         "Ingresa el correo electrónico."
       );
@@ -462,7 +462,7 @@ export default function CrearUsuarioScreen() {
 
       enfocarPassword();
 
-      Alert.alert(
+      mostrarAlerta(
         "Contraseña requerida",
         "Ingresa una contraseña de al menos 8 caracteres."
       );
@@ -479,7 +479,7 @@ export default function CrearUsuarioScreen() {
 
       enfocarPassword();
 
-      Alert.alert(
+      mostrarAlerta(
         "Contraseña inválida",
         "La contraseña debe tener al menos 8 caracteres."
       );
@@ -494,7 +494,7 @@ export default function CrearUsuarioScreen() {
     // -------------------------------------------------------
 
     if (!rolSeleccionado) {
-      Alert.alert(
+      mostrarAlerta(
         "Rol requerido",
         "Selecciona un rol para el usuario."
       );
@@ -508,7 +508,7 @@ export default function CrearUsuarioScreen() {
 
     if (esDoctor) {
       if (!especialidadId) {
-        Alert.alert(
+        mostrarAlerta(
           "Especialidad requerida",
           "Selecciona la especialidad del doctor."
         );
@@ -517,7 +517,7 @@ export default function CrearUsuarioScreen() {
       }
 
       if (!numeroLicencia.trim()) {
-        Alert.alert(
+        mostrarAlerta(
           "Campo requerido",
           "Ingresa el número de licencia del doctor."
         );
@@ -526,7 +526,7 @@ export default function CrearUsuarioScreen() {
       }
 
       if (!costoConsulta.trim()) {
-        Alert.alert(
+        mostrarAlerta(
           "Campo requerido",
           "Ingresa el costo de consulta."
         );
@@ -539,7 +539,7 @@ export default function CrearUsuarioScreen() {
       );
 
       if (isNaN(costo) || costo < 0) {
-        Alert.alert(
+        mostrarAlerta(
           "Costo inválido",
           "Ingresa un costo de consulta válido."
         );

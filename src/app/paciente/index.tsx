@@ -6,10 +6,23 @@ import {
     View,
 } from "react-native";
 
+import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import api from "../../services/api";
+import CitasPaciente, { CitaPaciente, esProxima } from "../../components/CitasPaciente";
 
 export default function PacienteScreen() {
-  const { usuario } = useAuth();
+  const { usuario, token } = useAuth();
+  const [citas, setCitas] = useState<CitaPaciente[]>([]);
+  const [errorCitas, setErrorCitas] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+    api
+      .get("/api/citas/mis-citas", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => setCitas(r.data))
+      .catch((e) => setErrorCitas(e?.response?.data?.detail || "No se pudieron cargar tus citas."));
+  }, [token]);
 
   const obtenerSaludo = () => {
     const hora = new Date().getHours();
@@ -114,7 +127,7 @@ export default function PacienteScreen() {
           </View>
 
           <Text style={styles.cardNumber}>
-            0
+            {citas.filter(esProxima).length}
           </Text>
 
           <Text style={styles.cardLabel}>
@@ -148,6 +161,12 @@ export default function PacienteScreen() {
       {/* =========================
           ACCESOS RÁPIDOS
       ========================== */}
+
+      <Text style={styles.sectionTitle}>
+        Mis citas
+      </Text>
+      {!!errorCitas && <Text style={{ color: "#B42318", marginBottom: 10 }}>{errorCitas}</Text>}
+      <CitasPaciente citas={citas} />
 
       <Text style={styles.sectionTitle}>
         Accesos rápidos
