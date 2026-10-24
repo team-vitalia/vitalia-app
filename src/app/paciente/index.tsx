@@ -1,18 +1,90 @@
+import { useRouter } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Animated,
+  Easing,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
+  ScrollView,
+  Text,
+  View,
+  useWindowDimensions,
 } from "react-native";
-
-import { useEffect, useState } from "react";
+import CitasPaciente, { CitaPaciente, esProxima } from "../../components/CitasPaciente";
+import {
+  AccionCard,
+  FondoLuces,
+  Footer,
+  Glass,
+  HeroSaludo,
+  InfoCard,
+  Notice,
+  SectionTitle,
+  TabsBar,
+  type TabItem,
+} from "../../components/DashboardUI";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
-import CitasPaciente, { CitaPaciente, esProxima } from "../../components/CitasPaciente";
+import { useTheme } from "../../theme/theme";
+
+const ND = Platform.OS !== "web";
+
+const TABS_PACIENTE: TabItem[] = [
+  { key: "resumen", label: "Resumen", icon: "speedometer-outline" },
+  { key: "citas", label: "Mis citas", icon: "calendar-outline" },
+];
 
 export default function PacienteScreen() {
+  const router = useRouter();
   const { usuario, token } = useAuth();
+  const c = useTheme();
+  const { width } = useWindowDimensions();
+
+  const { pad, esc, cols } = useMemo(() => {
+    const esc = width < 560 ? 1 : width < 900 ? 1.06 : 1.12;
+    const pad = width < 400 ? 14 : width < 560 ? 18 : width < 1024 ? 26 : 34;
+    const cols = width < 560 ? 1 : 2;
+    return { pad, esc, cols };
+  }, [width]);
+
+  const fade = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fade, { toValue: 1, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: ND }).start();
+  }, []);
+
+  const [pager, setPager] = useState({ w: 0, h: 0 });
+  const [tab, setTab] = useState(0);
+  const tabRef = useRef(0);
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const pagerRef = useRef<any>(null);
+
+  const irATab = (i: number) => {
+    tabRef.current = i;
+    setTab(i);
+    pagerRef.current?.scrollTo({ x: i * pager.w, animated: true });
+  };
+
+  const onScroll = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+        useNativeDriver: ND,
+        listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+          if (!pager.w) return;
+          const i = Math.round(e.nativeEvent.contentOffset.x / pager.w);
+          if (i !== tabRef.current) {
+            tabRef.current = i;
+            setTab(i);
+          }
+        },
+      }),
+    [pager.w]
+  );
+
+  useEffect(() => {
+    if (pager.w) pagerRef.current?.scrollTo({ x: tabRef.current * pager.w, animated: false });
+  }, [pager.w]);
+
   const [citas, setCitas] = useState<CitaPaciente[]>([]);
   const [errorCitas, setErrorCitas] = useState("");
 
@@ -26,656 +98,120 @@ export default function PacienteScreen() {
 
   const obtenerSaludo = () => {
     const hora = new Date().getHours();
-
-    if (hora < 12) {
-      return "Buenos días";
-    }
-
-    if (hora < 19) {
-      return "Buenas tardes";
-    }
-
+    if (hora < 12) return "Buenos días";
+    if (hora < 19) return "Buenas tardes";
     return "Buenas noches";
   };
 
+  const pagina = (key: string, children: React.ReactNode) => (
+    <View key={key} style={{ width: pager.w, height: pager.h }}>
+      <ScrollView
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: pad, paddingTop: 16, paddingBottom: 40 }}
+      >
+        <View style={{ width: "100%", maxWidth: 1100, alignSelf: "center" }}>{children}</View>
+      </ScrollView>
+    </View>
+  );
+
+  const anchoAcceso = cols === 1 ? "100%" : "48.5%";
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-
-      {/* =========================
-          ENCABEZADO
-      ========================== */}
-
-      <View style={styles.header}>
-
-        <View style={styles.headerInfo}>
-
-          <Text style={styles.greeting}>
-            {obtenerSaludo()}
-          </Text>
-
-          <Text style={styles.name}>
-            {usuario?.nombre || "Paciente"}
-          </Text>
-
-          <Text style={styles.role}>
-            Paciente
-          </Text>
-
-        </View>
-
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {usuario?.nombre?.charAt(0)?.toUpperCase() || "P"}
-          </Text>
-        </View>
-
-      </View>
-
-
-      {/* =========================
-          TARJETA PRINCIPAL
-      ========================== */}
-
-      <View style={styles.welcomeCard}>
-
-        <View style={styles.welcomeContent}>
-
-          <Text style={styles.welcomeSmall}>
-            VITALIA
-          </Text>
-
-          <Text style={styles.welcomeTitle}>
-            Tu salud, en un solo lugar
-          </Text>
-
-          <Text style={styles.welcomeDescription}>
-            Consulta tus citas, información clínica
-            y seguimiento de atención de manera sencilla.
-          </Text>
-
-        </View>
-
-        <View style={styles.decorCircle}>
-          <Text style={styles.decorIcon}>
-            +
-          </Text>
-        </View>
-
-      </View>
-
-
-      {/* =========================
-          RESUMEN
-      ========================== */}
-
-      <Text style={styles.sectionTitle}>
-        Mi resumen
-      </Text>
-
-      <View style={styles.cardsRow}>
-
-        <View style={styles.infoCard}>
-
-          <View style={styles.cardIcon}>
-            <Text style={styles.cardIconText}>
-              ◷
-            </Text>
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      <FondoLuces c={c} />
+      <Animated.View style={{ flex: 1, opacity: fade }}>
+        <View style={{ paddingHorizontal: pad, paddingTop: 14, alignItems: "center" }}>
+          <View style={{ width: "100%", maxWidth: 1100 }}>
+            <HeroSaludo
+              c={c}
+              esc={esc}
+              saludo={obtenerSaludo()}
+              nombre={usuario?.nombre || "Paciente"}
+              rol="Paciente"
+              kicker="VITALIA · PORTAL DEL PACIENTE"
+              titulo="Tu salud, en un solo lugar"
+              descripcion="Consulta tus citas, información clínica y seguimiento de atención de manera sencilla."
+            />
+            <TabsBar
+              c={c}
+              esc={esc}
+              tabs={TABS_PACIENTE}
+              activa={tab}
+              scrollX={scrollX}
+              anchoPagina={pager.w}
+              mostrarIconos={width >= 440}
+              onSelect={irATab}
+            />
           </View>
-
-          <Text style={styles.cardNumber}>
-            {citas.filter(esProxima).length}
-          </Text>
-
-          <Text style={styles.cardLabel}>
-            Próximas citas
-          </Text>
-
         </View>
 
+        <View
+          style={{ flex: 1, minHeight: 0, marginTop: 6 }}
+          onLayout={(e) => setPager({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+        >
+          {pager.w > 0 && pager.h > 0 && (
+            <Animated.ScrollView
+              ref={pagerRef}
+              horizontal
+              pagingEnabled
+              bounces={false}
+              decelerationRate="fast"
+              showsHorizontalScrollIndicator={false}
+              scrollEventThrottle={16}
+              onScroll={onScroll}
+              style={{ width: pager.w, height: pager.h }}
+            >
+              {pagina(
+                "resumen",
+                <>
+                  <SectionTitle c={c} esc={esc} icon="speedometer-outline" color={c.info}>
+                    Mi resumen
+                  </SectionTitle>
+                  <View style={{ flexDirection: "row", gap: 10, marginBottom: 4 }}>
+                    <InfoCard c={c} esc={esc} icon="time-outline" color={c.info} valor={citas.filter(esProxima).length} label="Próximas citas" />
+                    <InfoCard c={c} esc={esc} icon="checkmark-circle-outline" color={c.success} valor="Activo" label="Estado de cuenta" />
+                  </View>
 
-        <View style={styles.infoCard}>
+                  <SectionTitle c={c} esc={esc} icon="flash-outline" color={c.primary}>
+                    Accesos rápidos
+                  </SectionTitle>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
+                    <View style={{ width: anchoAcceso }}>
+                      <AccionCard c={c} esc={esc} icon="time-outline" color={c.info} titulo="Mis citas" descripcion="Consulta tus próximas citas y horarios de atención." onPress={() => irATab(1)} />
+                    </View>
+                    <View style={{ width: anchoAcceso }}>
+                      <AccionCard c={c} esc={esc} icon="document-text-outline" color={c.primary} titulo="Mi expediente" descripcion="Consulta la información disponible de tu expediente clínico." />
+                    </View>
+                    <View style={{ width: anchoAcceso }}>
+                      <AccionCard c={c} esc={esc} icon="checkmark-circle-outline" color={c.success} titulo="Mi seguimiento" descripcion="Consulta información relacionada con tu atención." />
+                    </View>
+                  </View>
 
-          <View style={styles.cardIcon}>
-            <Text style={styles.cardIconText}>
-              ✓
-            </Text>
-          </View>
+                  <Notice c={c} esc={esc} icon="shield-checkmark-outline" titulo="Tu información está protegida" texto="VITALIA mantiene tu sesión activa y segura." />
+                  <Footer c={c} esc={esc} />
+                </>
+              )}
 
-          <Text style={styles.cardNumber}>
-            Activo
-          </Text>
-
-          <Text style={styles.cardLabel}>
-            Estado de cuenta
-          </Text>
-
+              {pagina(
+                "citas",
+                <>
+                  <SectionTitle c={c} esc={esc} icon="calendar-outline" color={c.primary}>
+                    Mis citas
+                  </SectionTitle>
+                  {!!errorCitas && (
+                    <Glass c={c} radius={12} style={{ padding: 12, marginBottom: 10, borderColor: c.error }}>
+                      <Text style={{ color: c.error, fontSize: 12, fontWeight: "700" }}>{errorCitas}</Text>
+                    </Glass>
+                  )}
+                  <CitasPaciente citas={citas} />
+                  <Footer c={c} esc={esc} />
+                </>
+              )}
+            </Animated.ScrollView>
+          )}
         </View>
-
-      </View>
-
-
-      {/* =========================
-          ACCESOS RÁPIDOS
-      ========================== */}
-
-      <Text style={styles.sectionTitle}>
-        Mis citas
-      </Text>
-      {!!errorCitas && <Text style={{ color: "#B42318", marginBottom: 10 }}>{errorCitas}</Text>}
-      <CitasPaciente citas={citas} />
-
-      <Text style={styles.sectionTitle}>
-        Accesos rápidos
-      </Text>
-
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.actionCard,
-          pressed && styles.actionCardPressed,
-        ]}
-      >
-
-        <View style={styles.actionIcon}>
-          <Text style={styles.actionIconText}>
-            ◷
-          </Text>
-        </View>
-
-        <View style={styles.actionInfo}>
-
-          <Text style={styles.actionTitle}>
-            Mis citas
-          </Text>
-
-          <Text style={styles.actionDescription}>
-            Consulta tus próximas citas y horarios de atención.
-          </Text>
-
-        </View>
-
-        <Text style={styles.actionArrow}>
-          →
-        </Text>
-
-      </Pressable>
-
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.actionCard,
-          pressed && styles.actionCardPressed,
-        ]}
-      >
-
-        <View style={styles.actionIcon}>
-          <Text style={styles.actionIconText}>
-            +
-          </Text>
-        </View>
-
-        <View style={styles.actionInfo}>
-
-          <Text style={styles.actionTitle}>
-            Mi expediente
-          </Text>
-
-          <Text style={styles.actionDescription}>
-            Consulta la información disponible de tu expediente clínico.
-          </Text>
-
-        </View>
-
-        <Text style={styles.actionArrow}>
-          →
-        </Text>
-
-      </Pressable>
-
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.actionCard,
-          pressed && styles.actionCardPressed,
-        ]}
-      >
-
-        <View style={styles.actionIcon}>
-          <Text style={styles.actionIconText}>
-            ✓
-          </Text>
-        </View>
-
-        <View style={styles.actionInfo}>
-
-          <Text style={styles.actionTitle}>
-            Mi seguimiento
-          </Text>
-
-          <Text style={styles.actionDescription}>
-            Consulta información relacionada con tu atención.
-          </Text>
-
-        </View>
-
-        <Text style={styles.actionArrow}>
-          →
-        </Text>
-
-      </Pressable>
-
-
-      {/* =========================
-          AVISO
-      ========================== */}
-
-      <View style={styles.notice}>
-
-        <View style={styles.noticeIcon}>
-          <Text style={styles.noticeIconText}>
-            ✓
-          </Text>
-        </View>
-
-        <View style={styles.noticeContent}>
-
-          <Text style={styles.noticeTitle}>
-            Tu información está protegida
-          </Text>
-
-          <Text style={styles.noticeText}>
-            VITALIA mantiene tu sesión activa y segura.
-          </Text>
-
-        </View>
-
-      </View>
-
-
-      {/* =========================
-          FOOTER
-      ========================== */}
-
-      <View style={styles.footer}>
-
-        <View style={styles.footerLine} />
-
-        <Text style={styles.footerText}>
-          VITALIA · Gestión clínica inteligente
-        </Text>
-
-      </View>
-
-    </ScrollView>
+      </Animated.View>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-
-  container: {
-    flex: 1,
-    backgroundColor: "#F4FAF8",
-  },
-
-  content: {
-    padding: 30,
-    paddingBottom: 50,
-    maxWidth: 1100,
-    width: "100%",
-    alignSelf: "center",
-  },
-
-  /* =========================
-     HEADER
-  ========================== */
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 28,
-  },
-
-  headerInfo: {
-    flex: 1,
-  },
-
-  greeting: {
-    fontSize: 14,
-    color: "#82938F",
-    marginBottom: 3,
-  },
-
-  name: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#173F3A",
-  },
-
-  role: {
-    fontSize: 13,
-    color: "#2A8C82",
-    fontWeight: "600",
-    marginTop: 4,
-  },
-
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#DDF3EF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  avatarText: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#247F76",
-  },
-
-  /* =========================
-     TARJETA PRINCIPAL
-  ========================== */
-
-  welcomeCard: {
-    minHeight: 190,
-
-    borderRadius: 24,
-
-    backgroundColor: "#247F76",
-
-    paddingHorizontal: 30,
-    paddingVertical: 28,
-
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-
-    overflow: "hidden",
-
-    shadowColor: "#247F76",
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-
-    elevation: 6,
-  },
-
-  welcomeContent: {
-    flex: 1,
-    maxWidth: 600,
-  },
-
-  welcomeSmall: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 2,
-    color: "#BDE5DF",
-    marginBottom: 5,
-  },
-
-  welcomeTitle: {
-    fontSize: 30,
-    fontWeight: "900",
-    color: "#FFFFFF",
-  },
-
-  welcomeDescription: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#DCEFEB",
-    marginTop: 8,
-    maxWidth: 520,
-  },
-
-  decorCircle: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-
-    backgroundColor: "rgba(255,255,255,0.10)",
-
-    justifyContent: "center",
-    alignItems: "center",
-
-    marginLeft: 20,
-  },
-
-  decorIcon: {
-    fontSize: 70,
-    fontWeight: "200",
-    color: "rgba(255,255,255,0.55)",
-  },
-
-  /* =========================
-     SECCIONES
-  ========================== */
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#173F3A",
-
-    marginTop: 30,
-    marginBottom: 14,
-  },
-
-  /* =========================
-     RESUMEN
-  ========================== */
-
-  cardsRow: {
-    flexDirection: "row",
-    gap: 15,
-  },
-
-  infoCard: {
-    flex: 1,
-
-    minHeight: 125,
-
-    backgroundColor: "#FFFFFF",
-
-    borderRadius: 18,
-
-    padding: 18,
-
-    borderWidth: 1,
-    borderColor: "#E4EEEB",
-  },
-
-  cardIcon: {
-    width: 36,
-    height: 36,
-
-    borderRadius: 11,
-
-    backgroundColor: "#E2F4F0",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    marginBottom: 12,
-  },
-
-  cardIconText: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#247F76",
-  },
-
-  cardNumber: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: "#173F3A",
-  },
-
-  cardLabel: {
-    fontSize: 11,
-    color: "#8A9B98",
-    marginTop: 4,
-  },
-
-  /* =========================
-     ACCIONES
-  ========================== */
-
-  actionCard: {
-    minHeight: 82,
-
-    backgroundColor: "#FFFFFF",
-
-    borderRadius: 18,
-
-    paddingHorizontal: 18,
-    paddingVertical: 15,
-
-    flexDirection: "row",
-    alignItems: "center",
-
-    borderWidth: 1,
-    borderColor: "#E4EEEB",
-
-    marginBottom: 12,
-  },
-
-  actionCardPressed: {
-    transform: [
-      {
-        scale: 0.98,
-      },
-    ],
-
-    opacity: 0.85,
-  },
-
-  actionIcon: {
-    width: 46,
-    height: 46,
-
-    borderRadius: 14,
-
-    backgroundColor: "#E2F4F0",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    marginRight: 14,
-  },
-
-  actionIconText: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#247F76",
-  },
-
-  actionInfo: {
-    flex: 1,
-  },
-
-  actionTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#26443F",
-  },
-
-  actionDescription: {
-    fontSize: 11,
-    color: "#879691",
-    marginTop: 4,
-  },
-
-  actionArrow: {
-    fontSize: 22,
-    color: "#247F76",
-    marginLeft: 10,
-  },
-
-  /* =========================
-     AVISO
-  ========================== */
-
-  notice: {
-    marginTop: 18,
-
-    backgroundColor: "#F0F8F6",
-
-    borderRadius: 16,
-
-    padding: 15,
-
-    flexDirection: "row",
-    alignItems: "center",
-
-    borderWidth: 1,
-    borderColor: "#DCEEEA",
-  },
-
-  noticeIcon: {
-    width: 38,
-    height: 38,
-
-    borderRadius: 12,
-
-    backgroundColor: "#DDF3EF",
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    marginRight: 12,
-  },
-
-  noticeIconText: {
-    color: "#247F76",
-    fontSize: 17,
-    fontWeight: "800",
-  },
-
-  noticeContent: {
-    flex: 1,
-  },
-
-  noticeTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#31534D",
-  },
-
-  noticeText: {
-    fontSize: 11,
-    color: "#82938F",
-    marginTop: 3,
-  },
-
-  /* =========================
-     FOOTER
-  ========================== */
-
-  footer: {
-    alignItems: "center",
-    marginTop: 35,
-  },
-
-  footerLine: {
-    width: 60,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "#CDE8E3",
-    marginBottom: 10,
-  },
-
-  footerText: {
-    fontSize: 10,
-    color: "#9AA9A6",
-    letterSpacing: 0.5,
-  },
-
-});
