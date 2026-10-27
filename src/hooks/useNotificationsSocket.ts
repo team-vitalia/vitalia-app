@@ -12,6 +12,18 @@ export interface WSMessage {
 export type ConnectionStatus = "DISCONNECTED" | "CONNECTING" | "CONNECTED" | "RECONNECTING";
 
 const getBaseWsUrl = (): string => {
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL;
+
+  if (apiUrl) {
+    if (apiUrl.startsWith("https://")) {
+      return apiUrl.replace(/^https:\/\//, "wss://").replace(/\/+$/, "");
+    }
+    if (apiUrl.startsWith("http://")) {
+      return apiUrl.replace(/^http:\/\//, "ws://").replace(/\/+$/, "");
+    }
+    return apiUrl.replace(/\/+$/, "");
+  }
+
   if (Platform.OS === "android") {
     return "ws://10.0.2.2:8000";
   }
@@ -123,7 +135,15 @@ export function useNotificationsSocket(
 
     disconnect();
 
-    const fullUrl = `${serverUrl}/ws/notifications/${clientId}`;
+    const sanitizedBase = serverUrl
+      ? serverUrl.startsWith("https://")
+        ? serverUrl.replace(/^https:\/\//, "wss://").replace(/\/+$/, "")
+        : serverUrl.startsWith("http://")
+        ? serverUrl.replace(/^http:\/\//, "ws://").replace(/\/+$/, "")
+        : serverUrl.replace(/\/+$/, "")
+      : getBaseWsUrl();
+
+    const fullUrl = `${sanitizedBase}/ws/notifications/${clientId}`;
     setStatus(reconnectAttemptsRef.current > 0 ? "RECONNECTING" : "CONNECTING");
 
     try {
