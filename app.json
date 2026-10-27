@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "vitalia-app",
+    "name": "Vitalia",
     "slug": "vitalia-app",
     "version": "1.0.0",
     "orientation": "default",
@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.aleort09jared14.vitaliaapp"
+      "package": "com.vitalia.vitaliaapp"
     },
     "web": {
       "output": "static",
