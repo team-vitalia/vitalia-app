@@ -347,6 +347,43 @@ export default function PoliticaPrivacidadScreen() {
               </View>
             </View>
           </LinearGradient>
+
+          {/* Tarjetas de Puntos Clave */}
+          <View style={styles.highlightsGrid}>
+            {highlights.map((h, i) => (
+              <View key={i} style={styles.highlightCard}>
+                <View style={[styles.highlightIconWrap, { backgroundColor: `${h.color}15` }]}>
+                  <Ionicons name={h.icon} size={20} color={h.color} />
+                </View>
+                <Text style={styles.highlightTitle}>{h.title}</Text>
+                <Text style={styles.highlightDesc}>{h.desc}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Tarjeta de enlace cruzado a Condiciones del Servicio */}
+          <View style={styles.termsLinkBanner}>
+            <View style={styles.termsLinkLeft}>
+              <Ionicons name="document-text" size={24} color={c.primary} style={{ marginRight: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.termsBannerTitle}>¿Deseas consultar las normas de uso de la plataforma?</Text>
+                <Text style={styles.termsBannerDesc}>
+                  Revisa las responsabilidades médicas, agendamiento y validez legal en nuestras Condiciones del Servicio.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.push("/condiciones-servicio" as any)}
+              activeOpacity={0.75}
+              style={[styles.termsBannerBtn, POINTER]}
+              accessibilityRole="link"
+              accessibilityLabel="Ir a Condiciones del Servicio"
+            >
+              <Text style={styles.termsBannerBtnText}>Ver Condiciones</Text>
+              <Ionicons name="chevron-forward" size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          </View>
+
           {/* Secciones de la Política de Privacidad */}
           <View style={styles.sectionsContainer}>
             {sections.map((section) => (
@@ -724,6 +761,51 @@ function createStyles(c: Theme, isSmall: boolean) {
       fontSize: 13,
       lineHeight: 20,
       color: isDark ? "#CBD5E1" : "#334155",
+    },
+
+    /* ---------- Banner de enlace cruzado a Condiciones ---------- */
+    termsLinkBanner: {
+      backgroundColor: isDark ? "rgba(15,76,69,0.14)" : "rgba(204,251,241,0.4)",
+      borderWidth: 1,
+      borderColor: isDark ? "rgba(45,212,191,0.25)" : "rgba(45,212,191,0.45)",
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 24,
+      flexDirection: isSmall ? "column" : "row",
+      alignItems: isSmall ? "flex-start" : "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    termsLinkLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+    termsBannerTitle: {
+      fontSize: 13.5,
+      fontWeight: "800",
+      color: c.primary,
+      marginBottom: 2,
+    },
+    termsBannerDesc: {
+      fontSize: 12,
+      lineHeight: 17,
+      color: isDark ? "#CBD5E1" : "#475569",
+    },
+    termsBannerBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: c.primary,
+      borderRadius: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      alignSelf: isSmall ? "stretch" : "center",
+      justifyContent: "center",
+    },
+    termsBannerBtnText: {
+      color: "#FFFFFF",
+      fontSize: 12.5,
+      fontWeight: "700",
     },
 
     /* ---------- Secciones Normativas ---------- */

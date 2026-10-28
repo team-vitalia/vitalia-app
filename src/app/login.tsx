@@ -776,12 +776,23 @@ export default function LoginScreen() {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={styles.brandFooterTouch}
           >
-            <Ionicons name="shield-checkmark-outline" size={16} color={c.onBrandMuted} />
-            <T style={styles.brandFooter}>
-              Atención médica digital ·{" "}
-              <T style={{ textDecorationLine: "underline", fontWeight: "700" }}>
-                Política de Privacidad
-              </T>
+            <Ionicons name="shield-checkmark-outline" size={15} color={c.onBrandMuted} />
+            <T style={[styles.brandFooter, { textDecorationLine: "underline" }]}>
+              Privacidad
+            </T>
+          </TouchableOpacity>
+          <T style={[styles.brandFooter, { opacity: 0.5, marginHorizontal: 4 }]}>·</T>
+          <TouchableOpacity
+            onPress={() => router.push("/condiciones-servicio" as any)}
+            activeOpacity={0.75}
+            accessibilityRole="link"
+            accessibilityLabel="Ver Condiciones del Servicio"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.brandFooterTouch}
+          >
+            <Ionicons name="document-text-outline" size={15} color={c.onBrandMuted} />
+            <T style={[styles.brandFooter, { textDecorationLine: "underline" }]}>
+              Condiciones del Servicio
             </T>
           </TouchableOpacity>
         </Reveal>
@@ -955,7 +966,18 @@ export default function LoginScreen() {
 
       <Reveal delay={620} style={styles.privacyConsentRow}>
         <View style={styles.privacyInlineWrap}>
-          <T style={styles.privacyConsentText}>Al ingresar, aceptas nuestra </T>
+          <T style={styles.privacyConsentText}>Al ingresar, aceptas nuestras </T>
+          <TouchableOpacity
+            onPress={() => router.push("/condiciones-servicio" as any)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+            accessibilityRole="link"
+            accessibilityLabel="Leer Condiciones del Servicio"
+            style={styles.privacyTouchWrap}
+          >
+            <T style={styles.privacyLinkText}>Condiciones del Servicio</T>
+          </TouchableOpacity>
+          <T style={styles.privacyConsentText}> y nuestra </T>
           <TouchableOpacity
             onPress={() => router.push("/politica-privacidad" as any)}
             activeOpacity={0.7}
