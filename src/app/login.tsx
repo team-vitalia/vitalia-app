@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { ComponentProps, ReactNode, RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { ComponentProps, ReactNode, RefObject, forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -19,6 +19,7 @@ import {
   TextInput,
   TextInputProps,
   TextProps,
+  TouchableOpacity,
   View,
   ViewStyle,
   useColorScheme,
@@ -338,7 +339,10 @@ function Reveal({
 }
 
 // Fondo de marca: monitor de signos vitales (cuadrícula clínica, latido ECG que se dibuja y se borra, luces de color)
-const AnimatedPath = Animated.createAnimatedComponent(Path);
+const SafePath = forwardRef<any, any>(({ collapsable, ...props }, ref) => (
+  <Path ref={ref} {...props} />
+));
+const AnimatedPath = Animated.createAnimatedComponent(SafePath);
 const ECG =
   "M0 300 H70 L84 300 L94 282 L104 300 H132 L144 312 L156 214 L168 346 L180 300 H236 L250 290 L264 300 H316 L328 312 L340 246 L352 328 L364 300 H400";
 const ECG_LEN = 900;
@@ -764,8 +768,22 @@ export default function LoginScreen() {
 
       {L.showFooter ? (
         <Reveal delay={700} style={styles.brandFooterRow}>
-          <Ionicons name="shield-checkmark-outline" size={16} color={c.onBrandMuted} />
-          <T style={styles.brandFooter}>Atención médica digital con datos protegidos</T>
+          <TouchableOpacity
+            onPress={() => router.push("/politica-privacidad" as any)}
+            activeOpacity={0.75}
+            accessibilityRole="link"
+            accessibilityLabel="Ver Política de Privacidad"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.brandFooterTouch}
+          >
+            <Ionicons name="shield-checkmark-outline" size={16} color={c.onBrandMuted} />
+            <T style={styles.brandFooter}>
+              Atención médica digital ·{" "}
+              <T style={{ textDecorationLine: "underline", fontWeight: "700" }}>
+                Política de Privacidad
+              </T>
+            </T>
+          </TouchableOpacity>
         </Reveal>
       ) : null}
     </LinearGradient>
@@ -863,7 +881,7 @@ export default function LoginScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => router.push("/recuperar")}
+          onPress={() => router.push("/recuperar" as any)}
           disabled={cargando}
           accessibilityRole="link"
           hitSlop={8}
@@ -933,6 +951,22 @@ export default function LoginScreen() {
       <Reveal delay={560} style={styles.secureNote}>
         <Ionicons name="lock-closed" size={13} color={c.muted} />
         <T style={styles.secureNoteText}>Conexión cifrada de extremo a extremo</T>
+      </Reveal>
+
+      <Reveal delay={620} style={styles.privacyConsentRow}>
+        <View style={styles.privacyInlineWrap}>
+          <T style={styles.privacyConsentText}>Al ingresar, aceptas nuestra </T>
+          <TouchableOpacity
+            onPress={() => router.push("/politica-privacidad" as any)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+            accessibilityRole="link"
+            accessibilityLabel="Leer Política de Privacidad"
+            style={styles.privacyTouchWrap}
+          >
+            <T style={styles.privacyLinkText}>Política de Privacidad</T>
+          </TouchableOpacity>
+        </View>
       </Reveal>
     </View>
   );
@@ -1134,6 +1168,12 @@ const createStyles = (c: Theme, L: Layout) =>
     },
     featureTitle: { color: c.onBrand, fontSize: 13, fontWeight: "700" },
     brandFooterRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    brandFooterTouch: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      ...(Platform.OS === "web" ? { cursor: "pointer" as any } : {}),
+    },
     brandFooter: { color: c.onBrandMuted, fontSize: 12, flexShrink: 1 },
 
     /* ---------- Tabs ---------- */
@@ -1261,6 +1301,35 @@ const createStyles = (c: Theme, L: Layout) =>
       marginTop: L.compact ? 16 : 22,
     },
     secureNoteText: { fontSize: 12, color: c.muted },
+    privacyConsentRow: {
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 10,
+      paddingHorizontal: 8,
+    },
+    privacyInlineWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      flexWrap: "wrap",
+    },
+    privacyTouchWrap: {
+      paddingVertical: 2,
+      paddingHorizontal: 2,
+      ...(Platform.OS === "web" ? { cursor: "pointer" as any } : {}),
+    },
+    privacyConsentText: {
+      fontSize: 12,
+      color: c.muted,
+      textAlign: "center",
+      lineHeight: 18,
+    },
+    privacyLinkText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: c.primary,
+      textDecorationLine: "underline",
+    },
 
     /* ---------- Móvil y tablet vertical (apilado) ---------- */
     stackedWrap: { flex: 1, width: "100%" },

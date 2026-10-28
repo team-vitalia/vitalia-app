@@ -735,7 +735,8 @@ function AppLayout() {
     pathname === "/login" ||
     pathname === "/" ||
     pathname === "/recuperar" ||
-    pathname === "/registro";
+    pathname === "/registro" ||
+    pathname === "/politica-privacidad";
   const rolId: number | undefined = usuario?.rol_id ?? usuario?.rol_id_FK;
   const mostrarMenu = !isAuthPage && !!usuario;
 
