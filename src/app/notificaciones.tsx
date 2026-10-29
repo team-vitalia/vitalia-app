@@ -36,7 +36,23 @@ type FiltroEstado = "todos" | "no_leido" | "leido";
 export default function NotificationsScreen() {
   const router = useRouter();
   const { token } = useAuth();
-  const { messages, status } = useNotifications();
+  const { messages, status, pushSupported, subscribeToPush } = useNotifications();
+  const [pushActivo, setPushActivo] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPushActivo(Notification.permission === "granted");
+    }
+  }, []);
+
+  const habilitarPush = async () => {
+    if (subscribeToPush) {
+      const sub = await subscribeToPush();
+      if (sub) {
+        setPushActivo(true);
+      }
+    }
+  };
 
   const [notificaciones, setNotificaciones] = useState<NotificacionBD[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -408,6 +424,31 @@ export default function NotificationsScreen() {
             {totalNoLeidas === 1 ? "notificación no leída" : "notificaciones no leídas"}
           </Text>
         </View>
+
+        {pushSupported && (
+          <TouchableOpacity
+            style={[
+              styles.pushBadge,
+              pushActivo ? styles.pushBadgeActive : styles.pushBadgeInactive,
+            ]}
+            onPress={!pushActivo ? habilitarPush : undefined}
+          >
+            <FontAwesome
+              name={pushActivo ? "bell" : "bell-o"}
+              size={12}
+              color={pushActivo ? "#FFFFFF" : "#247F76"}
+              style={{ marginRight: 5 }}
+            />
+            <Text
+              style={[
+                styles.pushBadgeText,
+                pushActivo ? styles.pushBadgeTextActive : styles.pushBadgeTextInactive,
+              ]}
+            >
+              {pushActivo ? "Push activo" : "Activar Push"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* BARRA DE FILTROS Y ACCIONES EN LOTE */}
@@ -656,6 +697,38 @@ const styles = StyleSheet.create({
   unreadCounterText: {
     fontSize: 12,
     fontWeight: "700",
+    color: "#247F76",
+  },
+
+  pushBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+
+  pushBadgeActive: {
+    backgroundColor: "#247F76",
+    borderColor: "#247F76",
+  },
+
+  pushBadgeInactive: {
+    backgroundColor: "#E8F5F2",
+    borderColor: "#BEE2D9",
+  },
+
+  pushBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  pushBadgeTextActive: {
+    color: "#FFFFFF",
+  },
+
+  pushBadgeTextInactive: {
     color: "#247F76",
   },
 

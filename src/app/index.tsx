@@ -1,5 +1,5 @@
 import { Redirect } from "expo-router";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 
 export default function Index() {
@@ -8,7 +8,14 @@ export default function Index() {
   if (cargando) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#247F76" />
+        <Image
+          source={{ uri: "/icons/icon-192.png" }}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>VITALIA</Text>
+        <Text style={styles.subtitle}>Gestión clínica inteligente</Text>
+        <ActivityIndicator size="large" color="#22D3EE" style={styles.spinner} />
       </View>
     );
   }
@@ -37,6 +44,25 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F7FBFA",
+    backgroundColor: "#0B1220",
+  },
+  logo: {
+    width: 96,
+    height: 96,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#22D3EE",
+    letterSpacing: 1.2,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: "#8FA3BF",
+    marginTop: 4,
+  },
+  spinner: {
+    marginTop: 24,
   },
 });

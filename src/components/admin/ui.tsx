@@ -392,7 +392,16 @@ export function BotonIcono({
   return (
     <Pressable
       {...props}
-      onPress={deshabilitado ? undefined : onPress}
+      onPress={
+        deshabilitado
+          ? undefined
+          : (e: any) => {
+              if (e && typeof e.stopPropagation === "function") {
+                e.stopPropagation();
+              }
+              onPress();
+            }
+      }
       accessibilityRole="button"
       accessibilityLabel={etiqueta}
       // @ts-expect-error `title` solo existe en react-native-web

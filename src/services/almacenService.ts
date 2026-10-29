@@ -22,29 +22,26 @@ export interface LoteData {
   fecha_recepcion?: string | null;
 }
 
-// 1. Obtener lista de medicamentos
 export const getMedicamentos = async (): Promise<Medicamento[]> => {
   try {
     const response = await api.get("/api/almacen/medicamentos");
-    return response.data;
+    return Array.isArray(response?.data) ? response.data : [];
   } catch (error) {
-    console.error("Error al obtener medicamentos:", error);
+    console.warn("Error al obtener medicamentos:", error);
     return [];
   }
 };
 
-// 2. Obtener lista de inventario
 export const getInventario = async () => {
   try {
     const response = await api.get("/api/almacen/inventario");
-    return response.data;
+    return Array.isArray(response?.data) ? response.data : [];
   } catch (error) {
-    console.error("Error al obtener inventario:", error);
+    console.warn("Error al obtener inventario:", error);
     return [];
   }
 };
 
-// 3. Registrar entrada de lote (Sanitizado para evitar error 422 de Pydantic)
 export const registrarLoteInventario = async (loteData: LoteData) => {
   try {
     const payload = {
@@ -61,12 +58,11 @@ export const registrarLoteInventario = async (loteData: LoteData) => {
     const response = await api.post("/api/almacen/inventario", payload);
     return response.data;
   } catch (error: any) {
-    console.error("Error al registrar lote en la API:", error?.response?.data || error);
+    console.warn("Error al registrar lote en la API:", error?.response?.data || error);
     throw error;
   }
 };
 
-// 4. Evaluar interacciones farmacológicas
 export const evaluarInteracciones = async (medicamentosIds: number[]) => {
   try {
     const response = await api.post("/api/almacen/evaluar-interacciones", {
@@ -74,7 +70,7 @@ export const evaluarInteracciones = async (medicamentosIds: number[]) => {
     });
     return response.data;
   } catch (error) {
-    console.error("Error al evaluar interacciones:", error);
+    console.warn("Error al evaluar interacciones:", error);
     return { tiene_interaccion: false, detalles: [] };
   }
 };

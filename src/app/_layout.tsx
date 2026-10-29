@@ -21,6 +21,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { CalendarProvider } from "../context/CalendarContext";
 import { NotificationsProvider } from "../context/NotificationsContext";
+import { OfflineBanner } from "../components/OfflineBanner";
+import { InstallPrompt } from "../components/InstallPrompt";
 import {
   BP_DESKTOP,
   BP_MOBILE,
@@ -737,7 +739,8 @@ function AppLayout() {
     pathname === "/recuperar" ||
     pathname === "/registro" ||
     pathname === "/politica-privacidad" ||
-    pathname === "/condiciones-servicio";
+    pathname === "/condiciones-servicio" ||
+    pathname === "/eliminacion-cuenta";
   const rolId: number | undefined = usuario?.rol_id ?? usuario?.rol_id_FK;
   const mostrarMenu = !isAuthPage && !!usuario;
 
@@ -807,6 +810,8 @@ function AppLayout() {
           />
         )}
 
+        <OfflineBanner />
+        <InstallPrompt />
         <View style={styles.stackContainer}>
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }} />
         </View>
@@ -844,6 +849,28 @@ function AppLayout() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    if (
+      Platform.OS === "web" &&
+      typeof window !== "undefined" &&
+      "serviceWorker" in navigator
+    ) {
+      navigator.serviceWorker
+        .register("/service-worker.js", { scope: "/" })
+        .catch(() => {});
+    }
+
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      const splash = document.getElementById("vitalia-splash");
+      if (splash) {
+        splash.style.opacity = "0";
+        setTimeout(() => {
+          splash.remove();
+        }, 350);
+      }
+    }
+  }, []);
+
   return (
     <AuthProvider>
       <NotificationsProvider>

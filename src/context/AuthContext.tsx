@@ -177,6 +177,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       return usuarioActual;
     } catch (error: any) {
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.detail;
+
+      if (
+        status === 401 ||
+        detail === "Correo o contraseña incorrectos"
+      ) {
+        console.warn("Inicio de sesión rechazado: Correo o contraseña incorrectos");
+        throw new Error(
+          "Correo o contraseña incorrectos"
+        );
+      }
+
       console.error("ERROR LOGIN COMPLETO:", error);
       console.error("URL DE LA API:", api.defaults.baseURL);
       console.error("CÓDIGO HTTP:", error?.response?.status);
@@ -185,18 +198,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error?.response?.data
       );
       console.error("MENSAJE:", error?.message);
-
-      const status = error?.response?.status;
-      const detail = error?.response?.data?.detail;
-
-      if (
-        status === 401 ||
-        detail === "Correo o contraseña incorrectos"
-      ) {
-        throw new Error(
-          "Correo o contraseña incorrectos"
-        );
-      }
 
       if (!error?.response) {
         throw new Error(

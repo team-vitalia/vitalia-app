@@ -20,7 +20,6 @@ export default function ControlInventarioScreen() {
   const [medicamentos, setMedicamentos] = useState<any[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
 
-  // Estados para modal de nuevo lote
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [medSeleccionado, setMedSeleccionado] = useState<number | null>(null);
   const [numeroLote, setNumeroLote] = useState<string>("");
@@ -37,7 +36,7 @@ export default function ControlInventarioScreen() {
       setInventario(invData);
       setMedicamentos(medsData);
     } catch (error) {
-      console.error("Error al cargar datos del almacén:", error);
+      console.warn("Error al cargar datos del almacén:", error);
     } finally {
       setCargando(false);
     }
@@ -67,14 +66,13 @@ export default function ControlInventarioScreen() {
       setStockActual("");
       setUbicacion("");
       setMedSeleccionado(null);
-      cargarDatos(); // Recargar lista
+      cargarDatos();
     } catch (error) {
-      console.error("Error al registrar lote:", error);
+      console.warn("Error al registrar lote:", error);
       Alert.alert("Error", "No se pudo guardar el lote de inventario.");
     }
   };
 
-  // Manejador de navegación segura para regresar al panel de Administración
   const volverAlPanel = () => {
     if (router.canGoBack()) {
       router.back();
@@ -85,7 +83,6 @@ export default function ControlInventarioScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Botón Volver con navegación segura */}
       <Pressable onPress={volverAlPanel} style={styles.backButton}>
         <Text style={styles.backText}>← Volver al panel</Text>
       </Pressable>
@@ -95,12 +92,10 @@ export default function ControlInventarioScreen() {
         Supervisa existencias, lotes y registra nuevas entradas de insumos.
       </Text>
 
-      {/* Botón para abrir modal de nuevo lote */}
       <Pressable style={styles.btnAgregar} onPress={() => setModalVisible(true)}>
         <Text style={styles.btnAgregarText}>+ Registrar Entrada de Lote</Text>
       </Pressable>
 
-      {/* Lista de Inventario */}
       <Text style={styles.sectionHeader}>Existencias Actuales</Text>
 
       {cargando ? (
@@ -134,14 +129,14 @@ export default function ControlInventarioScreen() {
               </View>
 
               <Text style={styles.cardDetail}>
-                📦 Lote: <Text style={styles.bold}>{item.numero_lote || "N/A"}</Text>
+                Lote: <Text style={styles.bold}>{item.numero_lote || "N/A"}</Text>
               </Text>
               <Text style={styles.cardDetail}>
-                📊 Cantidad disponible: <Text style={styles.bold}>{item.stock_actual} unidades</Text>
+                Cantidad disponible: <Text style={styles.bold}>{item.stock_actual} unidades</Text>
               </Text>
               {item.ubicacion && (
                 <Text style={styles.cardDetail}>
-                  📍 Ubicación en almacén: {item.ubicacion}
+                  Ubicación en almacén: {item.ubicacion}
                 </Text>
               )}
             </View>
@@ -149,7 +144,6 @@ export default function ControlInventarioScreen() {
         })
       )}
 
-      {/* Modal para Registrar Lote */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -242,8 +236,6 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 11, fontWeight: "bold" },
   badgeTextSuccess: { color: "#247F76" },
   badgeTextWarning: { color: "#CF222E" },
-  
-  /* Modal Styles */
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 20 },
   modalContent: { backgroundColor: "#FFF", borderRadius: 18, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: "800", color: "#173F3A", marginBottom: 15 },

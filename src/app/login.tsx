@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+﻿import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { ComponentProps, ReactNode, RefObject, forwardRef, useEffect, useMemo, useRef, useState } from "react";
@@ -793,6 +793,20 @@ export default function LoginScreen() {
             <Ionicons name="document-text-outline" size={15} color={c.onBrandMuted} />
             <T style={[styles.brandFooter, { textDecorationLine: "underline" }]}>
               Condiciones del Servicio
+            </T>
+          </TouchableOpacity>
+          <T style={[styles.brandFooter, { opacity: 0.5, marginHorizontal: 4 }]}>·</T>
+          <TouchableOpacity
+            onPress={() => router.push("/eliminacion-cuenta" as any)}
+            activeOpacity={0.75}
+            accessibilityRole="link"
+            accessibilityLabel="Ver Eliminación de Cuenta"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.brandFooterTouch}
+          >
+            <Ionicons name="trash-outline" size={15} color={c.onBrandMuted} />
+            <T style={[styles.brandFooter, { textDecorationLine: "underline" }]}>
+              Eliminación de Cuenta
             </T>
           </TouchableOpacity>
         </Reveal>

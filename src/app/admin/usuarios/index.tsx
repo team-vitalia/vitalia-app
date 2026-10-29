@@ -692,8 +692,6 @@ function FilaUsuario({
       onHoverIn={() => setHover(true)}
       onHoverOut={() => setHover(false)}
       onPress={onVer}
-      accessibilityRole="button"
-      accessibilityLabel={`Ver detalle de ${u.nombre}`}
       style={[
         s.fila,
         s.filaDato,
