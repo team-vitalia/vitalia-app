@@ -2,9 +2,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { Platform } from "react-native";
 import { offlineStorage } from "./offlineStorage";
-import { offlineSyncService } from "./offlineSync";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL;
+let API_URL = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL;
+
+if (!API_URL || API_URL.includes("vercel.app")) {
+  API_URL = "https://vitalia-api-ve7c.onrender.com";
+}
 
 const api = axios.create({
   baseURL: API_URL,
@@ -12,6 +15,8 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+console.log("[API Service] baseURL configurada:", api.defaults.baseURL);
 
 api.interceptors.request.use(async (config) => {
   let token: string | null = null;
@@ -110,6 +115,10 @@ api.interceptors.response.use(
         (method === "POST" || method === "PUT" || method === "DELETE" || method === "PATCH") &&
         url
       ) {
+        if (url.includes("/api/auth/")) {
+          return Promise.reject(error);
+        }
+
         let requestData = error.config.data;
         if (typeof requestData === "string") {
           try {
@@ -125,7 +134,11 @@ api.interceptors.response.use(
           description: `${method} ${url}`,
         });
 
-        offlineSyncService.requestBackgroundSync().catch(() => {});
+        import("./offlineSync")
+          .then(({ offlineSyncService }) => {
+            offlineSyncService.requestBackgroundSync().catch(() => {});
+          })
+          .catch(() => {});
 
         return {
           data: { offline: true, queued: true },

@@ -12,7 +12,11 @@ export interface WSMessage {
 export type ConnectionStatus = "DISCONNECTED" | "CONNECTING" | "CONNECTED" | "RECONNECTING";
 
 const getBaseWsUrl = (): string => {
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL;
+  let apiUrl = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL;
+
+  if (!apiUrl || apiUrl.includes("vercel.app")) {
+    apiUrl = "https://vitalia-api-ve7c.onrender.com";
+  }
 
   if (apiUrl) {
     if (apiUrl.startsWith("https://")) {
