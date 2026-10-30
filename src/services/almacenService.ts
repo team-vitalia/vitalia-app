@@ -10,6 +10,7 @@ export interface Medicamento {
   codigo_barras?: string;
   categoria?: string;
 }
+export type MedicamentoCreate = Omit<Medicamento, "id_PK">;
 
 export interface LoteData {
   medicamento_id_FK: number;
@@ -24,11 +25,33 @@ export interface LoteData {
 
 export const getMedicamentos = async (): Promise<Medicamento[]> => {
   try {
-    const response = await api.get("/api/almacen/medicamentos");
+    const response = await api.get("/api/medicamentos/");
     return Array.isArray(response?.data) ? response.data : [];
   } catch (error) {
     console.warn("Error al obtener medicamentos:", error);
     return [];
+  }
+};
+
+export const registrarMedicamento = async (
+  medicamento: MedicamentoCreate
+): Promise<Medicamento> => {
+  const payload = {
+    nombre: medicamento.nombre.trim(),
+    principio_activo: medicamento.principio_activo?.trim() || null,
+    presentacion: medicamento.presentacion?.trim() || null,
+    requiere_receta: medicamento.requiere_receta ?? false,
+    descripcion: medicamento.descripcion?.trim() || null,
+    codigo_barras: medicamento.codigo_barras?.trim() || null,
+    categoria: medicamento.categoria?.trim() || null,
+  };
+
+  try {
+    const response = await api.post("/api/medicamentos/", payload);
+    return response.data;
+  } catch (error: any) {
+    console.warn("Error al registrar medicamento:", error?.response?.data || error);
+    throw error;
   }
 };
 
@@ -59,6 +82,30 @@ export const registrarLoteInventario = async (loteData: LoteData) => {
     return response.data;
   } catch (error: any) {
     console.warn("Error al registrar lote en la API:", error?.response?.data || error);
+    throw error;
+  }
+};
+
+export const actualizarLoteInventario = async (
+  id: number,
+  loteData: LoteData
+) => {
+  const payload = {
+    medicamento_id_FK: Number(loteData.medicamento_id_FK),
+    numero_lote: loteData.numero_lote?.trim() || null,
+    stock_actual: Number(loteData.stock_actual),
+    ubicacion: loteData.ubicacion?.trim() || null,
+    fecha_vencimiento: loteData.fecha_vencimiento || null,
+    precio_venta: loteData.precio_venta ?? null,
+    proveedor_id_FK: loteData.proveedor_id_FK ?? null,
+    fecha_recepcion: loteData.fecha_recepcion || null,
+  };
+
+  try {
+    const response = await api.put(`/api/almacen/inventario/${id}`, payload);
+    return response.data;
+  } catch (error: any) {
+    console.warn("Error al actualizar lote en la API:", error?.response?.data || error);
     throw error;
   }
 };
