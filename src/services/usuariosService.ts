@@ -10,6 +10,8 @@ export interface EspecialidadAsignada {
 export interface UsuarioFila {
   id_PK: number;
   nombre: string;
+  apellido_paterno?: string | null;
+  apellido_materno?: string | null;
   correo_electronico: string;
   telefono: string | null;
   rol_id_FK: number | null;
@@ -19,12 +21,22 @@ export interface UsuarioFila {
   ultimo_acceso: string | null;
   doctor_id: number | null;
   numero_licencia: string | null;
+  rfc?: string | null;
   costo_consulta: number | null;
   especialidades: EspecialidadAsignada[];
 }
 
+/** Nombre + apellidos (los usuarios anteriores a los apellidos solo tienen `nombre`). */
+export const nombreCompleto = (u: {
+  nombre: string;
+  apellido_paterno?: string | null;
+  apellido_materno?: string | null;
+}) => [u.nombre, u.apellido_paterno, u.apellido_materno].filter(Boolean).join(" ");
+
 export interface CambiosUsuario {
   nombre?: string;
+  apellido_paterno?: string | null;
+  apellido_materno?: string | null;
   correo_electronico?: string;
   telefono?: string | null;
   rol_id_FK?: number;
@@ -33,6 +45,7 @@ export interface CambiosUsuario {
 
 export interface CambiosDoctor {
   numero_licencia?: string | null;
+  rfc?: string | null;
   costo_consulta?: number | null;
   especialidad_ids?: number[];
 }

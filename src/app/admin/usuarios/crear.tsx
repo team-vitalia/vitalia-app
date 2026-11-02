@@ -7,8 +7,11 @@
  *
  * Tablas que escribe la API según el rol (POST /api/usuarios/):
  *   Administrador / Recepción / Coordinador → usuarios
- *   Doctor   → usuarios + doctores + doctor_especialidades
- *   Paciente → usuarios + pacientes
+ *   Doctor   → usuarios + doctores (RFC, licencia) + doctor_especialidades
+ *   Paciente → usuarios + pacientes (CURP única)
+ *
+ * Datos generales para todos los roles: nombre(s), apellido paterno y apellido materno.
+ * El registro PÚBLICO de pacientes (sin sesión) está en src/app/registro.tsx.
  */
 import { FontAwesome } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -16,7 +19,21 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Aviso, Boton, C, Campo, Chip, Seccion } from "../../../components/admin/ui";
-import { hoyISO, vCorreo, vCosto, vFecha, vNombre, vPassword, vTelefono } from "../../../components/admin/validaciones";
+import {
+  CURP_LONGITUD,
+  fortalezaPassword,
+  hoyISO,
+  normalizarCurp,
+  normalizarRfc,
+  vCorreo,
+  vCosto,
+  vCurp,
+  vFecha,
+  vNombrePersona,
+  vPassword,
+  vRfc,
+  vTelefono,
+} from "../../../components/admin/validaciones";
 import EspecialidadSelector from "../../../components/EspecialidadSelector";
 import SelectorFecha from "../../../components/SelectorFecha";
 import { useAuth } from "../../../context/AuthContext";
@@ -45,14 +62,7 @@ const ROL_COORDINADOR = 5;
 /* ───────────── Fortaleza de contraseña ───────────── */
 
 function fortaleza(p: string) {
-  const reglas = [
-    { ok: p.length >= 8, texto: "8+ caracteres" },
-    { ok: /[a-z]/.test(p) && /[A-Z]/.test(p), texto: "Mayúscula y minúscula" },
-    { ok: /\d/.test(p), texto: "Un número" },
-    { ok: /[^A-Za-z0-9]/.test(p), texto: "Un símbolo" },
-  ];
-  const puntos = reglas.filter((r) => r.ok).length;
-  const nivel = puntos <= 1 ? "Débil" : puntos === 2 ? "Regular" : puntos === 3 ? "Buena" : "Excelente";
+  const { reglas, puntos, nivel } = fortalezaPassword(p);
   const color = puntos <= 1 ? C.peligro : puntos === 2 ? C.aviso : puntos === 3 ? C.primarioClaro : C.ok;
   return { reglas, puntos, nivel, color };
 }
@@ -75,10 +85,10 @@ function generarPassword(): string {
 }
 
 const FORM_VACIO = {
-  nombre: "", apellido: "", correo: "", telefono: "",
+  nombre: "", apellidoPaterno: "", apellidoMaterno: "", correo: "", telefono: "",
   password: "", confirmar: "",
-  fechaNacimiento: "", genero: "", direccion: "",
-  licencia: "", costo: "",
+  fechaNacimiento: "", genero: "", direccion: "", curp: "",
+  licencia: "", rfc: "", costo: "",
 };
 
 export default function CrearUsuarioScreen() {
@@ -98,16 +108,20 @@ export default function CrearUsuarioScreen() {
   const [intento, setIntento] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [errorGeneral, setErrorGeneral] = useState("");
-  const [errorServidor, setErrorServidor] = useState<{ correo?: string; licencia?: string }>({});
+  const [errorServidor, setErrorServidor] = useState<{ correo?: string; licencia?: string; curp?: string; rfc?: string }>({});
   const [creado, setCreado] = useState<{ nombre: string; rol: string } | null>(null);
 
   const esDoctor = rolId === ROL_DOCTOR;
   const esPaciente = rolId === ROL_PACIENTE;
 
   const set = <K extends keyof typeof FORM_VACIO>(campo: K) => (valor: string) => {
-    setF((a) => ({ ...a, [campo]: valor }));
+    // CURP y RFC se escriben siempre en mayúsculas y sin espacios.
+    const limpio = campo === "curp" ? normalizarCurp(valor) : campo === "rfc" ? normalizarRfc(valor) : valor;
+    setF((a) => ({ ...a, [campo]: limpio }));
     if (campo === "correo") setErrorServidor((e) => ({ ...e, correo: undefined }));
     if (campo === "licencia") setErrorServidor((e) => ({ ...e, licencia: undefined }));
+    if (campo === "curp") setErrorServidor((e) => ({ ...e, curp: undefined }));
+    if (campo === "rfc") setErrorServidor((e) => ({ ...e, rfc: undefined }));
   };
 
   /* ── Roles disponibles (el coordinador no puede crear admins ni coordinadores) ── */
@@ -134,8 +148,11 @@ export default function CrearUsuarioScreen() {
 
   /* ── Errores por campo (vacío = válido) ── */
   const errores = {
-    nombre: vNombre(f.nombre),
-    apellido: esPaciente && !f.apellido.trim() ? "El apellido es obligatorio para pacientes." : "",
+    nombre: vNombrePersona(f.nombre, "El nombre"),
+    apellidoPaterno: vNombrePersona(f.apellidoPaterno, "El apellido paterno"),
+    apellidoMaterno: vNombrePersona(f.apellidoMaterno, "El apellido materno", false),
+    curp: esPaciente ? (errorServidor.curp ?? vCurp(f.curp)) : "",
+    rfc: esDoctor ? (errorServidor.rfc ?? vRfc(f.rfc)) : "",
     correo: errorServidor.correo ?? vCorreo(f.correo),
     telefono: vTelefono(f.telefono),
     password: vPassword(f.password),
@@ -148,13 +165,14 @@ export default function CrearUsuarioScreen() {
 
   const checklist = [
     { texto: "Rol seleccionado", ok: rolId !== null },
-    { texto: "Nombre completo", ok: !errores.nombre && (!esPaciente || !errores.apellido) },
+    { texto: "Nombre y apellidos", ok: !errores.nombre && !errores.apellidoPaterno && !errores.apellidoMaterno },
     { texto: "Correo válido", ok: !errores.correo },
     { texto: "Contraseña segura y confirmada", ok: !errores.password && !errores.confirmar },
     ...(esDoctor ? [
       { texto: "Especialidad(es)", ok: !errores.especialidades },
-      { texto: "Licencia y costo", ok: !errores.licencia && !errores.costo },
+      { texto: "Licencia, RFC y costo", ok: !errores.licencia && !errores.rfc && !errores.costo },
     ] : []),
+    ...(esPaciente ? [{ texto: "CURP válida", ok: !errores.curp }] : []),
   ];
   const completados = checklist.filter((c) => c.ok).length;
   const todoValido = completados === checklist.length && !errores.telefono && !errores.fecha;
@@ -173,6 +191,8 @@ export default function CrearUsuarioScreen() {
 
     const datos: Record<string, unknown> = {
       nombre: f.nombre.trim(),
+      apellido_paterno: f.apellidoPaterno.trim(),
+      apellido_materno: f.apellidoMaterno.trim() || null,
       correo_electronico: f.correo.trim().toLowerCase(),
       password: f.password,
       rol_id_FK: rolId,
@@ -183,11 +203,12 @@ export default function CrearUsuarioScreen() {
       datos.especialidad_id_FK = especialidades[0]; // columna heredada (compatibilidad)
       datos.especialidad_ids = especialidades; // tabla doctor_especialidades
       datos.numero_licencia = f.licencia.trim();
+      datos.rfc = normalizarRfc(f.rfc);
       datos.costo_consulta = Number(f.costo);
     }
 
     if (esPaciente) {
-      datos.apellido = f.apellido.trim();
+      datos.curp = normalizarCurp(f.curp);
       datos.fecha_nacimiento = f.fechaNacimiento || null;
       datos.genero = f.genero || null;
       datos.direccion = f.direccion.trim() || null;
@@ -196,11 +217,16 @@ export default function CrearUsuarioScreen() {
     try {
       setGuardando(true);
       await api.post("/api/usuarios/", datos, authHeaders(token));
-      setCreado({ nombre: `${f.nombre.trim()} ${esPaciente ? f.apellido.trim() : ""}`.trim(), rol: rolActual?.nombre ?? "" });
+      setCreado({
+        nombre: [f.nombre, f.apellidoPaterno, f.apellidoMaterno].map((x) => x.trim()).filter(Boolean).join(" "),
+        rol: rolActual?.nombre ?? "",
+      });
     } catch (e: any) {
       const msg = mensajeError(e, "No se pudo crear el usuario.");
       // Errores de negocio → se muestran junto al campo correspondiente.
       if (/correo/i.test(msg)) setErrorServidor((x) => ({ ...x, correo: msg }));
+      else if (/curp/i.test(msg)) setErrorServidor((x) => ({ ...x, curp: msg }));
+      else if (/rfc/i.test(msg)) setErrorServidor((x) => ({ ...x, rfc: msg }));
       else if (/licencia/i.test(msg)) setErrorServidor((x) => ({ ...x, licencia: msg }));
       else setErrorGeneral(msg);
     } finally {
@@ -293,13 +319,16 @@ export default function CrearUsuarioScreen() {
             <Seccion titulo="Datos personales" icono="id-card-o">
               <View style={s.dosCampos}>
                 <View style={s.mitad}>
-                  <Campo etiqueta={esPaciente ? "Nombre(s)" : "Nombre completo"} valor={f.nombre} onChange={set("nombre")} requerido error={errores.nombre} mostrarError={intento} placeholder="Ej. María Fernanda" autoCapitalize="words" icono="user" />
+                  <Campo etiqueta="Nombre(s)" valor={f.nombre} onChange={set("nombre")} requerido error={errores.nombre} mostrarError={intento} placeholder="Ej. María Fernanda" autoCapitalize="words" icono="user" maxLength={100} />
                 </View>
-                {esPaciente && (
-                  <View style={s.mitad}>
-                    <Campo etiqueta="Apellidos" valor={f.apellido} onChange={set("apellido")} requerido error={errores.apellido} mostrarError={intento} placeholder="Ej. López Reyes" autoCapitalize="words" />
-                  </View>
-                )}
+              </View>
+              <View style={s.dosCampos}>
+                <View style={s.mitad}>
+                  <Campo etiqueta="Apellido paterno" valor={f.apellidoPaterno} onChange={set("apellidoPaterno")} requerido error={errores.apellidoPaterno} mostrarError={intento} placeholder="Ej. López" autoCapitalize="words" maxLength={100} />
+                </View>
+                <View style={s.mitad}>
+                  <Campo etiqueta="Apellido materno" valor={f.apellidoMaterno} onChange={set("apellidoMaterno")} error={errores.apellidoMaterno} mostrarError={intento} placeholder="Ej. Reyes" autoCapitalize="words" ayuda="Opcional" maxLength={100} />
+                </View>
               </View>
               <View style={s.dosCampos}>
                 <View style={s.mitad}>
@@ -374,6 +403,9 @@ export default function CrearUsuarioScreen() {
                     <Campo etiqueta="Número de licencia" valor={f.licencia} onChange={set("licencia")} requerido error={errores.licencia} mostrarError={intento} placeholder="Cédula profesional" autoCapitalize="characters" icono="certificate" />
                   </View>
                   <View style={s.mitad}>
+                    <Campo etiqueta="RFC" valor={f.rfc} onChange={set("rfc")} requerido error={errores.rfc} mostrarError={intento} placeholder="Ej. GODE561231AB1" autoCapitalize="characters" icono="file-text-o" maxLength={13} ayuda="12 o 13 caracteres" />
+                  </View>
+                  <View style={s.mitad}>
                     <Campo etiqueta="Costo de consulta (MXN)" valor={f.costo} onChange={set("costo")} requerido error={errores.costo} mostrarError={intento} teclado="decimal-pad" placeholder="500" icono="usd" />
                   </View>
                 </View>
@@ -382,6 +414,7 @@ export default function CrearUsuarioScreen() {
 
             {esPaciente && (
               <Seccion titulo="Ficha del paciente" subtitulo="Se guarda en la tabla pacientes, ligada a la cuenta." icono="heartbeat">
+                <Campo etiqueta="CURP" valor={f.curp} onChange={set("curp")} requerido error={errores.curp} mostrarError={intento || f.curp.length >= CURP_LONGITUD} placeholder="18 caracteres" autoCapitalize="characters" icono="id-badge" maxLength={CURP_LONGITUD} ayuda="No puede repetirse: cada paciente tiene una CURP única." />
                 <View style={{ gap: 6 }}>
                   <Text style={s.etiqueta}>Fecha de nacimiento</Text>
                   <SelectorFecha value={f.fechaNacimiento} onChange={set("fechaNacimiento")} max={hoyISO()} placeholder="Fecha de nacimiento" />

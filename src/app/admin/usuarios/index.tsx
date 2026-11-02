@@ -26,6 +26,7 @@ import { useAuth } from "../../../context/AuthContext";
 import {
   cambiarEstadoUsuario,
   listarUsuarios,
+  nombreCompleto,
   permisosSobre,
   UsuarioFila,
 } from "../../../services/usuariosService";
@@ -144,7 +145,7 @@ export default function UsuariosScreen() {
       if (fEsp !== TODOS && !u.especialidades.some((e) => String(e.id_PK) === fEsp)) return false;
       if (!q) return true;
       const pajar = sinAcentos(
-        [u.nombre, u.correo_electronico, u.telefono, u.numero_licencia, u.rol]
+        [nombreCompleto(u), u.correo_electronico, u.telefono, u.numero_licencia, u.rol]
           .filter(Boolean)
           .join(" ")
       );
@@ -158,7 +159,7 @@ export default function UsuariosScreen() {
         case "estado":
           return esActivo(u) ? 0 : 1;
         default:
-          return sinAcentos(u.nombre);
+          return sinAcentos(nombreCompleto(u));
       }
     };
     const signo = orden.dir === "asc" ? 1 : -1;
@@ -701,10 +702,10 @@ function FilaUsuario({
       ]}
     >
       <View style={[s.td, { flex: 1, minWidth: COL.usuario, flexDirection: "row", gap: 12 }]}>
-        <Avatar nombre={u.nombre} c={c} />
+        <Avatar nombre={nombreCompleto(u)} c={c} />
         <View style={{ flex: 1 }}>
           <Text style={[s.tdNombre, { color: c.text }]} numberOfLines={1}>
-            {u.nombre}
+            {nombreCompleto(u)}
             {permisos.esPropio ? "  (tú)" : ""}
           </Text>
           <Text style={[s.tdSub, { color: c.muted }]} numberOfLines={1}>

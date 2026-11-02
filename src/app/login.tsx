@@ -27,7 +27,25 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Defs, G, Path, RadialGradient, Rect, Stop, LinearGradient as SvgLinearGradient } from "react-native-svg";
+import {
+  CURP_LONGITUD,
+  GENEROS,
+  fechaDeCurp,
+  fechaNacimientoISO,
+  fortalezaPassword,
+  normalizarCurp,
+  normalizarEspacios,
+  vCorreo,
+  vCurp,
+  vFechaNacimiento,
+  vGenero,
+  vNombrePersona,
+  vPassword,
+  vTelefono,
+} from "../components/admin/validaciones";
 import { useAuth } from "../context/AuthContext";
+import { registrarPaciente } from "../services/registroService";
+import { mensajeError } from "../services/util";
 
 /* ============================================================
    TEMAS (paleta Vitalia: claro y oscuro)
@@ -533,14 +551,18 @@ function PressScale({
 type FieldProps = TextInputProps & {
   c: Theme;
   label: string;
-  icon: IconName;
+  icon?: IconName;
   right?: ReactNode;
   inputRef?: RefObject<TextInput | null>;
   fieldHeight?: number;
   gap?: number;
+  /** Mensaje de error bajo el campo (también pone el borde en rojo). */
+  error?: string;
+  /** Solo borde rojo, sin mensaje (campos agrupados). */
+  invalid?: boolean;
 };
 
-function Field({ c, label, icon, right, inputRef, fieldHeight = 52, gap = 16, ...inputProps }: FieldProps) {
+function Field({ c, label, icon, right, inputRef, fieldHeight = 52, gap = 16, error, invalid, ...inputProps }: FieldProps) {
   const f = useRef(new Animated.Value(0)).current;
   const animar = (to: number) =>
     Animated.timing(f, { toValue: to, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
@@ -557,18 +579,21 @@ function Field({ c, label, icon, right, inputRef, fieldHeight = 52, gap = 16, ..
           borderWidth: 1.5,
           paddingHorizontal: 14,
           backgroundColor: c.inputBg,
-          borderColor: f.interpolate({ inputRange: [0, 1], outputRange: [c.border, c.focus] }),
+          borderColor: error || invalid ? c.error : f.interpolate({ inputRange: [0, 1], outputRange: [c.border, c.focus] }),
           shadowColor: c.glow,
           shadowOffset: { width: 0, height: 0 },
           shadowOpacity: f.interpolate({ inputRange: [0, 1], outputRange: [0, 0.38] }),
           shadowRadius: 10,
         }}
       >
-        <Animated.Text style={{ marginRight: 10 }}>
-          <Ionicons name={icon} size={19} color={c.primary} />
-        </Animated.Text>
+        {icon ? (
+          <Animated.Text style={{ marginRight: 10 }}>
+            <Ionicons name={icon} size={19} color={error || invalid ? c.error : c.primary} />
+          </Animated.Text>
+        ) : null}
         <TextInput
           ref={inputRef as any}
+          accessibilityLabel={label}
           maxFontSizeMultiplier={MAX_FONT_SCALE}
           {...inputProps}
           placeholderTextColor={c.muted}
@@ -588,6 +613,11 @@ function Field({ c, label, icon, right, inputRef, fieldHeight = 52, gap = 16, ..
         />
         {right}
       </Animated.View>
+      {error ? (
+        <T style={{ color: c.error, fontSize: 12, fontWeight: "600", marginTop: 5 }} accessibilityLiveRegion="polite">
+          {error}
+        </T>
+      ) : null}
     </View>
   );
 }
@@ -595,6 +625,664 @@ function Field({ c, label, icon, right, inputRef, fieldHeight = 52, gap = 16, ..
 /* ============================================================
    PANTALLA
 ============================================================ */
+
+/* ============================================================
+   REGISTRO DE PACIENTES (dentro de la pestaña "Crear cuenta")
+   Asistente de 3 pasos para que en móvil cada pantalla tenga pocos
+   campos y no haya que desplazarse por un formulario largo.
+   El rol NO se envía: el backend (POST /api/auth/registro) fija Paciente.
+============================================================ */
+
+const REG_VACIO = {
+  nombre: "",
+  apellidoPaterno: "",
+  apellidoMaterno: "",
+  curp: "",
+  dia: "",
+  mes: "",
+  anio: "",
+  genero: "",
+  telefono: "",
+  correo: "",
+  password: "",
+  confirmar: "",
+};
+type CampoRegistro = keyof typeof REG_VACIO;
+
+const PASOS: { titulo: string; subtitulo: string; icon: IconName }[] = [
+  { titulo: "Tus datos", subtitulo: "Empecemos por tu nombre.", icon: "person-outline" },
+  { titulo: "Identidad", subtitulo: "Con estos datos identificamos tu expediente.", icon: "id-card-outline" },
+  { titulo: "Tu cuenta", subtitulo: "Con esto iniciarás sesión.", icon: "lock-closed-outline" },
+];
+
+const GENERO_ICONOS: Record<string, IconName> = {
+  Femenino: "female-outline",
+  Masculino: "male-outline",
+  Otro: "transgender-outline",
+};
+
+function useRegistroPaciente() {
+  const [f, setF] = useState(REG_VACIO);
+  const [paso, setPaso] = useState(0);
+  const [intento, setIntento] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [errorGeneral, setErrorGeneral] = useState("");
+  const [srv, setSrv] = useState<{ correo?: string; curp?: string }>({});
+  const [registrado, setRegistrado] = useState<{ nombre: string; correo: string } | null>(null);
+
+  const set = (campo: CampoRegistro) => (valor: string) => {
+    let v = valor;
+    if (campo === "curp") v = normalizarCurp(valor).slice(0, CURP_LONGITUD);
+    if (campo === "dia" || campo === "mes") v = valor.replace(/\D/g, "").slice(0, 2);
+    if (campo === "anio") v = valor.replace(/\D/g, "").slice(0, 4);
+    setF((a) => ({ ...a, [campo]: v }));
+    if (campo === "correo") setSrv((e) => ({ ...e, correo: undefined }));
+    if (campo === "curp") setSrv((e) => ({ ...e, curp: undefined }));
+  };
+
+  const fechaISO = fechaNacimientoISO(f.dia, f.mes, f.anio);
+  const fechaCurp = fechaDeCurp(f.curp);
+  const errores = {
+    nombre: vNombrePersona(f.nombre, "El nombre"),
+    apellidoPaterno: vNombrePersona(f.apellidoPaterno, "El apellido paterno"),
+    apellidoMaterno: vNombrePersona(f.apellidoMaterno, "El apellido materno", false),
+    curp: srv.curp ?? vCurp(f.curp),
+    fecha:
+      vFechaNacimiento(f.dia, f.mes, f.anio) ||
+      (fechaCurp && fechaISO && fechaCurp !== fechaISO ? "La fecha no coincide con la de tu CURP." : ""),
+    genero: vGenero(f.genero),
+    telefono: vTelefono(f.telefono),
+    correo: srv.correo ?? vCorreo(f.correo),
+    password: vPassword(f.password),
+    confirmar: !f.confirmar ? "Confirma la contraseña." : f.confirmar !== f.password ? "Las contraseñas no coinciden." : "",
+  };
+  const porPaso = [
+    [errores.nombre, errores.apellidoPaterno, errores.apellidoMaterno],
+    [errores.curp, errores.fecha, errores.genero, errores.telefono],
+    [errores.correo, errores.password, errores.confirmar],
+  ];
+
+  const siguiente = () => {
+    setIntento(true);
+    if (porPaso[paso].some(Boolean)) return;
+    setPaso((p) => Math.min(p + 1, PASOS.length - 1));
+    setIntento(false);
+  };
+
+  const atras = () => {
+    setPaso((p) => Math.max(p - 1, 0));
+    setIntento(false);
+    setErrorGeneral("");
+  };
+
+  const enviar = async () => {
+    setIntento(true);
+    setErrorGeneral("");
+    const conError = porPaso.findIndex((g) => g.some(Boolean));
+    if (conError !== -1) {
+      setPaso(conError);
+      return;
+    }
+    try {
+      setGuardando(true);
+      const r = await registrarPaciente({
+        nombre: normalizarEspacios(f.nombre),
+        apellido_paterno: normalizarEspacios(f.apellidoPaterno),
+        apellido_materno: normalizarEspacios(f.apellidoMaterno) || null,
+        curp: normalizarCurp(f.curp),
+        fecha_nacimiento: fechaISO,
+        genero: f.genero,
+        correo_electronico: f.correo.trim().toLowerCase(),
+        password: f.password,
+        telefono: f.telefono.trim() || null,
+      });
+      setF((a) => ({ ...a, password: "", confirmar: "" }));
+      setRegistrado({ nombre: r.usuario.nombre, correo: r.usuario.correo_electronico });
+    } catch (e: any) {
+      const msg = mensajeError(e, "No se pudo crear la cuenta. Inténtalo de nuevo.");
+      if (/curp/i.test(msg)) {
+        setSrv((x) => ({ ...x, curp: msg }));
+        setPaso(1);
+      } else if (/correo/i.test(msg)) {
+        setSrv((x) => ({ ...x, correo: msg }));
+        setPaso(2);
+      } else setErrorGeneral(msg);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const reset = () => {
+    setF(REG_VACIO);
+    setPaso(0);
+    setIntento(false);
+    setErrorGeneral("");
+    setSrv({});
+    setRegistrado(null);
+  };
+
+  return { f, set, errores, paso, intento, guardando, errorGeneral, setErrorGeneral, registrado, siguiente, atras, enviar, reset };
+}
+
+function RegistroForm({
+  c,
+  L,
+  styles,
+  reg,
+  onIrALogin,
+  onLegal,
+}: {
+  c: Theme;
+  L: Layout;
+  styles: Styles;
+  reg: ReturnType<typeof useRegistroPaciente>;
+  onIrALogin: (correo?: string) => void;
+  onLegal: (ruta: string) => void;
+}) {
+  const rs = useMemo(() => createRegStyles(c, L), [c, L]);
+  const { f, set, errores, paso, intento, guardando, errorGeneral, registrado } = reg;
+  const [verPassword, setVerPassword] = useState(false);
+  const apPatRef = useRef<TextInput>(null);
+  const apMatRef = useRef<TextInput>(null);
+  const diaRef = useRef<TextInput>(null);
+  const mesRef = useRef<TextInput>(null);
+  const anioRef = useRef<TextInput>(null);
+  const correoRef = useRef<TextInput>(null);
+  const passRef = useRef<TextInput>(null);
+  const confRef = useRef<TextInput>(null);
+  const exito = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!registrado) return;
+    exito.setValue(0);
+    Animated.spring(exito, { toValue: 1, friction: 6, tension: 80, useNativeDriver: ND }).start();
+  }, [registrado]);
+
+  const fort = fortalezaPassword(f.password);
+  const colorFort = fort.puntos <= 1 ? c.error : fort.puntos === 2 ? c.warning : fort.puntos === 3 ? c.info : c.success;
+  const fieldH = L.fieldH;
+  const gap = L.fieldGap;
+  const verFecha = intento || (!!f.dia && !!f.mes && f.anio.length === 4);
+
+  /* ---------- Pantalla de éxito ---------- */
+  if (registrado) {
+    return (
+      <Reveal delay={0} style={rs.exito}>
+        <Animated.View
+          style={[
+            rs.exitoIcono,
+            { opacity: exito, transform: [{ scale: exito.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] },
+          ]}
+        >
+          <Ionicons name="checkmark" size={34} color="#FFFFFF" />
+        </Animated.View>
+        <T style={styles.formTitle}>Cuenta creada correctamente</T>
+        <T style={[styles.formSubtitle, { textAlign: "center" }]}>
+          Hola, {registrado.nombre}. Tu cuenta de paciente está lista. Ya puedes iniciar sesión con {registrado.correo}.
+        </T>
+        <PressScale onPress={() => onIrALogin(registrado.correo)} style={[styles.loginButtonWrapper, { alignSelf: "stretch" }]}>
+          <LinearGradient colors={[c.btnFrom, c.btnTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.loginButton}>
+            <T style={styles.loginText}>Iniciar sesión</T>
+          </LinearGradient>
+        </PressScale>
+      </Reveal>
+    );
+  }
+
+  const esUltimo = paso === PASOS.length - 1;
+
+  return (
+    <View>
+      <Reveal delay={120}>
+        <T style={styles.formTitle}>Crea tu cuenta de paciente</T>
+        {L.showSubtitle ? <T style={styles.formSubtitle}>{PASOS[paso].subtitulo}</T> : null}
+      </Reveal>
+
+      {/* Indicador de progreso */}
+      <View style={rs.stepper} accessibilityRole="progressbar" accessibilityLabel={`Paso ${paso + 1} de ${PASOS.length}: ${PASOS[paso].titulo}`}>
+        {PASOS.map((p, i) => {
+          const hecho = i < paso;
+          const activo = i === paso;
+          return (
+            <View key={p.titulo} style={rs.stepWrap}>
+              {i > 0 ? <View style={[rs.stepLine, i <= paso && rs.stepLineOn]} /> : <View style={rs.stepLineSpacer} />}
+              <View style={rs.stepItem}>
+                <View style={[rs.stepDot, (hecho || activo) && rs.stepDotOn, activo && rs.stepDotActive]}>
+                  <Ionicons name={hecho ? "checkmark" : p.icon} size={15} color={hecho || activo ? c.onBtn : c.muted} />
+                </View>
+                <T style={[rs.stepLabel, activo && rs.stepLabelOn]} numberOfLines={1}>
+                  {p.titulo}
+                </T>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      <Reveal key={paso} delay={0}>
+        {paso === 0 ? (
+          <>
+            <Field
+              c={c}
+              label="Nombre(s)"
+              icon="person-outline"
+              fieldHeight={fieldH}
+              gap={gap}
+              placeholder="Ej. María Fernanda"
+              value={f.nombre}
+              onChangeText={set("nombre")}
+              error={intento ? errores.nombre : ""}
+              autoCapitalize="words"
+              textContentType="givenName"
+              autoComplete="name-given"
+              maxLength={100}
+              returnKeyType="next"
+              onSubmitEditing={() => apPatRef.current?.focus()}
+            />
+            <Field
+              c={c}
+              label="Apellido paterno"
+              icon="person-outline"
+              fieldHeight={fieldH}
+              gap={gap}
+              inputRef={apPatRef}
+              placeholder="Ej. López"
+              value={f.apellidoPaterno}
+              onChangeText={set("apellidoPaterno")}
+              error={intento ? errores.apellidoPaterno : ""}
+              autoCapitalize="words"
+              textContentType="familyName"
+              autoComplete="name-family"
+              maxLength={100}
+              returnKeyType="next"
+              onSubmitEditing={() => apMatRef.current?.focus()}
+            />
+            <Field
+              c={c}
+              label="Apellido materno (opcional)"
+              icon="person-outline"
+              fieldHeight={fieldH}
+              gap={gap}
+              inputRef={apMatRef}
+              placeholder="Ej. Reyes"
+              value={f.apellidoMaterno}
+              onChangeText={set("apellidoMaterno")}
+              error={intento ? errores.apellidoMaterno : ""}
+              autoCapitalize="words"
+              maxLength={100}
+              returnKeyType="next"
+              onSubmitEditing={siguienteSeguro(reg)}
+            />
+          </>
+        ) : null}
+
+        {paso === 1 ? (
+          <>
+            <Field
+              c={c}
+              label="CURP"
+              icon="id-card-outline"
+              fieldHeight={fieldH}
+              gap={6}
+              placeholder="18 caracteres"
+              value={f.curp}
+              onChangeText={set("curp")}
+              error={intento || f.curp.length >= CURP_LONGITUD ? errores.curp : ""}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={CURP_LONGITUD}
+              returnKeyType="next"
+              onSubmitEditing={() => diaRef.current?.focus()}
+            />
+            <T style={rs.ayuda}>{f.curp.length}/{CURP_LONGITUD} · Es única: no puede estar registrada por otra persona.</T>
+
+            <T style={rs.caption}>Fecha de nacimiento</T>
+            <View style={rs.fechaRow}>
+              <View style={{ flex: 1 }}>
+                <Field
+                  c={c}
+                  label="Día"
+                  fieldHeight={fieldH}
+                  gap={4}
+                  inputRef={diaRef}
+                  placeholder="DD"
+                  value={f.dia}
+                  onChangeText={(v: string) => {
+                    set("dia")(v);
+                    if (v.replace(/\D/g, "").length === 2) mesRef.current?.focus();
+                  }}
+                  invalid={verFecha && !!errores.fecha}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  autoComplete="birthdate-day"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field
+                  c={c}
+                  label="Mes"
+                  fieldHeight={fieldH}
+                  gap={4}
+                  inputRef={mesRef}
+                  placeholder="MM"
+                  value={f.mes}
+                  onChangeText={(v: string) => {
+                    set("mes")(v);
+                    if (v.replace(/\D/g, "").length === 2) anioRef.current?.focus();
+                  }}
+                  invalid={verFecha && !!errores.fecha}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  autoComplete="birthdate-day"
+                />
+              </View>
+              <View style={{ flex: 1.5 }}>
+                <Field
+                  c={c}
+                  label="Año"
+                  fieldHeight={fieldH}
+                  gap={4}
+                  inputRef={anioRef}
+                  placeholder="AAAA"
+                  value={f.anio}
+                  onChangeText={set("anio")}
+                  invalid={verFecha && !!errores.fecha}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  autoComplete="birthdate-day"
+                />
+              </View>
+            </View>
+            {verFecha && errores.fecha ? <T style={rs.error}>{errores.fecha}</T> : null}
+
+            <T style={[rs.caption, { marginTop: 12 }]}>Sexo / género</T>
+            <View style={rs.chips} accessibilityRole="radiogroup">
+              {GENEROS.map((g) => {
+                const on = f.genero === g;
+                return (
+                  <Pressable
+                    key={g}
+                    onPress={() => set("genero")(g)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: on }}
+                    style={({ pressed }: { pressed: boolean }) => [rs.chip, on && rs.chipOn, POINTER, pressed && { opacity: 0.7 }]}
+                  >
+                    <Ionicons name={GENERO_ICONOS[g]} size={18} color={on ? c.onBtn : c.primary} />
+                    <T style={[rs.chipText, on && rs.chipTextOn]} numberOfLines={1}>
+                      {g}
+                    </T>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {intento && errores.genero ? <T style={rs.error}>{errores.genero}</T> : null}
+
+            <View style={{ height: 14 }} />
+            <Field
+              c={c}
+              label="Teléfono (opcional)"
+              icon="call-outline"
+              fieldHeight={fieldH}
+              gap={gap}
+              placeholder="722 123 4567"
+              value={f.telefono}
+              onChangeText={set("telefono")}
+              error={intento ? errores.telefono : ""}
+              keyboardType="phone-pad"
+              textContentType="telephoneNumber"
+              autoComplete="tel"
+            />
+          </>
+        ) : null}
+
+        {paso === 2 ? (
+          <>
+            <Field
+              c={c}
+              label="Correo electrónico"
+              icon="mail-outline"
+              fieldHeight={fieldH}
+              gap={gap}
+              inputRef={correoRef}
+              placeholder="correo@ejemplo.com"
+              value={f.correo}
+              onChangeText={set("correo")}
+              error={intento ? errores.correo : ""}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              autoComplete="email"
+              returnKeyType="next"
+              onSubmitEditing={() => passRef.current?.focus()}
+            />
+            <Field
+              c={c}
+              label="Contraseña"
+              icon="lock-closed-outline"
+              fieldHeight={fieldH}
+              gap={f.password ? 8 : gap}
+              inputRef={passRef}
+              placeholder="Mínimo 8 caracteres"
+              value={f.password}
+              onChangeText={set("password")}
+              error={intento ? errores.password : ""}
+              secureTextEntry={!verPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="newPassword"
+              autoComplete="password-new"
+              returnKeyType="next"
+              onSubmitEditing={() => confRef.current?.focus()}
+              right={
+                <Pressable
+                  onPress={() => setVerPassword((v) => !v)}
+                  hitSlop={10}
+                  style={[styles.showButton, POINTER]}
+                  accessibilityRole="button"
+                  accessibilityLabel={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  <Ionicons name={verPassword ? "eye-off-outline" : "eye-outline"} size={20} color={c.muted} />
+                </Pressable>
+              }
+            />
+            {f.password ? (
+              <View style={{ marginBottom: gap }}>
+                <View style={rs.barras}>
+                  {[0, 1, 2, 3].map((i) => (
+                    <View key={i} style={[rs.barra, i < fort.puntos && { backgroundColor: colorFort }]} />
+                  ))}
+                </View>
+                <View style={rs.reglas}>
+                  <T style={{ fontSize: 12, fontWeight: "800", color: colorFort }}>{fort.nivel}</T>
+                  {fort.reglas.map((r) => (
+                    <View key={r.texto} style={rs.regla}>
+                      <Ionicons name={r.ok ? "checkmark-circle" : "ellipse-outline"} size={13} color={r.ok ? c.success : c.muted} />
+                      <T style={{ fontSize: 12, color: r.ok ? c.success : c.muted }}>{r.texto}</T>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+            <Field
+              c={c}
+              label="Confirmar contraseña"
+              icon="lock-closed-outline"
+              fieldHeight={fieldH}
+              gap={gap}
+              inputRef={confRef}
+              placeholder="Repite la contraseña"
+              value={f.confirmar}
+              onChangeText={set("confirmar")}
+              error={intento ? errores.confirmar : ""}
+              secureTextEntry={!verPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="newPassword"
+              returnKeyType="go"
+              onSubmitEditing={reg.enviar}
+            />
+          </>
+        ) : null}
+      </Reveal>
+
+      {errorGeneral ? (
+        <View style={styles.errorBox} accessibilityLiveRegion="polite">
+          <Ionicons name="alert-circle" size={20} color={c.error} style={{ marginRight: 9 }} />
+          <T style={styles.errorText}>{errorGeneral}</T>
+        </View>
+      ) : null}
+
+      <View style={rs.botones}>
+        {paso > 0 ? (
+          <View style={{ flex: 1 }}>
+            <PressScale onPress={reg.atras} disabled={guardando} style={styles.secondaryButton}>
+              <Ionicons name="chevron-back" size={16} color={c.primary} style={{ marginRight: 6 }} />
+              <T style={styles.secondaryText}>Atrás</T>
+            </PressScale>
+          </View>
+        ) : null}
+        <View style={{ flex: paso > 0 ? 2 : 1 }}>
+          <PressScale
+            onPress={esUltimo ? reg.enviar : reg.siguiente}
+            disabled={guardando}
+            style={[styles.loginButtonWrapper, { marginBottom: 0 }, guardando && styles.loginButtonDisabled]}
+          >
+            <LinearGradient colors={[c.btnFrom, c.btnTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.loginButton}>
+              {guardando ? (
+                <>
+                  <ActivityIndicator size="small" color={c.onBtn} />
+                  <T style={[styles.loginText, { marginLeft: 10 }]}>Creando cuenta...</T>
+                </>
+              ) : (
+                <T style={styles.loginText}>{esUltimo ? "Crear cuenta" : "Continuar"}</T>
+              )}
+            </LinearGradient>
+          </PressScale>
+        </View>
+      </View>
+
+      <T style={rs.pasoTexto}>
+        Paso {paso + 1} de {PASOS.length}
+      </T>
+
+      {esUltimo ? (
+        <View style={[styles.privacyConsentRow, { marginTop: 10 }]}>
+          <View style={styles.privacyInlineWrap}>
+            <T style={styles.privacyConsentText}>Al crear tu cuenta aceptas nuestras </T>
+            <TouchableOpacity
+              onPress={() => onLegal("/condiciones-servicio")}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+              accessibilityRole="link"
+              style={styles.privacyTouchWrap}
+            >
+              <T style={styles.privacyLinkText}>Condiciones del Servicio</T>
+            </TouchableOpacity>
+            <T style={styles.privacyConsentText}> y nuestra </T>
+            <TouchableOpacity
+              onPress={() => onLegal("/politica-privacidad")}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+              accessibilityRole="link"
+              style={styles.privacyTouchWrap}
+            >
+              <T style={styles.privacyLinkText}>Política de Privacidad</T>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+// Enter en el último campo de un paso avanza al siguiente.
+const siguienteSeguro = (reg: ReturnType<typeof useRegistroPaciente>) => () => reg.siguiente();
+
+const createRegStyles = (c: Theme, L: Layout) =>
+  StyleSheet.create({
+    stepper: { flexDirection: "row", alignItems: "flex-start", marginBottom: L.compact ? 16 : 22 },
+    stepWrap: { flex: 1, flexDirection: "row", alignItems: "flex-start" },
+    stepLine: { flex: 1, height: 3, borderRadius: 2, backgroundColor: c.border, marginTop: 15 },
+    stepLineSpacer: { flex: 0 },
+    stepLineOn: { backgroundColor: c.primary },
+    stepItem: { alignItems: "center", width: 64 },
+    stepDot: {
+      width: 33,
+      height: 33,
+      borderRadius: 17,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: c.inputBg,
+      borderWidth: 1.5,
+      borderColor: c.border,
+    },
+    stepDotOn: { backgroundColor: c.primary, borderColor: c.primary },
+    stepDotActive: {
+      shadowColor: c.glow,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.55,
+      shadowRadius: 10,
+      elevation: 4,
+    },
+    stepLabel: { marginTop: 5, fontSize: 11, fontWeight: "600", color: c.muted },
+    stepLabelOn: { color: c.primary, fontWeight: "800" },
+
+    caption: { fontSize: 13, fontWeight: "700", color: c.text, marginBottom: 7 },
+    ayuda: { fontSize: 12, color: c.muted, marginBottom: 14, lineHeight: 17 },
+    error: { fontSize: 12, fontWeight: "600", color: c.error, marginTop: 2, marginBottom: 4 },
+    fechaRow: { flexDirection: "row", gap: 10 },
+
+    chips: { flexDirection: "row", gap: 8 },
+    chip: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      minHeight: 48,
+      paddingHorizontal: 8,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.inputBg,
+    },
+    chipOn: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+      shadowColor: c.glow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35,
+      shadowRadius: 10,
+      elevation: 3,
+    },
+    chipText: { fontSize: 13.5, fontWeight: "700", color: c.text },
+    chipTextOn: { color: c.onBtn },
+
+    barras: { flexDirection: "row", gap: 6, marginBottom: 8 },
+    barra: { flex: 1, height: 5, borderRadius: 3, backgroundColor: c.border },
+    reglas: { flexDirection: "row", flexWrap: "wrap", gap: 12, alignItems: "center" },
+    regla: { flexDirection: "row", alignItems: "center", gap: 5 },
+
+    botones: { flexDirection: "row", gap: 10, alignItems: "stretch", marginTop: 6 },
+    pasoTexto: { textAlign: "center", fontSize: 12, color: c.muted, marginTop: 12 },
+
+    exito: { alignItems: "center", paddingVertical: 8 },
+    exitoIcono: {
+      width: 76,
+      height: 76,
+      borderRadius: 38,
+      backgroundColor: c.success,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 16,
+      shadowColor: c.success,
+      shadowOpacity: 0.45,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 6,
+    },
+  });
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -609,6 +1297,10 @@ export default function LoginScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [errorLogin, setErrorLogin] = useState("");
   const [recordarSesion, setRecordarSesion] = useState(true);
+
+  // Pestaña activa: inicio de sesión o registro de pacientes (misma pantalla, sin cambiar de ruta)
+  const [modo, setModo] = useState<"login" | "registro">("login");
+  const reg = useRegistroPaciente();
 
   const passwordRef = useRef<TextInput>(null);
 
@@ -704,8 +1396,15 @@ export default function LoginScreen() {
   };
 
   const irARegistro = () => {
-    // TODO: crear la ruta /registro y reutilizar <AuthTabs active="registro" /> allí
-    // router.push("/registro");
+    setErrorLogin("");
+    setModo("registro");
+  };
+
+  const volverALogin = (correoNuevo?: string) => {
+    if (correoNuevo) setCorreo(correoNuevo);
+    setPassword("");
+    reg.reset();
+    setModo("login");
   };
 
   if (usuario) {
@@ -817,9 +1516,20 @@ export default function LoginScreen() {
   const Form = (
     <View style={styles.formContainer}>
       <Reveal delay={80}>
-        <AuthTabs styles={styles} active="login" onRegister={irARegistro} />
+        <AuthTabs styles={styles} active={modo} onLogin={() => setModo("login")} onRegister={irARegistro} />
       </Reveal>
 
+      {modo === "registro" ? (
+        <RegistroForm
+          c={c}
+          L={L}
+          styles={styles}
+          reg={reg}
+          onIrALogin={volverALogin}
+          onLegal={(ruta) => router.push(ruta as any)}
+        />
+      ) : (
+      <>
       <Reveal delay={160}>
         <T style={styles.formTitle}>Bienvenido de nuevo</T>
         {L.showSubtitle ? <T style={styles.formSubtitle}>Accede con tu cuenta para continuar.</T> : null}
@@ -1004,6 +1714,8 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
       </Reveal>
+      </>
+      )}
     </View>
   );
 

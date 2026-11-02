@@ -129,9 +129,6 @@ export default function PacienteScreen() {
               saludo={obtenerSaludo()}
               nombre={usuario?.nombre || "Paciente"}
               rol="Paciente"
-              kicker="VITALIA · PORTAL DEL PACIENTE"
-              titulo="Tu salud, en un solo lugar"
-              descripcion="Consulta tus citas, información clínica y seguimiento de atención de manera sencilla."
             />
             <TabsBar
               c={c}

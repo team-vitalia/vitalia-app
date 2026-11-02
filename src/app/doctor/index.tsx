@@ -172,9 +172,6 @@ export default function DoctorScreen() {
               saludo={obtenerSaludo()}
               nombre={usuario?.nombre || "Doctor"}
               rol="Doctor"
-              kicker="VITALIA · PANEL CLÍNICO"
-              titulo="Tu espacio de trabajo"
-              descripcion="Gestiona pacientes, consultas y actividades clínicas desde un solo lugar."
             />
             <TabsBar
               c={c}

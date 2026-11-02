@@ -80,6 +80,39 @@ export async function solicitarEnlaceCorreo(
 }
 
 
+/** Paso 1 (flujo con código): envía un código de 6 dígitos al correo. */
+export async function solicitarCodigoCorreo(correo: string): Promise<RespuestaCorreo> {
+  const normalizado = correo.trim().toLowerCase();
+  if (!normalizado) throw new Error("Escribe tu correo electrónico.");
+  try {
+    const respuesta = await api.post<RespuestaCorreo>(`${BASE}/codigo/solicitar`, {
+      correo_electronico: normalizado,
+    });
+    return respuesta.data;
+  } catch (error) {
+    throw new Error(obtenerMensajeError(error));
+  }
+}
+
+export interface TicketRecuperacion {
+  usuario_id: number;
+  token: string;
+}
+
+/** Paso 2: comprueba el código. Devuelve el ticket de un solo uso para cambiar la contraseña. */
+export async function verificarCodigoCorreo(correo: string, codigo: string): Promise<TicketRecuperacion> {
+  if (!/^\d{6}$/.test(codigo)) throw new Error("El código tiene 6 dígitos.");
+  try {
+    const respuesta = await api.post<TicketRecuperacion>(`${BASE}/codigo/verificar`, {
+      correo_electronico: correo.trim().toLowerCase(),
+      codigo,
+    });
+    return respuesta.data;
+  } catch (error) {
+    throw new Error(obtenerMensajeError(error));
+  }
+}
+
 export async function confirmarEnlaceCorreo(
   usuarioId: number,
   token: string,

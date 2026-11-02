@@ -12,9 +12,9 @@ export function mensajeError(error: any, porDefecto: string): string {
   // Errores de validación de Pydantic: [{ loc, msg }]
   if (Array.isArray(detalle) && detalle.length > 0) {
     const campo = detalle[0]?.loc?.slice(-1)?.[0];
-    return campo
-      ? `Revisa el campo "${campo}": ${detalle[0]?.msg ?? "valor no válido"}`
-      : detalle[0]?.msg ?? porDefecto;
+    // Pydantic antepone "Value error, " a los mensajes de nuestros validadores.
+    const msg = String(detalle[0]?.msg ?? "valor no válido").replace(/^Value error,\s*/i, "");
+    return campo ? `Revisa el campo "${campo}": ${msg}` : msg || porDefecto;
   }
 
   if (error?.code === "ERR_NETWORK") {

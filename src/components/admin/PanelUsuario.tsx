@@ -18,6 +18,7 @@ import {
   actualizarUsuario,
   CambiosDoctor,
   CambiosUsuario,
+  nombreCompleto,
   permisosSobre,
   UsuarioFila
 } from "../../services/usuariosService";
@@ -35,7 +36,7 @@ import {
   Pestanas,
   Selector
 } from "./ui";
-import { vCorreo, vCosto, vNombre, vTelefono } from "./validaciones";
+import { normalizarRfc, vCorreo, vCosto, vNombrePersona, vRfc, vTelefono } from "./validaciones";
 
 export type PestanaPanel = "detalle" | "editar" | "seguridad";
 
@@ -100,11 +101,11 @@ export default function PanelUsuario({
           >
             {/* Cabecera */}
             <View style={[s.cabecera, { borderBottomColor: c.glassBorder }]}>
-              <Avatar nombre={usuario.nombre} tam={44} />
+              <Avatar nombre={nombreCompleto(usuario)} tam={44} />
 
               <View style={{ flex: 1 }}>
                 <Text style={[s.nombre, { color: c.text }]} numberOfLines={1}>
-                  {usuario.nombre}
+                  {nombreCompleto(usuario)}
                 </Text>
                 <Text style={[s.correo, { color: c.muted }]} numberOfLines={1}>
                   {usuario.correo_electronico}
@@ -210,6 +211,7 @@ function Detalle({ u, c }: { u: UsuarioFila; c: ReturnType<typeof useTheme> }) {
         <>
           <Text style={[s.subtitulo, { color: c.primary }]}>Perfil médico</Text>
           <Dato c={c} icono="id-card" etiqueta="Licencia" valor={u.numero_licencia || "—"} />
+          <Dato c={c} icono="file-text-o" etiqueta="RFC" valor={u.rfc || "—"} />
           <Dato
             c={c}
             icono="usd"
@@ -261,6 +263,9 @@ function Editar({
   const original = useMemo(
     () => ({
       nombre: u.nombre,
+      apellidoPaterno: u.apellido_paterno ?? "",
+      apellidoMaterno: u.apellido_materno ?? "",
+      rfc: u.rfc ?? "",
       correo: u.correo_electronico,
       telefono: u.telefono ?? "",
       rolId: u.rol_id_FK,
@@ -272,6 +277,9 @@ function Editar({
   );
 
   const [nombre, setNombre] = useState(original.nombre);
+  const [apellidoPaterno, setApellidoPaterno] = useState(original.apellidoPaterno);
+  const [apellidoMaterno, setApellidoMaterno] = useState(original.apellidoMaterno);
+  const [rfc, setRfc] = useState(original.rfc);
   const [correo, setCorreo] = useState(original.correo);
   const [telefono, setTelefono] = useState(original.telefono);
   const [rolId, setRolId] = useState<number | null>(original.rolId);
@@ -289,6 +297,9 @@ function Editar({
 
   useEffect(() => {
     setNombre(original.nombre);
+    setApellidoPaterno(original.apellidoPaterno);
+    setApellidoMaterno(original.apellidoMaterno);
+    setRfc(original.rfc);
     setCorreo(original.correo);
     setTelefono(original.telefono);
     setRolId(original.rolId);
@@ -314,7 +325,16 @@ function Editar({
   );
 
   const errores = {
-    nombre: vNombre(nombre),
+    nombre: vNombrePersona(nombre, "El nombre"),
+    // Cuentas anteriores sin apellidos se pueden seguir editando sin obligar a capturarlos
+    // (los pacientes sí necesitan apellido paterno).
+    apellidoPaterno: vNombrePersona(
+      apellidoPaterno,
+      "El apellido paterno",
+      u.rol_id_FK === ROL_PACIENTE || !!original.apellidoPaterno
+    ),
+    apellidoMaterno: vNombrePersona(apellidoMaterno, "El apellido materno", false),
+    rfc: esDoctor && rfc.trim() ? vRfc(rfc) : "",
     correo: vCorreo(correo),
     telefono: vTelefono(telefono),
     licencia: esDoctor && !licencia.trim() ? "Ingresa el número de licencia." : "",
@@ -327,6 +347,10 @@ function Editar({
 
   const cambiosCuenta: CambiosUsuario = {};
   if (nombre.trim() !== original.nombre) cambiosCuenta.nombre = nombre.trim();
+  if (apellidoPaterno.trim() !== original.apellidoPaterno)
+    cambiosCuenta.apellido_paterno = apellidoPaterno.trim() || null;
+  if (apellidoMaterno.trim() !== original.apellidoMaterno)
+    cambiosCuenta.apellido_materno = apellidoMaterno.trim() || null;
   if (correo.trim().toLowerCase() !== original.correo.toLowerCase())
     cambiosCuenta.correo_electronico = correo.trim().toLowerCase();
   if (telefono.trim() !== original.telefono) cambiosCuenta.telefono = telefono.trim() || null;
@@ -335,6 +359,7 @@ function Editar({
   const cambiosMedico: CambiosDoctor = {};
   if (esDoctor) {
     if (licencia.trim() !== original.licencia) cambiosMedico.numero_licencia = licencia.trim();
+    if (normalizarRfc(rfc) !== original.rfc) cambiosMedico.rfc = normalizarRfc(rfc) || null;
     if (costo.trim() !== original.costo) cambiosMedico.costo_consulta = Number(costo);
     if (JSON.stringify(espOrdenadas) !== JSON.stringify(original.esp))
       cambiosMedico.especialidad_ids = espOrdenadas;
@@ -346,6 +371,9 @@ function Editar({
 
   const descartar = () => {
     setNombre(original.nombre);
+    setApellidoPaterno(original.apellidoPaterno);
+    setApellidoMaterno(original.apellidoMaterno);
+    setRfc(original.rfc);
     setCorreo(original.correo);
     setTelefono(original.telefono);
     setRolId(original.rolId);
@@ -403,7 +431,7 @@ function Editar({
       <Text style={[s.subtitulo, { color: c.primary }]}>Datos de la cuenta</Text>
 
       <Campo
-        etiqueta="Nombre completo"
+        etiqueta="Nombre(s)"
         valor={nombre}
         onChange={setNombre}
         requerido
@@ -411,6 +439,24 @@ function Editar({
         mostrarError={intento}
         autoCapitalize="words"
         icono="user"
+      />
+      <Campo
+        etiqueta="Apellido paterno"
+        valor={apellidoPaterno}
+        onChange={setApellidoPaterno}
+        requerido={u.rol_id_FK === ROL_PACIENTE}
+        error={errores.apellidoPaterno}
+        mostrarError={intento}
+        autoCapitalize="words"
+      />
+      <Campo
+        etiqueta="Apellido materno"
+        valor={apellidoMaterno}
+        onChange={setApellidoMaterno}
+        error={errores.apellidoMaterno}
+        mostrarError={intento}
+        autoCapitalize="words"
+        ayuda="Opcional"
       />
       <Campo
         etiqueta="Correo electrónico"
@@ -464,6 +510,17 @@ function Editar({
             mostrarError={intento}
             autoCapitalize="characters"
             icono="certificate"
+          />
+          <Campo
+            etiqueta="RFC"
+            valor={rfc}
+            onChange={(v) => setRfc(normalizarRfc(v))}
+            error={errores.rfc}
+            mostrarError={intento}
+            autoCapitalize="characters"
+            icono="file-text-o"
+            maxLength={13}
+            ayuda="12 o 13 caracteres"
           />
           <Campo
             etiqueta="Costo de consulta (MXN)"
