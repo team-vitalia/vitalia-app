@@ -1,6 +1,5 @@
 node_modules
 dist
-web-build
 .expo
 .git
 .github
@@ -8,10 +7,3 @@ web-build
 .claude
 pruebas
 .env
-.env.*
-ios
-android
-*.md
-Dockerfile
-docker-compose.yml
-.dockerignore

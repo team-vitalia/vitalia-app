@@ -73,8 +73,10 @@ export default function CrearCita() {
   const [mostrarDoctores, setMostrarDoctores] = useState(false);
 
   useEffect(() => {
-    cargarDatos();
-  }, []);
+    if (token) {
+      cargarDatos();
+    }
+  }, [token]);
 
   const cargarDatos = async () => {
     if (!token) return;

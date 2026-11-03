@@ -1,28 +1,98 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-
+import { ComponentProps, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
+  ScrollView,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import {
+  AccionCard,
+  FondoLuces,
+  Footer,
+  HeroSaludo,
+  Notice,
+  SectionTitle,
+  TabsBar,
+  type TabItem,
+} from "../../components/DashboardUI";
 import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../theme/theme";
 
-type Acceso = {
-  ruta: "/admin/salas" | "/admin/auditoria" | "/admin/reportes" | "/admin/usuarios" | "/admin/especialidades" | "/admin/doctores" | "/admin/doctores/salas";
-  icono: string;
-  titulo: string;
-  descripcion: string;
-};
+const ND = Platform.OS !== "web";
+type IconName = ComponentProps<typeof Ionicons>["name"];
+
+const TABS_COORD: TabItem[] = [
+  { key: "resumen", label: "Resumen", icon: "speedometer-outline" },
+  { key: "accesos", label: "Accesos", icon: "flash-outline" },
+];
+
+type Acceso = { ruta: string; icon: IconName; titulo: string; descripcion: string };
 
 const ACCESOS: Acceso[] = [
-  { ruta: "/admin/salas", icono: "🏥", titulo: "Salas y equipamiento", descripcion: "Consulta y gestiona salas, su estado y los equipos de cada una." },
-  { ruta: "/admin/reportes", icono: "📊", titulo: "Reportes", descripcion: "Ocupación, citas por doctor, tiempos de espera, inventario y recetas." },
-  { ruta: "/admin/auditoria", icono: "🧾", titulo: "Auditoría", descripcion: "Revisa quién cambió qué y cuándo en el sistema." },
-  { ruta: "/admin/usuarios", icono: "👥", titulo: "Gestión de usuarios", descripcion: "Administra médicos, pacientes y personal de recepción." },
-  { ruta: "/admin/especialidades", icono: "🩺", titulo: "Especialidades médicas", descripcion: "Mantén actualizado el catálogo de especialidades." },
-  { ruta: "/admin/doctores/salas", icono: "🗓️", titulo: "Salas por doctor", descripcion: "Asigna salas y horarios de uso a cada médico." },
-  { ruta: "/admin/doctores", icono: "📋", titulo: "Médicos y contratos", descripcion: "Perfiles de médicos y consulta de contratos." },
+  { ruta: "/admin/salas", icon: "business-outline", titulo: "Salas y equipamiento", descripcion: "Consulta y gestiona salas, su estado y los equipos de cada una." },
+  { ruta: "/admin/reportes", icon: "bar-chart-outline", titulo: "Reportes", descripcion: "Ocupación, citas por doctor, tiempos de espera, inventario y recetas." },
+  { ruta: "/admin/auditoria", icon: "receipt-outline", titulo: "Auditoría", descripcion: "Revisa quién cambió qué y cuándo en el sistema." },
+  { ruta: "/admin/usuarios", icon: "people-outline", titulo: "Gestión de usuarios", descripcion: "Administra médicos, pacientes y personal de recepción." },
+  { ruta: "/admin/especialidades", icon: "medkit-outline", titulo: "Especialidades médicas", descripcion: "Mantén actualizado el catálogo de especialidades." },
+  { ruta: "/admin/doctores/salas", icon: "calendar-outline", titulo: "Salas por doctor", descripcion: "Asigna salas y horarios de uso a cada médico." },
+  { ruta: "/admin/doctores", icon: "document-text-outline", titulo: "Médicos y contratos", descripcion: "Perfiles de médicos y consulta de contratos." },
 ];
 
 export default function CoordinadorScreen() {
   const router = useRouter();
   const { usuario } = useAuth();
+  const c = useTheme();
+  const { width } = useWindowDimensions();
+
+  const { pad, esc, cols } = useMemo(() => {
+    const esc = width < 560 ? 1 : width < 900 ? 1.06 : 1.12;
+    const pad = width < 400 ? 14 : width < 560 ? 18 : width < 1024 ? 26 : 34;
+    const cols = width < 560 ? 1 : 2;
+    return { pad, esc, cols };
+  }, [width]);
+
+  const fade = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fade, { toValue: 1, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: ND }).start();
+  }, []);
+
+  const [pager, setPager] = useState({ w: 0, h: 0 });
+  const [tab, setTab] = useState(0);
+  const tabRef = useRef(0);
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const pagerRef = useRef<any>(null);
+
+  const irATab = (i: number) => {
+    tabRef.current = i;
+    setTab(i);
+    pagerRef.current?.scrollTo({ x: i * pager.w, animated: true });
+  };
+
+  const onScroll = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+        useNativeDriver: ND,
+        listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+          if (!pager.w) return;
+          const i = Math.round(e.nativeEvent.contentOffset.x / pager.w);
+          if (i !== tabRef.current) {
+            tabRef.current = i;
+            setTab(i);
+          }
+        },
+      }),
+    [pager.w]
+  );
+
+  useEffect(() => {
+    if (pager.w) pagerRef.current?.scrollTo({ x: tabRef.current * pager.w, animated: false });
+  }, [pager.w]);
 
   const saludo = () => {
     const hora = new Date().getHours();
@@ -31,69 +101,101 @@ export default function CoordinadorScreen() {
     return "Buenas noches";
   };
 
+  const pagina = (key: string, children: React.ReactNode) => (
+    <View key={key} style={{ width: pager.w, height: pager.h }}>
+      <ScrollView
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: pad, paddingTop: 16, paddingBottom: 40 }}
+      >
+        <View style={{ width: "100%", maxWidth: 1100, alignSelf: "center" }}>{children}</View>
+      </ScrollView>
+    </View>
+  );
+
+  const anchoAcceso = cols === 1 ? "100%" : "48.5%";
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>{saludo()}</Text>
-          <Text style={styles.name}>{usuario?.nombre || "Coordinador"}</Text>
-          <Text style={styles.role}>Coordinación operativa</Text>
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      <FondoLuces c={c} />
+      <Animated.View style={{ flex: 1, opacity: fade }}>
+        <View style={{ paddingHorizontal: pad, paddingTop: 14, alignItems: "center" }}>
+          <View style={{ width: "100%", maxWidth: 1100 }}>
+            <HeroSaludo
+              c={c}
+              esc={esc}
+              saludo={saludo()}
+              nombre={usuario?.nombre || "Coordinador"}
+              rol="Coordinación operativa"
+            />
+            <TabsBar
+              c={c}
+              esc={esc}
+              tabs={TABS_COORD}
+              activa={tab}
+              scrollX={scrollX}
+              anchoPagina={pager.w}
+              mostrarIconos={width >= 440}
+              onSelect={irATab}
+            />
+          </View>
         </View>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{usuario?.nombre?.charAt(0)?.toUpperCase() || "C"}</Text>
-        </View>
-      </View>
 
-      <View style={styles.welcomeCard}>
-        <Text style={styles.welcomeSmall}>BIENVENIDO A</Text>
-        <Text style={styles.welcomeTitle}>VITALIA</Text>
-        <Text style={styles.welcomeDescription}>
-          Panel de coordinación para supervisar salas, reportes, auditoría y el personal de la clínica.
-        </Text>
-      </View>
-
-      <Text style={styles.sectionTitle}>Accesos rápidos</Text>
-
-      {ACCESOS.map((a) => (
-        <Pressable
-          key={a.ruta}
-          style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
-          onPress={() => router.push(a.ruta)}
+        <View
+          style={{ flex: 1, minHeight: 0, marginTop: 6 }}
+          onLayout={(e) => setPager({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
         >
-          <View style={styles.actionIcon}>
-            <Text style={styles.actionIconText}>{a.icono}</Text>
-          </View>
-          <View style={styles.actionInfo}>
-            <Text style={styles.actionTitle}>{a.titulo}</Text>
-            <Text style={styles.actionDescription}>{a.descripcion}</Text>
-          </View>
-          <Text style={styles.actionArrow}>→</Text>
-        </Pressable>
-      ))}
-    </ScrollView>
+          {pager.w > 0 && pager.h > 0 && (
+            <Animated.ScrollView
+              ref={pagerRef}
+              horizontal
+              pagingEnabled
+              bounces={false}
+              decelerationRate="fast"
+              showsHorizontalScrollIndicator={false}
+              scrollEventThrottle={16}
+              onScroll={onScroll}
+              style={{ width: pager.w, height: pager.h }}
+            >
+              {pagina(
+                "resumen",
+                <>
+                  <SectionTitle c={c} esc={esc} icon="speedometer-outline" color={c.info}>
+                    Resumen operativo
+                  </SectionTitle>
+                  <Notice c={c} esc={esc} icon="shield-checkmark-outline" titulo="Sesión segura" texto="Tu acceso de coordinación está activo y protegido." />
+                  <Footer c={c} esc={esc} />
+                </>
+              )}
+
+              {pagina(
+                "accesos",
+                <>
+                  <SectionTitle c={c} esc={esc} icon="flash-outline" color={c.primary}>
+                    Accesos rápidos
+                  </SectionTitle>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
+                    {ACCESOS.map((a) => (
+                      <View key={a.ruta} style={{ width: anchoAcceso }}>
+                        <AccionCard
+                          c={c}
+                          esc={esc}
+                          icon={a.icon}
+                          color={c.primary}
+                          titulo={a.titulo}
+                          descripcion={a.descripcion}
+                          onPress={() => router.push(a.ruta as any)}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                  <Footer c={c} esc={esc} />
+                </>
+              )}
+            </Animated.ScrollView>
+          )}
+        </View>
+      </Animated.View>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4FAF8" },
-  content: { padding: 30, paddingBottom: 50, maxWidth: 1100, width: "100%", alignSelf: "center" },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 28 },
-  greeting: { fontSize: 14, color: "#82938F" },
-  name: { fontSize: 28, fontWeight: "800", color: "#173F3A" },
-  role: { fontSize: 13, color: "#2A8C82", fontWeight: "600", marginTop: 4 },
-  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#DDF3EF", justifyContent: "center", alignItems: "center" },
-  avatarText: { fontSize: 20, fontWeight: "800", color: "#247F76" },
-  welcomeCard: { borderRadius: 24, backgroundColor: "#247F76", padding: 30, marginBottom: 20 },
-  welcomeSmall: { fontSize: 11, fontWeight: "800", color: "#BDE5DF" },
-  welcomeTitle: { fontSize: 34, fontWeight: "900", color: "#FFFFFF" },
-  welcomeDescription: { fontSize: 14, color: "#DCEFEB", marginTop: 8 },
-  sectionTitle: { fontSize: 18, fontWeight: "800", color: "#173F3A", marginVertical: 14 },
-  actionCard: { backgroundColor: "#FFFFFF", borderRadius: 18, padding: 18, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#E4EEEB", marginBottom: 12 },
-  actionCardPressed: { opacity: 0.85 },
-  actionIcon: { width: 46, height: 46, borderRadius: 14, backgroundColor: "#E2F4F0", alignItems: "center", justifyContent: "center", marginRight: 14 },
-  actionIconText: { fontSize: 22 },
-  actionInfo: { flex: 1 },
-  actionTitle: { fontSize: 14, fontWeight: "800", color: "#26443F" },
-  actionDescription: { fontSize: 11, color: "#879691", marginTop: 4 },
-  actionArrow: { fontSize: 22, color: "#247F76" },
-});

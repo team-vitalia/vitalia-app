@@ -1,22 +1,93 @@
-import { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
+  Animated,
+  Easing,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
-import { router } from "expo-router";
-import { FontAwesome } from "@expo/vector-icons";
+import {
+  AccionCard,
+  FondoLuces,
+  Footer,
+  Glass,
+  HeroSaludo,
+  InfoCard,
+  Notice,
+  SectionTitle,
+  TabsBar,
+  type TabItem,
+} from "../../components/DashboardUI";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 import { listarColas } from "../../services/colasService";
+import { useTheme } from "../../theme/theme";
+
+const ND = Platform.OS !== "web";
+
+const TABS_RECEPCION: TabItem[] = [
+  { key: "resumen", label: "Resumen", icon: "speedometer-outline" },
+  { key: "accesos", label: "Accesos", icon: "flash-outline" },
+];
 
 export default function RecepcionScreen() {
   const { usuario, token, cargando: cargandoAuth } = useAuth();
   const rolId = usuario?.rol_id ?? usuario?.rol_id_FK;
+  const c = useTheme();
+  const { width } = useWindowDimensions();
 
+  const { pad, esc, cols } = useMemo(() => {
+    const esc = width < 560 ? 1 : width < 900 ? 1.06 : 1.12;
+    const pad = width < 400 ? 14 : width < 560 ? 18 : width < 1024 ? 26 : 34;
+    const cols = width < 560 ? 1 : 2;
+    return { pad, esc, cols };
+  }, [width]);
+
+  const fade = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fade, { toValue: 1, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: ND }).start();
+  }, []);
+
+  const [pager, setPager] = useState({ w: 0, h: 0 });
+  const [tab, setTab] = useState(0);
+  const tabRef = useRef(0);
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const pagerRef = useRef<any>(null);
+
+  const irATab = (i: number) => {
+    tabRef.current = i;
+    setTab(i);
+    pagerRef.current?.scrollTo({ x: i * pager.w, animated: true });
+  };
+
+  const onScroll = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+        useNativeDriver: ND,
+        listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+          if (!pager.w) return;
+          const i = Math.round(e.nativeEvent.contentOffset.x / pager.w);
+          if (i !== tabRef.current) {
+            tabRef.current = i;
+            setTab(i);
+          }
+        },
+      }),
+    [pager.w]
+  );
+
+  useEffect(() => {
+    if (pager.w) pagerRef.current?.scrollTo({ x: tabRef.current * pager.w, animated: false });
+  }, [pager.w]);
+
+  /* ---------- Métricas (intacto) ---------- */
   const [totalCitasHoy, setTotalCitasHoy] = useState(0);
   const [totalEnEspera, setTotalEnEspera] = useState(0);
   const [cargandoMetricas, setCargandoMetricas] = useState(true);
@@ -30,10 +101,7 @@ export default function RecepcionScreen() {
 
   const obtenerFechaHoy = (): string => {
     const hoy = new Date();
-    const anio = hoy.getFullYear();
-    const mes = String(hoy.getMonth() + 1).padStart(2, "0");
-    const dia = String(hoy.getDate()).padStart(2, "0");
-    return `${anio}-${mes}-${dia}`;
+    return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
   };
 
   const cargarMetricas = async () => {
@@ -41,19 +109,15 @@ export default function RecepcionScreen() {
     try {
       setCargandoMetricas(true);
       const [resCitas, listaColas] = await Promise.all([
-        api.get<any[]>("/api/citas/", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        api.get<any[]>("/api/citas/", { headers: { Authorization: `Bearer ${token}` } }),
         listarColas(token),
       ]);
-
       const hoyStr = obtenerFechaHoy();
       const citasHoy = resCitas.data.filter((c) => c.fecha === hoyStr);
       const enEspera = listaColas.filter((col) => col.estado === "esperando" || col.estado === "llamado");
-
       setTotalCitasHoy(citasHoy.length);
       setTotalEnEspera(enEspera.length);
-    } catch (e) {
+    } catch {
       setTotalCitasHoy(0);
       setTotalEnEspera(0);
     } finally {
@@ -62,487 +126,138 @@ export default function RecepcionScreen() {
   };
 
   useEffect(() => {
-    if (token && rolId === 4) {
-      cargarMetricas();
-    }
+    if (token && rolId === 4) cargarMetricas();
   }, [token, rolId]);
 
   if (!cargandoAuth && rolId !== 4) {
     return (
-      <View style={styles.deniedContainer}>
-        <View style={styles.deniedCard}>
-          <View style={styles.deniedIconBox}>
-            <FontAwesome name="lock" size={32} color="#D65A5A" />
+      <View style={{ flex: 1, backgroundColor: c.bg, justifyContent: "center", alignItems: "center", padding: 24 }}>
+        <FondoLuces c={c} />
+        <Glass c={c} radius={22} style={{ width: "100%", maxWidth: 480, padding: 32, alignItems: "center" }}>
+          <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: c.errorBg, justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
+            <Ionicons name="lock-closed" size={32} color={c.error} />
           </View>
-          <Text style={styles.deniedTitle}>Acceso Restringido</Text>
-          <Text style={styles.deniedSubtitle}>
+          <Text style={{ fontSize: 22, fontWeight: "900", color: c.text, marginBottom: 10, textAlign: "center" }}>
+            Acceso Restringido
+          </Text>
+          <Text style={{ fontSize: 14, color: c.muted, textAlign: "center", lineHeight: 22, marginBottom: 26 }}>
             El panel de recepción está reservado exclusivamente para el personal autorizado con rol de Recepción.
           </Text>
           <Pressable
-            style={styles.deniedButton}
             onPress={() => {
               if (rolId === 1) router.replace("/admin");
               else if (rolId === 2) router.replace("/doctor");
               else if (rolId === 3) router.replace("/paciente");
               else router.replace("/login");
             }}
+            style={{ flexDirection: "row", alignItems: "center", backgroundColor: c.primary, paddingVertical: 13, paddingHorizontal: 22, borderRadius: 14 }}
           >
-            <FontAwesome name="arrow-left" size={14} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.deniedButtonText}>Volver a mi Panel Principal</Text>
+            <Ionicons name="arrow-back" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "800" }}>Volver a mi Panel Principal</Text>
           </Pressable>
-        </View>
+        </Glass>
       </View>
     );
   }
 
+  const pagina = (key: string, children: React.ReactNode) => (
+    <View key={key} style={{ width: pager.w, height: pager.h }}>
+      <ScrollView
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: pad, paddingTop: 16, paddingBottom: 40 }}
+      >
+        <View style={{ width: "100%", maxWidth: 1100, alignSelf: "center" }}>{children}</View>
+      </ScrollView>
+    </View>
+  );
+
+  const anchoAcceso = cols === 1 ? "100%" : "48.5%";
+
+  const accesos = [
+    { icon: "calendar-outline" as const, color: c.info, titulo: "Agenda de Citas", desc: "Consulta la agenda cronológica, reprograma fechas y sincroniza con Google Calendar.", onPress: () => router.push("/recepcion/citas") },
+    { icon: "calendar-number-outline" as const, color: c.success, titulo: "Agendar Nueva Cita", desc: "Registra una nueva cita médica y envía confirmación automática por correo.", onPress: () => router.push("/recepcion/citas/crear") },
+    { icon: "list-outline" as const, color: c.warning, titulo: "Sala de Espera", desc: "Gestiona la llegada de pacientes y asigna turnos de atención prioritarios.", onPress: () => router.push("/recepcion/cola") },
+    { icon: "checkmark-circle-outline" as const, color: c.primary, titulo: "Historial de Atenciones", desc: "Visualiza las consultas concluidas y pacientes atendidos el día de hoy.", onPress: () => router.push("/recepcion/cola/atendidas") },
+  ];
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.header}>
-        <View style={styles.headerInfo}>
-          <Text style={styles.greeting}>{obtenerSaludo()}</Text>
-          <Text style={styles.name}>{usuario?.nombre || "Recepción"}</Text>
-          <Text style={styles.role}>Personal de Recepción</Text>
-        </View>
-
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {usuario?.nombre?.charAt(0)?.toUpperCase() || "R"}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.welcomeCard}>
-        <View style={styles.welcomeContent}>
-          <Text style={styles.welcomeSmall}>VITALIA</Text>
-          <Text style={styles.welcomeTitle}>Panel de Recepción</Text>
-          <Text style={styles.welcomeDescription}>
-            Gestiona la agenda médica, programa citas con envío de correos y coordina la sala de espera de la clínica.
-          </Text>
-        </View>
-
-        <View style={styles.decorCircle}>
-          <FontAwesome name="stethoscope" size={54} color="rgba(255,255,255,0.45)" />
-        </View>
-      </View>
-
-      <Text style={styles.sectionTitle}>Resumen de hoy</Text>
-
-      <View style={styles.cardsRow}>
-        <View style={styles.infoCard}>
-          <View style={styles.cardIcon}>
-            <FontAwesome name="calendar" size={16} color="#247F76" />
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      <FondoLuces c={c} />
+      <Animated.View style={{ flex: 1, opacity: fade }}>
+        <View style={{ paddingHorizontal: pad, paddingTop: 14, alignItems: "center" }}>
+          <View style={{ width: "100%", maxWidth: 1100 }}>
+            <HeroSaludo
+              c={c}
+              esc={esc}
+              saludo={obtenerSaludo()}
+              nombre={usuario?.nombre || "Recepción"}
+              rol="Personal de Recepción"
+            />
+            <TabsBar
+              c={c}
+              esc={esc}
+              tabs={TABS_RECEPCION}
+              activa={tab}
+              scrollX={scrollX}
+              anchoPagina={pager.w}
+              mostrarIconos={width >= 440}
+              onSelect={irATab}
+            />
           </View>
-          {cargandoMetricas ? (
-            <ActivityIndicator size="small" color="#247F76" />
-          ) : (
-            <Text style={styles.cardNumber}>{totalCitasHoy}</Text>
+        </View>
+
+        <View
+          style={{ flex: 1, minHeight: 0, marginTop: 6 }}
+          onLayout={(e) => setPager({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+        >
+          {pager.w > 0 && pager.h > 0 && (
+            <Animated.ScrollView
+              ref={pagerRef}
+              horizontal
+              pagingEnabled
+              bounces={false}
+              decelerationRate="fast"
+              showsHorizontalScrollIndicator={false}
+              scrollEventThrottle={16}
+              onScroll={onScroll}
+              style={{ width: pager.w, height: pager.h }}
+            >
+              {pagina(
+                "resumen",
+                <>
+                  <SectionTitle c={c} esc={esc} icon="speedometer-outline" color={c.info}>
+                    Resumen de hoy
+                  </SectionTitle>
+                  <View style={{ flexDirection: "row", gap: 10, marginBottom: 4 }}>
+                    <InfoCard c={c} esc={esc} icon="calendar-outline" color={c.info} valor={totalCitasHoy} label="Citas programadas para hoy" loading={cargandoMetricas} />
+                    <InfoCard c={c} esc={esc} icon="people-outline" color={c.success} valor={totalEnEspera} label="Pacientes en sala de espera" loading={cargandoMetricas} />
+                  </View>
+                  <Notice c={c} esc={esc} icon="shield-checkmark-outline" titulo="Recepción Activa y Segura" texto="El sistema está conectado con alertas en tiempo real y sincronización SMTP." />
+                  <Footer c={c} esc={esc} />
+                </>
+              )}
+
+              {pagina(
+                "accesos",
+                <>
+                  <SectionTitle c={c} esc={esc} icon="flash-outline" color={c.primary}>
+                    Accesos directos
+                  </SectionTitle>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
+                    {accesos.map((a) => (
+                      <View key={a.titulo} style={{ width: anchoAcceso }}>
+                        <AccionCard c={c} esc={esc} icon={a.icon} color={a.color} titulo={a.titulo} descripcion={a.desc} onPress={a.onPress} />
+                      </View>
+                    ))}
+                  </View>
+                  <Footer c={c} esc={esc} />
+                </>
+              )}
+            </Animated.ScrollView>
           )}
-          <Text style={styles.cardLabel}>Citas programadas para hoy</Text>
         </View>
-
-        <View style={styles.infoCard}>
-          <View style={styles.cardIcon}>
-            <FontAwesome name="users" size={16} color="#247F76" />
-          </View>
-          {cargandoMetricas ? (
-            <ActivityIndicator size="small" color="#247F76" />
-          ) : (
-            <Text style={styles.cardNumber}>{totalEnEspera}</Text>
-          )}
-          <Text style={styles.cardLabel}>Pacientes en sala de espera</Text>
-        </View>
-      </View>
-
-      <Text style={styles.sectionTitle}>Accesos directos</Text>
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.actionCard,
-          pressed && styles.actionCardPressed,
-        ]}
-        onPress={() => router.push("/recepcion/citas")}
-      >
-        <View style={styles.actionIcon}>
-          <FontAwesome name="calendar" size={20} color="#247F76" />
-        </View>
-        <View style={styles.actionInfo}>
-          <Text style={styles.actionTitle}>Agenda de Citas Médicas</Text>
-          <Text style={styles.actionDescription}>
-            Consulta la agenda cronológica, reprograma fechas y sincroniza con Google Calendar.
-          </Text>
-        </View>
-        <Text style={styles.actionArrow}>→</Text>
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.actionCard,
-          pressed && styles.actionCardPressed,
-        ]}
-        onPress={() => router.push("/recepcion/citas/crear")}
-      >
-        <View style={styles.actionIcon}>
-          <FontAwesome name="calendar-plus-o" size={20} color="#247F76" />
-        </View>
-        <View style={styles.actionInfo}>
-          <Text style={styles.actionTitle}>Agendar Nueva Cita</Text>
-          <Text style={styles.actionDescription}>
-            Registra una nueva cita médica y envía confirmación automática por correo al paciente.
-          </Text>
-        </View>
-        <Text style={styles.actionArrow}>→</Text>
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.actionCard,
-          pressed && styles.actionCardPressed,
-        ]}
-        onPress={() => router.push("/recepcion/cola")}
-      >
-        <View style={styles.actionIcon}>
-          <FontAwesome name="list-ol" size={20} color="#247F76" />
-        </View>
-        <View style={styles.actionInfo}>
-          <Text style={styles.actionTitle}>Sala de Espera y Turnos</Text>
-          <Text style={styles.actionDescription}>
-            Gestiona la llegada de pacientes y asigna turnos de atención prioritarios.
-          </Text>
-        </View>
-        <Text style={styles.actionArrow}>→</Text>
-      </Pressable>
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.actionCard,
-          pressed && styles.actionCardPressed,
-        ]}
-        onPress={() => router.push("/recepcion/cola/atendidas")}
-      >
-        <View style={styles.actionIcon}>
-          <FontAwesome name="check-circle" size={20} color="#247F76" />
-        </View>
-        <View style={styles.actionInfo}>
-          <Text style={styles.actionTitle}>Historial de Atenciones</Text>
-          <Text style={styles.actionDescription}>
-            Visualiza las consultas concluidas y pacientes atendidos el día de hoy.
-          </Text>
-        </View>
-        <Text style={styles.actionArrow}>→</Text>
-      </Pressable>
-
-      <View style={styles.notice}>
-        <View style={styles.noticeIcon}>
-          <FontAwesome name="shield" size={18} color="#247F76" />
-        </View>
-        <View style={styles.noticeContent}>
-          <Text style={styles.noticeTitle}>Recepción Activa y Segura</Text>
-          <Text style={styles.noticeText}>
-            El sistema está conectado con alertas en tiempo real y sincronización SMTP.
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.footer}>
-        <View style={styles.footerLine} />
-        <Text style={styles.footerText}>
-          VITALIA · Gestión clínica inteligente
-        </Text>
-      </View>
-    </ScrollView>
+      </Animated.View>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F4FAF8",
-  },
-  content: {
-    padding: 30,
-    paddingBottom: 50,
-    maxWidth: 1100,
-    width: "100%",
-    alignSelf: "center",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 28,
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  greeting: {
-    fontSize: 14,
-    color: "#82938F",
-    marginBottom: 3,
-  },
-  name: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#173F3A",
-  },
-  role: {
-    fontSize: 13,
-    color: "#2A8C82",
-    fontWeight: "600",
-    marginTop: 4,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#DDF3EF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#247F76",
-  },
-  welcomeCard: {
-    minHeight: 180,
-    borderRadius: 24,
-    backgroundColor: "#247F76",
-    paddingHorizontal: 30,
-    paddingVertical: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    overflow: "hidden",
-    shadowColor: "#247F76",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    elevation: 6,
-  },
-  welcomeContent: {
-    flex: 1,
-    maxWidth: 600,
-  },
-  welcomeSmall: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 2,
-    color: "#BDE5DF",
-    marginBottom: 5,
-  },
-  welcomeTitle: {
-    fontSize: 30,
-    fontWeight: "900",
-    color: "#FFFFFF",
-  },
-  welcomeDescription: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#DCEFEB",
-    marginTop: 8,
-    maxWidth: 520,
-  },
-  decorCircle: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: "rgba(255,255,255,0.10)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#173F3A",
-    marginTop: 30,
-    marginBottom: 14,
-  },
-  cardsRow: {
-    flexDirection: "row",
-    gap: 15,
-  },
-  infoCard: {
-    flex: 1,
-    minHeight: 125,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#E4EEEB",
-  },
-  cardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    backgroundColor: "#E2F4F0",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  cardNumber: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#173F3A",
-  },
-  cardLabel: {
-    fontSize: 12,
-    color: "#8A9B98",
-    marginTop: 4,
-  },
-  actionCard: {
-    minHeight: 82,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E4EEEB",
-    marginBottom: 12,
-  },
-  actionCardPressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.85,
-  },
-  actionIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: "#E2F4F0",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 14,
-  },
-  actionInfo: {
-    flex: 1,
-  },
-  actionTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#26443F",
-  },
-  actionDescription: {
-    fontSize: 11,
-    color: "#879691",
-    marginTop: 4,
-  },
-  actionArrow: {
-    fontSize: 22,
-    color: "#247F76",
-    marginLeft: 10,
-  },
-  notice: {
-    marginTop: 18,
-    backgroundColor: "#F0F8F6",
-    borderRadius: 16,
-    padding: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#DCEEEA",
-  },
-  noticeIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "#DDF3EF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  noticeContent: {
-    flex: 1,
-  },
-  noticeTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#31534D",
-  },
-  noticeText: {
-    fontSize: 11,
-    color: "#82938F",
-    marginTop: 3,
-  },
-  footer: {
-    alignItems: "center",
-    marginTop: 35,
-  },
-  footerLine: {
-    width: 60,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "#CDE8E3",
-    marginBottom: 10,
-  },
-  footerText: {
-    fontSize: 10,
-    color: "#9AA9A6",
-    letterSpacing: 0.5,
-  },
-  deniedContainer: {
-    flex: 1,
-    backgroundColor: "#F4FAF8",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  deniedCard: {
-    width: "100%",
-    maxWidth: 480,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
-    padding: 32,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E2ECEA",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  deniedIconBox: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: "#FFF0EF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#FAD2CE",
-  },
-  deniedTitle: {
-    fontSize: 22,
-    fontWeight: "900",
-    color: "#173F3A",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  deniedSubtitle: {
-    fontSize: 14,
-    color: "#718581",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 26,
-  },
-  deniedButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#247F76",
-    paddingVertical: 13,
-    paddingHorizontal: 22,
-    borderRadius: 14,
-  },
-  deniedButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-});

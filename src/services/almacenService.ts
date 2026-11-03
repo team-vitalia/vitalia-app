@@ -10,6 +10,7 @@ export interface Medicamento {
   codigo_barras?: string;
   categoria?: string;
 }
+export type MedicamentoCreate = Omit<Medicamento, "id_PK">;
 
 export interface LoteData {
   medicamento_id_FK: number;
@@ -22,29 +23,48 @@ export interface LoteData {
   fecha_recepcion?: string | null;
 }
 
-// 1. Obtener lista de medicamentos
 export const getMedicamentos = async (): Promise<Medicamento[]> => {
   try {
-    const response = await api.get("/api/almacen/medicamentos");
-    return response.data;
+    const response = await api.get("/api/medicamentos/");
+    return Array.isArray(response?.data) ? response.data : [];
   } catch (error) {
-    console.error("Error al obtener medicamentos:", error);
+    console.warn("Error al obtener medicamentos:", error);
     return [];
   }
 };
 
-// 2. Obtener lista de inventario
+export const registrarMedicamento = async (
+  medicamento: MedicamentoCreate
+): Promise<Medicamento> => {
+  const payload = {
+    nombre: medicamento.nombre.trim(),
+    principio_activo: medicamento.principio_activo?.trim() || null,
+    presentacion: medicamento.presentacion?.trim() || null,
+    requiere_receta: medicamento.requiere_receta ?? false,
+    descripcion: medicamento.descripcion?.trim() || null,
+    codigo_barras: medicamento.codigo_barras?.trim() || null,
+    categoria: medicamento.categoria?.trim() || null,
+  };
+
+  try {
+    const response = await api.post("/api/medicamentos/", payload);
+    return response.data;
+  } catch (error: any) {
+    console.warn("Error al registrar medicamento:", error?.response?.data || error);
+    throw error;
+  }
+};
+
 export const getInventario = async () => {
   try {
     const response = await api.get("/api/almacen/inventario");
-    return response.data;
+    return Array.isArray(response?.data) ? response.data : [];
   } catch (error) {
-    console.error("Error al obtener inventario:", error);
+    console.warn("Error al obtener inventario:", error);
     return [];
   }
 };
 
-// 3. Registrar entrada de lote (Sanitizado para evitar error 422 de Pydantic)
 export const registrarLoteInventario = async (loteData: LoteData) => {
   try {
     const payload = {
@@ -61,12 +81,35 @@ export const registrarLoteInventario = async (loteData: LoteData) => {
     const response = await api.post("/api/almacen/inventario", payload);
     return response.data;
   } catch (error: any) {
-    console.error("Error al registrar lote en la API:", error?.response?.data || error);
+    console.warn("Error al registrar lote en la API:", error?.response?.data || error);
     throw error;
   }
 };
 
-// 4. Evaluar interacciones farmacológicas
+export const actualizarLoteInventario = async (
+  id: number,
+  loteData: LoteData
+) => {
+  const payload = {
+    medicamento_id_FK: Number(loteData.medicamento_id_FK),
+    numero_lote: loteData.numero_lote?.trim() || null,
+    stock_actual: Number(loteData.stock_actual),
+    ubicacion: loteData.ubicacion?.trim() || null,
+    fecha_vencimiento: loteData.fecha_vencimiento || null,
+    precio_venta: loteData.precio_venta ?? null,
+    proveedor_id_FK: loteData.proveedor_id_FK ?? null,
+    fecha_recepcion: loteData.fecha_recepcion || null,
+  };
+
+  try {
+    const response = await api.put(`/api/almacen/inventario/${id}`, payload);
+    return response.data;
+  } catch (error: any) {
+    console.warn("Error al actualizar lote en la API:", error?.response?.data || error);
+    throw error;
+  }
+};
+
 export const evaluarInteracciones = async (medicamentosIds: number[]) => {
   try {
     const response = await api.post("/api/almacen/evaluar-interacciones", {
@@ -74,7 +117,7 @@ export const evaluarInteracciones = async (medicamentosIds: number[]) => {
     });
     return response.data;
   } catch (error) {
-    console.error("Error al evaluar interacciones:", error);
+    console.warn("Error al evaluar interacciones:", error);
     return { tiene_interaccion: false, detalles: [] };
   }
 };
