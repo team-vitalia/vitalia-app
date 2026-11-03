@@ -1,0 +1,11 @@
+# Uso local: docker compose up --build   ->  http://localhost:8080
+services:
+  web:
+    build:
+      context: .
+      args:
+        # URL del backend tal como la ve el NAVEGADOR
+        EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "8080:80"
+    restart: unless-stopped
