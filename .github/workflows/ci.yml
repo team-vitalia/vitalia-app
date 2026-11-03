@@ -1,27 +1,91 @@
-name: CI Frontend (Node.js)
+name: CI
 
+# CI en PRs y en cada push a main. El CD lo hace Vercel (integración con Git).
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [main, master]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [main, master]
+
+permissions:
+  contents: read
 
 jobs:
-  frontend-build:
+  quality:
+    name: Calidad y build web
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
-      - name: Checkout del código
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Configurar Node.js 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22' # mismo major que el Dockerfile
+          cache: npm
 
-      - name: Instalar dependencias, compilar y probar
+      - run: npm ci
+
+      # Cuando el proyecto compile limpio, quita continue-on-error para que bloquee.
+      - name: Typecheck
+        run: npx tsc --noEmit
+        continue-on-error: true
+
+      - name: Auditoría de dependencias (solo high/critical)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Compilar versión web de Expo
+        run: npx expo export --platform web
+        env:
+          CI: '1'
+          EXPO_PUBLIC_API_URL: https://vitalia-api-ve7c.onrender.com
+
+  docker:
+    name: Imagen Docker + pruebas E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Construir imagen (sin publicar)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: vitalia-web:ci
+          build-args: |
+            EXPO_PUBLIC_API_URL=https://vitalia-api-ve7c.onrender.com
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Levantar contenedor y smoke test
         run: |
-          npm ci
-          npm run build --if-present
-          npm test --if-present
+          docker run -d --name vitalia-web -p 8080:80 vitalia-web:ci
+          for i in $(seq 1 20); do
+            curl -fsS http://localhost:8080/ >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://localhost:8080/ >/dev/null
+          # La ruta SPA desconocida debe devolver index.html (fallback)
+          curl -fsS http://localhost:8080/ruta-que-no-existe >/dev/null
+          # El service worker no debe quedar cacheado por días
+          curl -sI http://localhost:8080/service-worker.js | tee /dev/stderr | grep -iE 'cache-control: (no-cache|no-store)|expires:'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Pruebas E2E (Selenium headless)
+        run: |
+          pip install selenium pytest
+          pytest pruebas -v
+        env:
+          BASE_URL: http://localhost:8080
+          HEADLESS: '1'
+
+      - name: Logs del contenedor si algo falló
+        if: failure()
+        run: docker logs vitalia-web

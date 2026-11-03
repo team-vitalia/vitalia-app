@@ -1,0 +1,17 @@
+node_modules
+dist
+web-build
+.expo
+.git
+.github
+.vscode
+.claude
+pruebas
+.env
+.env.*
+ios
+android
+*.md
+Dockerfile
+docker-compose.yml
+.dockerignore
