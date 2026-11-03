@@ -6,7 +6,7 @@ import { offlineStorage } from "./offlineStorage";
 let API_URL = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL;
 
 if (!API_URL || API_URL.includes("vercel.app")) {
-  API_URL = "http://localhost:8000";
+  API_URL = "https://vitalia-api-ve7c.onrender.com";
 }
 
 const api = axios.create({
