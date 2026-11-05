@@ -1,6 +1,6 @@
 import { FontAwesome } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
+import { AsistenteIAModal } from "../../components/AsistenteIAModal";
 
 interface Medicamento {
   id_PK: number;
@@ -34,7 +35,15 @@ interface ItemReceta {
 }
 
 export default function RecetaScreen() {
-  const { pacienteId, citaId } = useLocalSearchParams();
+  const {
+    pacienteId,
+    citaId,
+    sugerenciaNombre,
+    sugerenciaDosis,
+    sugerenciaFrecuencia,
+    sugerenciaDuracion,
+  } = useLocalSearchParams();
+  const [modalIAVisible, setModalIAVisible] = useState(false);
   const { token } = useAuth();
 
   const [busqueda, setBusqueda] = useState("");
@@ -53,6 +62,22 @@ export default function RecetaScreen() {
 
   const [items, setItems] = useState<ItemReceta[]>([]);
   const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    if (sugerenciaNombre && typeof sugerenciaNombre === "string") {
+      setBusqueda(sugerenciaNombre);
+      buscarMedicamentos(sugerenciaNombre);
+    }
+    if (sugerenciaDosis && typeof sugerenciaDosis === "string") {
+      setDosis(sugerenciaDosis);
+    }
+    if (sugerenciaFrecuencia && typeof sugerenciaFrecuencia === "string") {
+      setFrecuencia(sugerenciaFrecuencia);
+    }
+    if (sugerenciaDuracion && typeof sugerenciaDuracion === "string") {
+      setDuracion(sugerenciaDuracion);
+    }
+  }, [sugerenciaNombre, sugerenciaDosis, sugerenciaFrecuencia, sugerenciaDuracion]);
 
   const buscarMedicamentos = async (texto: string) => {
     setBusqueda(texto);
@@ -154,7 +179,52 @@ export default function RecetaScreen() {
           />
           <Text style={styles.backText}>Volver al Detalle</Text>
         </Pressable>
+
+        {Boolean(citaId) && (
+          <Pressable
+            style={[
+              styles.backButton,
+              {
+                backgroundColor: "#0F766E",
+                borderColor: "#115E59",
+                marginLeft: "auto",
+              },
+            ]}
+            onPress={() => setModalIAVisible(true)}
+          >
+            <FontAwesome
+              name="magic"
+              size={13}
+              color="#FFF"
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.backText, { color: "#FFF" }]}>
+              Asistente IA
+            </Text>
+          </Pressable>
+        )}
       </View>
+
+      {Boolean(sugerenciaNombre) && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: "#ECFDF5",
+            borderColor: "#A7F3D0",
+            borderWidth: 1,
+            borderRadius: 10,
+            padding: 12,
+            marginBottom: 15,
+            gap: 8,
+          }}
+        >
+          <FontAwesome name="check-circle" size={16} color="#059669" />
+          <Text style={{ fontSize: 13, color: "#065F46", fontWeight: "700", flex: 1 }}>
+            Sugerencia IA cargada: {String(sugerenciaNombre)} ({String(sugerenciaDosis || "")})
+          </Text>
+        </View>
+      )}
 
       <Text style={styles.smallTitle}>MÓDULO MÉDICO</Text>
       <Text style={styles.title}>Crear Receta</Text>
@@ -320,6 +390,21 @@ export default function RecetaScreen() {
             <Text style={styles.mainButtonText}>Guardar Receta Médica</Text>
           )}
         </Pressable>
+      )}
+      {Boolean(citaId) && (
+        <AsistenteIAModal
+          visible={modalIAVisible}
+          onClose={() => setModalIAVisible(false)}
+          citaId={Number(citaId)}
+          onSeleccionarMedicamentoParaReceta={(med) => {
+            setModalIAVisible(false);
+            setBusqueda(med.nombre_generico);
+            buscarMedicamentos(med.nombre_generico);
+            setDosis(med.presentacion_dosis);
+            setFrecuencia(med.frecuencia);
+            setDuracion(med.duracion_dias);
+          }}
+        />
       )}
     </ScrollView>
   );

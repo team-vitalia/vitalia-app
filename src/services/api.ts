@@ -1,13 +1,80 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { offlineStorage } from "./offlineStorage";
 
-let API_URL = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL;
+export function getLocalApiUrl(port: number = 8000): string {
+  if (Platform.OS === "web") {
+    if (typeof window !== "undefined" && window.location) {
+      const hostname = window.location.hostname;
+      if (hostname && hostname !== "localhost" && hostname !== "127.0.0.1") {
+        return `http://${hostname}:${port}`;
+      }
+    }
+    return `http://localhost:${port}`;
+  }
 
-if (!API_URL || API_URL.includes("vercel.app")) {
-  API_URL = "https://vitalia-api-ve7c.onrender.com";
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const hostIp = hostUri.split(":")[0];
+    if (hostIp) {
+      return `http://${hostIp}:${port}`;
+    }
+  }
+
+  if (Platform.OS === "android") {
+    return `http://10.0.2.2:${port}`;
+  }
+
+  return `http://localhost:${port}`;
 }
+
+/**
+ * Determina la URL base del backend estrictamente desde variables de entorno.
+ * Si no está definida y estamos en desarrollo (__DEV__), resuelve dinámicamente la IP local.
+ */
+export function resolveApiBaseUrl(): string {
+  const forceLocal =
+    process.env.EXPO_PUBLIC_USE_LOCAL === "true" ||
+    process.env.EXPO_PUBLIC_ENV === "local";
+
+  if (forceLocal) {
+    return getLocalApiUrl();
+  }
+
+  const envUrl = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL;
+
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl.trim().replace(/\/+$/, "");
+  }
+
+  // Si no se proporcionó variable de entorno y estamos en desarrollo, conectar a local
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    const localUrl = getLocalApiUrl();
+    console.info(`[API Service] EXPO_PUBLIC_API_URL no definida. Usando host local de desarrollo: ${localUrl}`);
+    return localUrl;
+  }
+
+  console.error(
+    "[API Service] ERROR: La variable de entorno EXPO_PUBLIC_API_URL no está configurada para este entorno."
+  );
+  return "";
+}
+
+export function getWsBaseUrl(apiUrl: string = resolveApiBaseUrl()): string {
+  const clean = apiUrl.replace(/\/+$/, "");
+  if (clean.startsWith("https://")) {
+    return clean.replace(/^https:\/\//, "wss://");
+  }
+  if (clean.startsWith("http://")) {
+    return clean.replace(/^http:\/\//, "ws://");
+  }
+  return clean ? `ws://${clean.replace(/^\/+/, "")}` : "";
+}
+
+export const API_URL = resolveApiBaseUrl();
+export const WS_URL = getWsBaseUrl(API_URL);
 
 const api = axios.create({
   baseURL: API_URL,
@@ -16,7 +83,7 @@ const api = axios.create({
   },
 });
 
-console.log("[API Service] baseURL configurada:", api.defaults.baseURL);
+console.log(`[API Service] baseURL: "${api.defaults.baseURL}" | wsURL: "${WS_URL}"`);
 
 api.interceptors.request.use(async (config) => {
   let token: string | null = null;

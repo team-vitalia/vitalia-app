@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
+import { AsistenteIAModal } from "../../components/AsistenteIAModal";
 
 interface CitaDetalle {
   id_PK: number;
@@ -56,6 +57,9 @@ export default function DetalleCitaScreen() {
   const [modalAlergiaVisible, setModalAlergiaVisible] = useState(false);
   const [nuevaAlergia, setNuevaAlergia] = useState("");
   const [severidadAlergia, setSeveridadAlergia] = useState("leve");
+
+  // Modal Asistente Clínico IA
+  const [modalIAVisible, setModalIAVisible] = useState(false);
 
   const cargarDetalle = async () => {
     if (!token || !id) return;
@@ -414,6 +418,38 @@ export default function DetalleCitaScreen() {
             </View>
           )}
 
+          {/* 👇 BOTÓN ASISTENTE CLÍNICO IA (GROQ) 👇 */}
+          {cita.paciente && (
+            <Pressable
+              style={[
+                styles.actionButton,
+                {
+                  backgroundColor: '#0F766E',
+                  marginTop: 15,
+                  borderWidth: 1,
+                  borderColor: '#115E59',
+                  shadowColor: '#0F766E',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 4,
+                  elevation: 3,
+                },
+              ]}
+              onPress={() => setModalIAVisible(true)}
+            >
+              <FontAwesome
+                name='magic'
+                size={16}
+                color='#FFF'
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.actionButtonText}>
+                Asistente Clínico IA (Soporte Diagnóstico)
+              </Text>
+            </Pressable>
+          )}
+          {/* 👆 FIN BOTÓN ASISTENTE CLÍNICO IA 👆 */}
+
           {/* 👇 BOTÓN DE RECETA 👇 */}
           {cita.paciente && (
             <Pressable
@@ -515,6 +551,35 @@ export default function DetalleCitaScreen() {
               </View>
             </View>
           </Modal>
+
+          {/* 👇 MODAL ASISTENTE CLÍNICO IA 👇 */}
+          <AsistenteIAModal
+            visible={modalIAVisible}
+            onClose={() => setModalIAVisible(false)}
+            citaId={cita.id_PK}
+            motivoInicial={cita.motivo || ""}
+            pacienteNombre={
+              cita.paciente
+                ? `${cita.paciente.nombre} ${cita.paciente.apellido}`
+                : "Paciente"
+            }
+            alergiasRegistradas={cita.paciente?.alergias || []}
+            onSeleccionarMedicamentoParaReceta={(med) => {
+              setModalIAVisible(false);
+              router.push({
+                pathname: "/doctor/receta",
+                params: {
+                  pacienteId: cita.paciente?.id_PK.toString(),
+                  citaId: cita.id_PK.toString(),
+                  sugerenciaNombre: med.nombre_generico,
+                  sugerenciaDosis: med.presentacion_dosis,
+                  sugerenciaFrecuencia: med.frecuencia,
+                  sugerenciaDuracion: med.duracion_dias,
+                },
+              });
+            }}
+          />
+          {/* 👆 FIN MODAL ASISTENTE CLÍNICO IA 👆 */}
 
           {/* 👇 MODAL PARA AGREGAR ALERGIA (CU-30) 👇 */}
           <Modal visible={modalAlergiaVisible} transparent animationType="fade">
