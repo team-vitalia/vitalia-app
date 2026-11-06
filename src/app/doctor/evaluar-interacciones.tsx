@@ -10,19 +10,24 @@ import {
 import { useRouter } from "expo-router";
 import { evaluarInteracciones, getMedicamentos } from "../../services/almacenService";
 import { AlertaInteraccion } from "../../components/AlertaInteraccion";
+import { BotonAnalisisIA } from "../../components/BotonAnalisisIA";
+import { usePlanFeatures } from "../../hooks/usePlanFeatures";
+import { MejoraPlanModal } from "../../components/MejoraPlanModal";
 
 export default function EvaluarInteraccionesScreen() {
   const router = useRouter();
+  const { canUseAI } = usePlanFeatures();
 
   const [catalogo, setCatalogo] = useState<any[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
+  const [analizando, setAnalizando] = useState<boolean>(false);
   const [seleccionados, setSeleccionados] = useState<any[]>([]);
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [resultado, setResultado] = useState<{
     tiene_interaccion: boolean;
     detalles: any[];
   }>({ tiene_interaccion: false, detalles: [] });
 
-  // 1. Cargar el catálogo de medicamentos desde la API de A3 al abrir la pantalla
   useEffect(() => {
     const cargarDatos = async () => {
       try {
@@ -34,22 +39,30 @@ export default function EvaluarInteraccionesScreen() {
         setCargando(false);
       }
     };
-    cargarDatos();
+    void cargarDatos();
   }, []);
 
-  // 2. Disparar automáticamente la evaluación cuando cambia la lista de seleccionados
-  useEffect(() => {
-    const verificar = async () => {
-      if (seleccionados.length >= 2) {
-        const ids = seleccionados.map((item) => item.id_PK);
-        const res = await evaluarInteracciones(ids);
-        setResultado(res);
-      } else {
-        setResultado({ tiene_interaccion: false, detalles: [] });
-      }
-    };
-    verificar();
-  }, [seleccionados]);
+  const ejecutarAnalisisIA = async () => {
+    if (!canUseAI()) {
+      setModalVisible(true);
+      return;
+    }
+
+    if (seleccionados.length < 2) {
+      return;
+    }
+
+    setAnalizando(true);
+    try {
+      const ids = seleccionados.map((item) => item.id_PK);
+      const res = await evaluarInteracciones(ids);
+      setResultado(res);
+    } catch (e) {
+      console.error("Error al evaluar interacciones con IA:", e);
+    } finally {
+      setAnalizando(false);
+    }
+  };
 
   const toggleSeleccion = (med: any) => {
     if (seleccionados.find((m) => m.id_PK === med.id_PK)) {
@@ -59,7 +72,6 @@ export default function EvaluarInteraccionesScreen() {
     }
   };
 
-  // 3. Manejador seguro para regresar sin que rompa si no hay historial en la pila
   const volverAlPanel = () => {
     if (router.canGoBack()) {
       router.back();
@@ -70,20 +82,27 @@ export default function EvaluarInteraccionesScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Botón para regresar con navegación segura */}
       <Pressable onPress={volverAlPanel} style={styles.backButton}>
         <Text style={styles.backText}>← Volver al panel</Text>
       </Pressable>
 
       <Text style={styles.title}>Evaluador de Interacciones</Text>
       <Text style={styles.subtitle}>
-        Selecciona 2 o más medicamentos para analizar incompatibilidades farmacológicas.
+        Selecciona 2 o más medicamentos para analizar incompatibilidades farmacológicas con IA.
       </Text>
 
-      {/* COMPONENTE DE ALERTA DE A3 */}
       <AlertaInteraccion resultado={resultado} />
 
-      {/* Lista de medicamentos seleccionados */}
+      <View style={styles.actionRow}>
+        <BotonAnalisisIA
+          onEjecutarAnalisis={ejecutarAnalisisIA}
+          disabled={seleccionados.length < 2}
+          cargando={analizando}
+          texto="Análisis IA"
+          testID="btn-analisis-ia"
+        />
+      </View>
+
       <Text style={styles.sectionHeader}>
         Fármacos a evaluar ({seleccionados.length})
       </Text>
@@ -99,7 +118,6 @@ export default function EvaluarInteraccionesScreen() {
         ))}
       </View>
 
-      {/* Catálogo de medicamentos */}
       <Text style={styles.sectionHeader}>Catálogo de Almacén</Text>
       {cargando ? (
         <ActivityIndicator size="large" color="#247F76" />
@@ -123,6 +141,12 @@ export default function EvaluarInteraccionesScreen() {
           );
         })
       )}
+
+      <MejoraPlanModal
+        visible={modalVisible}
+        funcionBloqueada="Análisis IA"
+        onClose={() => setModalVisible(false)}
+      />
     </ScrollView>
   );
 }
@@ -134,7 +158,8 @@ const styles = StyleSheet.create({
   backText: { color: "#247F76", fontWeight: "bold" },
   title: { fontSize: 24, fontWeight: "800", color: "#173F3A" },
   subtitle: { fontSize: 13, color: "#82938F", marginVertical: 6 },
-  sectionHeader: { fontSize: 16, fontWeight: "700", color: "#173F3A", marginTop: 20, marginBottom: 8 },
+  actionRow: { marginVertical: 14 },
+  sectionHeader: { fontSize: 16, fontWeight: "700", color: "#173F3A", marginTop: 14, marginBottom: 8 },
   chipContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { backgroundColor: "#247F76", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   chipText: { color: "#FFF", fontSize: 12, fontWeight: "bold" },

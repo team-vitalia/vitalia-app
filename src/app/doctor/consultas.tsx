@@ -14,6 +14,8 @@ import { useAuth } from "../../context/AuthContext";
 import { useGoogleCalendar } from "../../context/CalendarContext";
 import { useNotifications } from "../../context/NotificationsContext";
 import api from "../../services/api";
+import { usePlanFeatures } from "../../hooks/usePlanFeatures";
+import { MejoraPlanModal } from "../../components/MejoraPlanModal";
 
 interface Cita {
   id_PK: number;
@@ -44,6 +46,17 @@ export default function MisConsultasScreen() {
     conectarGoogle,
     desconectarGoogle,
   } = useGoogleCalendar();
+
+  const { canUseCalendar } = usePlanFeatures();
+  const [modalCalendarVisible, setModalCalendarVisible] = useState(false);
+
+  const handleConectarCalendar = () => {
+    if (!canUseCalendar()) {
+      setModalCalendarVisible(true);
+      return;
+    }
+    conectarGoogle();
+  };
 
   const [citas, setCitas] = useState<Cita[]>([]);
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
@@ -186,7 +199,7 @@ export default function MisConsultasScreen() {
               <Text style={styles.unlinkButtonText}>Desvincular</Text>
             </Pressable>
           ) : (
-            <Pressable style={styles.linkButton} onPress={conectarGoogle}>
+            <Pressable style={styles.linkButton} onPress={handleConectarCalendar} testID="btn-vincular-calendar">
               <FontAwesome name="google" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
               <Text style={styles.linkButtonText}>Vincular Calendar</Text>
             </Pressable>
@@ -314,6 +327,11 @@ export default function MisConsultasScreen() {
           );
         })
       )}
+          <MejoraPlanModal
+        visible={modalCalendarVisible}
+        funcionBloqueada="Google Calendar"
+        onClose={() => setModalCalendarVisible(false)}
+      />
     </ScrollView>
   );
 }
