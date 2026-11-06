@@ -9,7 +9,7 @@ export default function Index() {
     return (
       <View style={styles.loadingContainer}>
         <Image
-          source={{ uri: "/icons/icon-192.png" }}
+          source={require("../assets/images/logo.png")}
           style={styles.logo}
           resizeMode="contain"
         />
