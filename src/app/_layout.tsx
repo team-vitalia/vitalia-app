@@ -18,11 +18,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AuthProvider, useAuth } from "../context/AuthContext";
+import { AuthProvider, useAuth, type PlanActual } from "../context/AuthContext";
 import { CalendarProvider } from "../context/CalendarContext";
 import { NotificationsProvider } from "../context/NotificationsContext";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { InstallPrompt } from "../components/InstallPrompt";
+import { ModalPlanSuscripcion } from "../components/ModalPlanSuscripcion";
+import { UpgradeModal, CrownSvg } from "../components/UpgradeModal";
 import {
   BP_DESKTOP,
   BP_MOBILE,
@@ -99,6 +101,8 @@ const NAV: NavItem[] = [
   { key: "consultas", label: "Mis consultas", short: "Consultas", icon: "clipboard-outline", iconActive: "clipboard", ruta: "/doctor/consultas", roles: [2], activo: (p) => p.includes("/doctor/consultas") },
   { key: "pacientes", label: "Mis pacientes", short: "Pacientes", icon: "people-outline", iconActive: "people", ruta: "/doctor/pacientes", roles: [2], activo: (p) => p.includes("/doctor/pacientes") },
   { key: "usuarios", label: "Gestionar usuarios", short: "Usuarios", icon: "people-outline", iconActive: "people", ruta: "/admin/usuarios", roles: [1, 5], activo: (p) => p.includes("/admin/usuarios") },
+  { key: "plan-suscripcion", label: "Plan y suscripción", short: "Suscripción", icon: "card-outline", iconActive: "card", ruta: "plan-modal", roles: [1], activo: () => false },
+  { key: "contratos", label: "Contratos médicos", short: "Contratos", icon: "document-text-outline", iconActive: "document-text", ruta: "/admin/doctores", roles: [1], activo: (p) => p === "/admin/doctores" },
   { key: "inventario", label: "Almacén e inventario", short: "Inventario", icon: "cube-outline", iconActive: "cube", ruta: "/admin/inventario", roles: [1], activo: (p) => p.includes("/admin/inventario") },
   { key: "reportes", label: "Reportes", short: "Reportes", icon: "bar-chart-outline", iconActive: "bar-chart", ruta: "/admin/reportes", roles: [1, 5], activo: (p) => p.includes("/admin/reportes") },
   { key: "salas", label: "Salas y equipamiento", short: "Salas", icon: "business-outline", iconActive: "business", ruta: "/admin/salas", roles: [1, 5], activo: (p) => p.includes("/admin/salas") },
@@ -137,17 +141,51 @@ function Inicial({ c, nombre, size }: { c: Theme; nombre?: string; size: number 
   );
 }
 
+
+function obtenerRestriccionPlan(
+  itemKey: string,
+  planActual?: PlanActual
+): { bloqueado: boolean; planRequerido: string } {
+  const normalizar = (nombre?: string) =>
+    (nombre || "basico")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+  const plan = normalizar(planActual?.nombre_plan);
+
+  if (itemKey === "inventario") {
+    const permitido = plan === "profesional" || plan === "empresarial";
+    return { bloqueado: !permitido, planRequerido: "Profesional" };
+  }
+  if (itemKey === "reportes") {
+    const permitido = plan === "profesional" || plan === "empresarial";
+    return { bloqueado: !permitido, planRequerido: "Profesional" };
+  }
+  if (itemKey === "auditoria") {
+    const permitido = plan === "empresarial";
+    return { bloqueado: !permitido, planRequerido: "Empresarial" };
+  }
+  if (itemKey === "contratos") {
+    const permitido = !!planActual?.incluye_contratos || plan === "empresarial";
+    return { bloqueado: !permitido, planRequerido: "Empresarial" };
+  }
+  return { bloqueado: false, planRequerido: "" };
+}
+
 function SideItem({
   c,
   item,
   active,
   compact,
+  bloqueado,
   onPress,
 }: {
   c: Theme;
   item: NavItem;
   active: boolean;
   compact: boolean;
+  bloqueado?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -164,6 +202,7 @@ function SideItem({
         justifyContent: compact ? "center" : "flex-start",
         paddingHorizontal: compact ? 0 : 10,
         marginBottom: 6,
+        opacity: bloqueado ? 0.7 : 1,
         backgroundColor: active ? c.activeBg : s.hovered || s.pressed ? c.hoverBg : "transparent",
       })}
     >
@@ -206,6 +245,16 @@ function SideItem({
           {item.label}
         </Text>
       )}
+      {!compact && bloqueado && (
+        <View style={{ marginLeft: 6 }}>
+          <CrownSvg size={16} color="#FBBF24" />
+        </View>
+      )}
+      {compact && bloqueado && (
+        <View style={{ position: "absolute", top: 6, right: 6 }}>
+          <CrownSvg size={12} color="#FBBF24" />
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -218,9 +267,11 @@ function Sidebar({
   items,
   pathname,
   compact,
+  planActual,
   onSelect,
   onHome,
   onLogout,
+  onAbrirPlan,
 }: {
   c: Theme;
   nombre?: string;
@@ -229,9 +280,11 @@ function Sidebar({
   items: NavItem[];
   pathname: string;
   compact: boolean;
+  planActual?: PlanActual;
   onSelect: (item: NavItem) => void;
   onHome: () => void;
   onLogout: () => void;
+  onAbrirPlan?: () => void;
 }) {
   return (
     <View
@@ -278,7 +331,7 @@ function Sidebar({
       </Pressable>
 
       {compact ? (
-        <View style={{ alignItems: "center", marginBottom: 20 }}>
+        <View style={{ alignItems: "center", marginBottom: 16 }}>
           <Inicial c={c} nombre={nombre} size={44} />
         </View>
       ) : (
@@ -292,7 +345,7 @@ function Sidebar({
             borderRadius: 16,
             paddingHorizontal: 12,
             paddingVertical: 12,
-            marginBottom: 20,
+            marginBottom: 16,
             shadowColor: c.glow,
             shadowOffset: { width: 0, height: 6 },
             shadowOpacity: 0.3,
@@ -315,11 +368,65 @@ function Sidebar({
             </Text>
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
+            <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "800", color: "#FFFFFF" }}>
+              {nombre}
+            </Text>
             <Text numberOfLines={1} style={{ fontSize: 10, color: "rgba(255,255,255,0.75)", marginTop: 2 }}>
               {correo}
             </Text>
           </View>
         </LinearGradient>
+      )}
+
+      {!compact && rolId === 1 && onAbrirPlan && (
+        <Pressable
+          onPress={onAbrirPlan}
+          accessibilityRole="button"
+          accessibilityLabel="Ver y actualizar plan de la clínica"
+          style={(s: PState) => ({
+            backgroundColor: "rgba(34, 211, 238, 0.08)",
+            borderWidth: 1,
+            borderColor: "rgba(34, 211, 238, 0.28)",
+            borderRadius: 14,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            marginBottom: 16,
+            opacity: s.pressed ? 0.75 : 1,
+          })}
+        >
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons name="sparkles" size={13} color={c.primary} style={{ marginRight: 5 }} />
+              <Text style={{ fontSize: 11, fontWeight: "800", color: c.primary, letterSpacing: 0.6 }}>
+                PLAN {planActual?.nombre_plan?.toUpperCase() || "BÁSICO"}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={13} color={c.primary} />
+          </View>
+          <Text style={{ fontSize: 10.5, color: c.muted }}>
+            Ver información o cambiar de plan
+          </Text>
+        </Pressable>
+      )}
+
+      {compact && rolId === 1 && onAbrirPlan && (
+        <Pressable
+          onPress={onAbrirPlan}
+          accessibilityRole="button"
+          accessibilityLabel="Plan"
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: 12,
+            backgroundColor: "rgba(34, 211, 238, 0.12)",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 16,
+            alignSelf: "center",
+          }}
+        >
+          <Ionicons name="sparkles" size={18} color={c.primary} />
+        </Pressable>
       )}
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
@@ -328,19 +435,23 @@ function Sidebar({
             MENÚ PRINCIPAL
           </Text>
         )}
-        {items.map((item) => (
-          <SideItem
-            key={item.key}
-            c={c}
-            item={item}
-            active={item.activo(pathname)}
-            compact={compact}
-            onPress={() => onSelect(item)}
-          />
-        ))}
+        {items.map((item) => {
+          const res = obtenerRestriccionPlan(item.key, planActual);
+          return (
+            <SideItem
+              key={item.key}
+              c={c}
+              item={item}
+              active={item.activo(pathname)}
+              compact={compact}
+              bloqueado={res.bloqueado}
+              onPress={() => onSelect(item)}
+            />
+          );
+        })}
       </ScrollView>
 
-            <View style={{ paddingTop: 10 }}>
+      <View style={{ paddingTop: 10 }}>
         <Pressable
           onPress={onLogout}
           accessibilityRole="button"
@@ -382,15 +493,19 @@ function MobileHeader({
   topInset,
   rolId,
   notifActiva,
+  planActual,
   onHome,
   onNotif,
+  onAbrirPlan,
 }: {
   c: Theme;
   topInset: number;
   rolId?: number;
   notifActiva: boolean;
+  planActual?: PlanActual;
   onHome: () => void;
   onNotif: () => void;
+  onAbrirPlan?: () => void;
 }) {
   return (
     <View
@@ -428,25 +543,51 @@ function MobileHeader({
           </View>
         </Pressable>
 
-        <Pressable
-          onPress={onNotif}
-          accessibilityRole="button"
-          accessibilityLabel="Notificaciones"
-          style={(s: PState) => ({
-            width: 42,
-            height: 42,
-            borderRadius: 13,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: notifActiva ? c.activeBg : s.pressed ? c.hoverBg : "transparent",
-          })}
-        >
-          <Ionicons
-            name={notifActiva ? "notifications" : "notifications-outline"}
-            size={22}
-            color={notifActiva ? c.activeFg : c.muted}
-          />
-        </Pressable>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          {rolId === 1 && onAbrirPlan && (
+            <Pressable
+              onPress={onAbrirPlan}
+              accessibilityRole="button"
+              accessibilityLabel="Ver plan contratado"
+              style={{
+                backgroundColor: "rgba(34, 211, 238, 0.12)",
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: "rgba(34, 211, 238, 0.28)",
+                paddingHorizontal: 8,
+                paddingVertical: 5,
+                flexDirection: "row",
+                alignItems: "center",
+                marginRight: 8,
+              }}
+            >
+              <Ionicons name="sparkles" size={12} color={c.primary} style={{ marginRight: 4 }} />
+              <Text style={{ fontSize: 11, fontWeight: "800", color: c.primary }}>
+                {planActual?.nombre_plan || "Básico"}
+              </Text>
+            </Pressable>
+          )}
+
+          <Pressable
+            onPress={onNotif}
+            accessibilityRole="button"
+            accessibilityLabel="Notificaciones"
+            style={(s: PState) => ({
+              width: 42,
+              height: 42,
+              borderRadius: 13,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: notifActiva ? c.activeBg : s.pressed ? c.hoverBg : "transparent",
+            })}
+          >
+            <Ionicons
+              name={notifActiva ? "notifications" : "notifications-outline"}
+              size={22}
+              color={notifActiva ? c.activeFg : c.muted}
+            />
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -568,9 +709,11 @@ function MoreSheet({
   rolId,
   items,
   pathname,
+  planActual,
   onClose,
   onSelect,
   onLogout,
+  onAbrirPlan,
 }: {
   c: Theme;
   visible: boolean;
@@ -580,9 +723,11 @@ function MoreSheet({
   rolId?: number;
   items: NavItem[];
   pathname: string;
+  planActual?: PlanActual;
   onClose: () => void;
   onSelect: (item: NavItem) => void;
   onLogout: () => void;
+  onAbrirPlan?: () => void;
 }) {
   const t = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -636,7 +781,7 @@ function MoreSheet({
           />
 
           <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 18 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
               <Inicial c={c} nombre={nombre} size={48} />
               <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
                 <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: "800", color: c.text }}>
@@ -651,6 +796,39 @@ function MoreSheet({
               </View>
             </View>
 
+            {rolId === 1 && onAbrirPlan && (
+              <Pressable
+                onPress={() => {
+                  onClose();
+                  onAbrirPlan();
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Información del plan"
+                style={{
+                  backgroundColor: "rgba(34, 211, 238, 0.08)",
+                  borderWidth: 1,
+                  borderColor: "rgba(34, 211, 238, 0.28)",
+                  borderRadius: 14,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  marginBottom: 16,
+                }}
+              >
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Ionicons name="sparkles" size={15} color={c.primary} style={{ marginRight: 6 }} />
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: c.primary, letterSpacing: 0.5 }}>
+                      PLAN {planActual?.nombre_plan?.toUpperCase() || "BÁSICO"}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: c.primary }}>Actualizar</Text>
+                </View>
+                <Text style={{ fontSize: 11, color: c.muted, marginTop: 4 }}>
+                  Consulta las características o pásate al siguiente nivel.
+                </Text>
+              </Pressable>
+            )}
+
             {items.length > 0 && (
               <View style={{ marginBottom: 8 }}>
                 <Text style={{ fontSize: 11, fontWeight: "700", color: c.muted, marginBottom: 8, marginLeft: 4 }}>
@@ -658,6 +836,7 @@ function MoreSheet({
                 </Text>
                 {items.map((item) => {
                   const active = item.activo(pathname);
+                  const res = obtenerRestriccionPlan(item.key, planActual);
                   return (
                     <Pressable
                       key={item.key}
@@ -670,6 +849,7 @@ function MoreSheet({
                         borderRadius: 14,
                         paddingHorizontal: 10,
                         marginBottom: 6,
+                        opacity: res.bloqueado ? 0.7 : 1,
                         backgroundColor: active ? c.activeBg : s.pressed ? c.hoverBg : "transparent",
                       })}
                     >
@@ -687,6 +867,11 @@ function MoreSheet({
                         <Ionicons name={active ? item.iconActive : item.icon} size={20} color={c.activeFg} />
                       </View>
                       <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: c.text }}>{item.label}</Text>
+                      {res.bloqueado && (
+                        <View style={{ marginRight: 8 }}>
+                          <CrownSvg size={16} color="#FBBF24" />
+                        </View>
+                      )}
                       <Ionicons name="chevron-forward" size={18} color={c.muted} />
                     </Pressable>
                   );
@@ -722,13 +907,23 @@ function MoreSheet({
 function AppLayout() {
   const router = useRouter();
   const pathname = usePathname();
-  const { usuario, logout, cargando } = useAuth();
+  const { usuario, logout, cargando, planActual } = useAuth();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
   const c = useDarkTheme();
 
   const [masAbierto, setMasAbierto] = useState(false);
+  const [modalPlanVisible, setModalPlanVisible] = useState(false);
+  const [upgradeModalInfo, setUpgradeModalInfo] = useState<{
+    visible: boolean;
+    modulo: string;
+    planRequerido: string;
+  }>({
+    visible: false,
+    modulo: "",
+    planRequerido: "Superior",
+  });
   const topInset = Math.max(insets.top, Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0);
 
   const isMobile = width < BP_MOBILE;
@@ -775,8 +970,22 @@ function AppLayout() {
 
   const seleccionar = (item: NavItem) => {
     setMasAbierto(false);
-    if (item.key === "inicio") irInicio();
-    else router.push(item.ruta as any);
+    const restriccion = obtenerRestriccionPlan(item.key, planActual);
+    if (restriccion.bloqueado) {
+      setUpgradeModalInfo({
+        visible: true,
+        modulo: item.label,
+        planRequerido: restriccion.planRequerido,
+      });
+      return;
+    }
+    if (item.key === "plan-suscripcion") {
+      setModalPlanVisible(true);
+    } else if (item.key === "inicio") {
+      irInicio();
+    } else {
+      router.push(item.ruta as any);
+    }
   };
 
   return (
@@ -792,9 +1001,11 @@ function AppLayout() {
           items={itemsLateral}
           pathname={pathname}
           compact={isCompactRail}
+          planActual={planActual}
           onSelect={seleccionar}
           onHome={irInicio}
           onLogout={cerrarSesion}
+          onAbrirPlan={() => setModalPlanVisible(true)}
         />
       )}
 
@@ -805,8 +1016,10 @@ function AppLayout() {
             topInset={topInset}
             rolId={rolId}
             notifActiva={notifActiva}
+            planActual={planActual}
             onHome={irInicio}
             onNotif={() => router.push("/notificaciones" as any)}
+            onAbrirPlan={() => setModalPlanVisible(true)}
           />
         )}
 
@@ -839,11 +1052,31 @@ function AppLayout() {
           rolId={rolId}
           items={masItems}
           pathname={pathname}
+          planActual={planActual}
           onClose={() => setMasAbierto(false)}
           onSelect={seleccionar}
           onLogout={cerrarSesion}
+          onAbrirPlan={() => setModalPlanVisible(true)}
         />
       )}
+
+      <ModalPlanSuscripcion
+        visible={modalPlanVisible}
+        onClose={() => setModalPlanVisible(false)}
+      />
+
+      <UpgradeModal
+        visible={upgradeModalInfo.visible}
+        modulo={upgradeModalInfo.modulo}
+        planRequerido={upgradeModalInfo.planRequerido}
+        onClose={() =>
+          setUpgradeModalInfo((prev) => ({ ...prev, visible: false }))
+        }
+        onVerPlanes={() => {
+          setUpgradeModalInfo((prev) => ({ ...prev, visible: false }));
+          setModalPlanVisible(true);
+        }}
+      />
     </View>
   );
 }

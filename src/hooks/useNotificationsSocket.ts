@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Platform } from "react-native";
 import { toast } from "gooey-toast";
 import "gooey-toast/styles.css";
+import { WS_URL } from "../services/api";
 
 export interface WSMessage {
   id: string;
@@ -12,26 +13,7 @@ export interface WSMessage {
 export type ConnectionStatus = "DISCONNECTED" | "CONNECTING" | "CONNECTED" | "RECONNECTING";
 
 const getBaseWsUrl = (): string => {
-  let apiUrl = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL;
-
-  if (!apiUrl || apiUrl.includes("vercel.app")) {
-    apiUrl = "https://vitalia-api-ve7c.onrender.com";
-  }
-
-  if (apiUrl) {
-    if (apiUrl.startsWith("https://")) {
-      return apiUrl.replace(/^https:\/\//, "wss://").replace(/\/+$/, "");
-    }
-    if (apiUrl.startsWith("http://")) {
-      return apiUrl.replace(/^http:\/\//, "ws://").replace(/\/+$/, "");
-    }
-    return apiUrl.replace(/\/+$/, "");
-  }
-
-  if (Platform.OS === "android") {
-    return "ws://10.0.2.2:8000";
-  }
-  return "ws://127.0.0.1:8000";
+  return WS_URL;
 };
 
 export function useNotificationsSocket(

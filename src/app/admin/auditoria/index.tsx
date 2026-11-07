@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useAuth } from "../../../context/AuthContext";
+import { UpgradeModal, CrownSvg } from "../../../components/UpgradeModal";
 
 import {
   Aviso,
@@ -75,6 +77,15 @@ function DetalleCambios({ reg }: { reg: RegistroAuditoria }) {
 
 export default function AuditoriaScreen() {
   const { token } = useAccesoC2();
+  const { planActual } = useAuth();
+  const [modalUpgradeVisible, setModalUpgradeVisible] = useState(false);
+
+  const planNormalizado = (planActual?.nombre_plan || "basico")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  const tieneAccesoAuditoria = planNormalizado === "empresarial";
 
   const [registros, setRegistros] = useState<RegistroAuditoria[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -94,6 +105,11 @@ export default function AuditoriaScreen() {
 
   const cargar = useCallback(async () => {
     if (!token) return;
+    if (!tieneAccesoAuditoria) {
+      setCargando(false);
+      setModalUpgradeVisible(true);
+      return;
+    }
     try {
       setCargando(true);
       setError("");
@@ -251,4 +267,75 @@ const s = StyleSheet.create({
   diffCampo: { fontWeight: "800", color: C.texto2, flex: 0.9 },
   diffCabecera: { fontWeight: "800", backgroundColor: "#F1F8F6", color: C.texto2 },
   diffNuevo: { fontWeight: "800", color: C.primario },
+  premiumBannerWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    alignItems: "center",
+  },
+  premiumCard: {
+    width: "100%",
+    maxWidth: 580,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2ECE9",
+    paddingVertical: 36,
+    paddingHorizontal: 26,
+    alignItems: "center",
+  },
+  premiumIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "rgba(251, 191, 36, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.35)",
+  },
+  badgePremium: {
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    borderColor: "rgba(251, 191, 36, 0.35)",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginBottom: 12,
+  },
+  badgePremiumTexto: {
+    color: "#B45309",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  premiumTitulo: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1E293B",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  premiumDescripcion: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#64748B",
+    textAlign: "center",
+    marginBottom: 24,
+    paddingHorizontal: 12,
+  },
+  botonDesbloquear: {
+    backgroundColor: "#0EA5E9",
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  botonDesbloquearTexto: {
+    color: "#FFFFFF",
+    fontSize: 14.5,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
 });

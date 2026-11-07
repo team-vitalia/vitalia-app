@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, Pressable } from "react-native";
+import { useAuth } from "../../../context/AuthContext";
+import { UpgradeModal, CrownSvg } from "../../../components/UpgradeModal";
 
 import {
   Aviso,
@@ -136,6 +138,16 @@ function PorEstado({ datos }: { datos: Record<string, number> }) {
 
 export default function ReportesScreen() {
   const { token } = useAccesoC2();
+  const { planActual } = useAuth();
+  const [modalUpgradeVisible, setModalUpgradeVisible] = useState(false);
+
+  const planNormalizado = (planActual?.nombre_plan || "basico")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  const tieneAccesoReportes =
+    planNormalizado === "profesional" || planNormalizado === "empresarial";
 
   const [tipo, setTipo] = useState<TipoReporte>("ocupacion");
   const [desde, setDesde] = useState("");
@@ -400,6 +412,52 @@ export default function ReportesScreen() {
     }
   };
 
+  if (!tieneAccesoReportes) {
+    return (
+      <PantallaC2
+        titulo="Reportes"
+        subtitulo="Indicadores y analíticas de operación de la clínica."
+      >
+        <View style={s.premiumBannerWrapper}>
+          <View style={s.premiumCard}>
+            <View style={s.premiumIconContainer}>
+              <CrownSvg size={36} color="#FBBF24" />
+            </View>
+
+            <View style={s.badgePremium}>
+              <Text style={s.badgePremiumTexto}>
+                FUNCIÓN EXCLUSIVA PLAN PROFESIONAL
+              </Text>
+            </View>
+
+            <Text style={s.premiumTitulo}>Reportes y Analíticas Avanzadas</Text>
+
+            <Text style={s.premiumDescripcion}>
+              Visualiza gráficos de ocupación de salas, citas por médico, tiempos de espera en recepción, recetas emitidas y exportación en formatos PDF y Excel para optimizar la toma de decisiones clínicas.
+            </Text>
+
+            <Pressable
+              style={s.botonDesbloquear}
+              onPress={() => setModalUpgradeVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Ver planes de mejora"
+            >
+              <Text style={s.botonDesbloquearTexto}>Ver planes de mejora</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <UpgradeModal
+          visible={modalUpgradeVisible}
+          modulo="Reportes y Analíticas"
+          planRequerido="Profesional"
+          descripcion="La generación y exportación de reportes clínicos y analíticas avanzadas están disponibles a partir del Plan Profesional. Actualiza tu suscripción para desbloquear este módulo."
+          onClose={() => setModalUpgradeVisible(false)}
+        />
+      </PantallaC2>
+    );
+  }
+
   return (
     <PantallaC2 titulo="Reportes" subtitulo="Indicadores de operación de la clínica calculados con los datos del sistema.">
       <Opciones valor={tipo} onChange={setTipo} opciones={REPORTES.map((r) => ({ valor: r.valor, etiqueta: r.etiqueta }))} />
@@ -478,4 +536,75 @@ const s = StyleSheet.create({
   punto: { width: 10, height: 10, borderRadius: 5 },
   leyendaTexto: { fontSize: 11, color: C.texto },
   nota: { fontSize: 10, color: C.muted, marginTop: 4 },
+  premiumBannerWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    alignItems: "center",
+  },
+  premiumCard: {
+    width: "100%",
+    maxWidth: 580,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2ECE9",
+    paddingVertical: 36,
+    paddingHorizontal: 26,
+    alignItems: "center",
+  },
+  premiumIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "rgba(251, 191, 36, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.35)",
+  },
+  badgePremium: {
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    borderColor: "rgba(251, 191, 36, 0.35)",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginBottom: 12,
+  },
+  badgePremiumTexto: {
+    color: "#B45309",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  premiumTitulo: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1E293B",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  premiumDescripcion: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#64748B",
+    textAlign: "center",
+    marginBottom: 24,
+    paddingHorizontal: 12,
+  },
+  botonDesbloquear: {
+    backgroundColor: "#0EA5E9",
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  botonDesbloquearTexto: {
+    color: "#FFFFFF",
+    fontSize: 14.5,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
 });

@@ -1,4 +1,4 @@
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createContext,
   ReactNode,
@@ -6,9 +6,25 @@ import {
   useEffect,
   useState,
 } from "react";
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../services/api";
+
+export interface PlanActual {
+  nombre_plan: "Básico" | "Clínica" | "Profesional" | "Empresarial" | string;
+  incluye_ia: boolean;
+  incluye_calendar: boolean;
+  incluye_contratos?: boolean;
+  limite_personal?: number;
+  limite_pacientes?: number;
+  limite_ia_mensual?: number;
+  precio_mensual?: number;
+}
+
+export interface ClinicaInfo {
+  id?: number;
+  nombre_comercial?: string;
+  activa?: boolean;
+  plan_actual: PlanActual;
+}
 
 export interface Usuario {
   id?: number;
@@ -19,25 +35,33 @@ export interface Usuario {
   rol_id?: number;
   rol_id_FK?: number;
   estado?: string;
+  clinica?: ClinicaInfo | null;
+  plan_actual?: PlanActual;
 }
 
-interface AuthContextType {
+export const DEFAULT_PLAN: PlanActual = {
+  nombre_plan: "Básico",
+  incluye_ia: false,
+  incluye_calendar: false,
+  incluye_contratos: false,
+  limite_personal: 3,
+  limite_pacientes: 100,
+  limite_ia_mensual: 0,
+  precio_mensual: 599.0,
+};
+
+export interface AuthContextType {
   usuario: Usuario | null;
   token: string | null;
-
-  login: (
-    correo_electronico: string,
-    password: string
-  ) => Promise<Usuario>;
-
+  clinica: ClinicaInfo | null;
+  planActual: PlanActual;
+  login: (correo_electronico: string, password: string) => Promise<Usuario>;
   logout: () => void;
-
+  recargarSesion: () => Promise<void>;
   cargando: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -51,17 +75,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [token, setToken] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
 
-  // Restaurar la sesión guardada al abrir la aplicación.
   useEffect(() => {
     let montado = true;
 
     const cargarSesionPersistente = async () => {
       try {
-        const valores = await AsyncStorage.multiGet([
-          TOKEN_KEY,
-          USER_KEY,
-        ]);
-
+        const valores = await AsyncStorage.multiGet([TOKEN_KEY, USER_KEY]);
         const tokenGuardado = valores[0][1];
         const usuarioGuardado = valores[1][1];
 
@@ -76,10 +95,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUsuario(usuarioParseado);
         }
 
-        api.defaults.headers.common["Authorization"] =
-          `Bearer ${tokenGuardado}`;
+        api.defaults.headers.common["Authorization"] = `Bearer ${tokenGuardado}`;
 
-        // Comprobar si el token continúa siendo válido.
         try {
           const respuesta = await api.get("/api/auth/me", {
             headers: {
@@ -89,37 +106,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           if (respuesta.data && montado) {
             setUsuario(respuesta.data);
-
-            await AsyncStorage.setItem(
-              USER_KEY,
-              JSON.stringify(respuesta.data)
-            );
+            await AsyncStorage.setItem(USER_KEY, JSON.stringify(respuesta.data));
           }
         } catch (error: any) {
           if (error?.response?.status === 401) {
-            await AsyncStorage.multiRemove([
-              TOKEN_KEY,
-              USER_KEY,
-            ]);
-
+            await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
             delete api.defaults.headers.common["Authorization"];
 
             if (montado) {
               setToken(null);
               setUsuario(null);
             }
-          } else {
-            console.warn(
-              "No se pudo verificar la sesión en el servidor:",
-              error?.message ?? error
-            );
           }
         }
       } catch (error) {
-        console.error(
-          "Error al rehidratar sesión:",
-          error
-        );
+        console.error("Error al rehidratar sesión:", error);
       } finally {
         if (montado) {
           setCargando(false);
@@ -134,7 +135,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
 
-  // Iniciar sesión.
   const login = async (
     correo_electronico: string,
     password: string
@@ -150,13 +150,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const accessToken = respuesta.data?.access_token;
 
       if (!accessToken) {
-        throw new Error(
-          "No se recibió el token de acceso."
-        );
+        throw new Error("No se recibió el token de acceso.");
       }
 
-      api.defaults.headers.common["Authorization"] =
-        `Bearer ${accessToken}`;
+      api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
 
       const respuestaUsuario = await api.get("/api/auth/me", {
         headers: {
@@ -166,7 +163,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const usuarioActual: Usuario = respuestaUsuario.data;
 
-      // Guardar la sesión en el almacenamiento multiplataforma.
       await AsyncStorage.multiSet([
         [TOKEN_KEY, accessToken],
         [USER_KEY, JSON.stringify(usuarioActual)],
@@ -180,30 +176,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const status = error?.response?.status;
       const detail = error?.response?.data?.detail;
 
-      if (
-        status === 401 ||
-        detail === "Correo o contraseña incorrectos"
-      ) {
-        console.warn("Inicio de sesión rechazado: Correo o contraseña incorrectos");
-        throw new Error(
-          "Correo o contraseña incorrectos"
-        );
+      if (status === 401 || detail === "Correo o contraseña incorrectos") {
+        throw new Error("Correo o contraseña incorrectos");
       }
-
-      // Cuenta desactivada: es una respuesta esperada de la API, no un error de la app.
-      if (status === 403 && typeof detail === "string") {
-        console.warn("Inicio de sesión rechazado:", detail);
-        throw new Error(detail);
-      }
-
-      console.error("ERROR LOGIN COMPLETO:", error);
-      console.error("URL DE LA API:", api.defaults.baseURL);
-      console.error("CÓDIGO HTTP:", error?.response?.status);
-      console.error(
-        "RESPUESTA DEL SERVIDOR:",
-        error?.response?.data
-      );
-      console.error("MENSAJE:", error?.message);
 
       if (!error?.response) {
         throw new Error(
@@ -212,40 +187,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       throw new Error(
-        typeof detail === "string"
-          ? detail
-          : "No se pudo iniciar sesión."
+        typeof detail === "string" ? detail : "No se pudo iniciar sesión."
       );
     } finally {
       setCargando(false);
     }
   };
 
-  // Cerrar sesión.
   const logout = () => {
     setUsuario(null);
     setToken(null);
-
     delete api.defaults.headers.common["Authorization"];
 
-    void AsyncStorage.multiRemove([
-      TOKEN_KEY,
-      USER_KEY,
-    ]).catch((error) => {
-      console.error(
-        "Error al limpiar la sesión:",
-        error
-      );
+    void AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]).catch((error) => {
+      console.error("Error al limpiar la sesión:", error);
     });
   };
+
+  const recargarSesion = async (): Promise<void> => {
+    const tokenActual = token || (await AsyncStorage.getItem(TOKEN_KEY));
+    if (!tokenActual) return;
+
+    try {
+      api.defaults.headers.common["Authorization"] = `Bearer ${tokenActual}`;
+      const respuesta = await api.get("/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${tokenActual}`,
+        },
+      });
+
+      if (respuesta.data) {
+        setUsuario(respuesta.data);
+        await AsyncStorage.setItem(USER_KEY, JSON.stringify(respuesta.data));
+      }
+    } catch (error) {
+      console.error("Error al recargar sesión:", error);
+    }
+  };
+
+  const clinica = usuario?.clinica ?? null;
+  const planActual = clinica?.plan_actual ?? usuario?.plan_actual ?? DEFAULT_PLAN;
 
   return (
     <AuthContext.Provider
       value={{
         usuario,
         token,
+        clinica,
+        planActual,
         login,
         logout,
+        recargarSesion,
         cargando,
       }}
     >
@@ -254,14 +246,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 }
 
-// Hook para acceder al contexto de autenticación.
 export function useAuth() {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error(
-      "useAuth debe utilizarse dentro de AuthProvider"
-    );
+    throw new Error("useAuth debe utilizarse dentro de AuthProvider");
   }
 
   return context;
