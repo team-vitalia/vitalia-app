@@ -77,7 +77,7 @@ describe("ModalPlanSuscripcion - Información y Actualización de Plan", () => {
     fireEvent.click(botonActualizar);
 
     expect(spyLinking).toHaveBeenCalledWith(
-      expect.stringContaining("plan_id=P-5CC29855SK5899208NLWUMWI")
+      expect.stringContaining("plan_id=P-18S21614P2665104JNLXJNKI")
     );
 
     Platform.OS = originalPlatform;

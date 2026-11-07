@@ -73,6 +73,20 @@ export function getWsBaseUrl(apiUrl: string = resolveApiBaseUrl()): string {
   return clean ? `ws://${clean.replace(/^\/+/, "")}` : "";
 }
 
+export function resolveLandingUrl(): string {
+  const envUrl = process.env.EXPO_PUBLIC_LANDING_URL;
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl.trim().replace(/\/+$/, "");
+  }
+  if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.hostname) {
+    const host = window.location.hostname;
+    if (host !== "localhost" && host !== "127.0.0.1") {
+      return "https://landing-ten-sigma-42.vercel.app";
+    }
+  }
+  return "http://localhost:3000";
+}
+
 export const API_URL = resolveApiBaseUrl();
 export const WS_URL = getWsBaseUrl(API_URL);
 

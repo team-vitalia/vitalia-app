@@ -33,4 +33,27 @@ describe("Componente UpgradeModal", () => {
     fireEvent.click(btnCerrar);
     expect(mockClose).toHaveBeenCalledTimes(1);
   });
+
+  test("abre la URL de la landing al pulsar ver planes sin callback onVerPlanes", () => {
+    const spyOpen = jest.spyOn(window, "open").mockImplementation(() => null);
+
+    render(
+      <UpgradeModal
+        visible={true}
+        modulo="Almacén"
+        planRequerido="Clínica"
+        onClose={jest.fn()}
+      />
+    );
+
+    const btnVer = screen.getByTestId("btn-ver-planes");
+    fireEvent.click(btnVer);
+
+    expect(spyOpen).toHaveBeenCalledWith(
+      expect.stringContaining("#planes"),
+      "_blank"
+    );
+
+    spyOpen.mockRestore();
+  });
 });

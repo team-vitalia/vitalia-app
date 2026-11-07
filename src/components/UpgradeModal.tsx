@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
+import { resolveLandingUrl } from "../services/api";
 
 export interface UpgradeModalProps {
   visible: boolean;
@@ -57,7 +58,8 @@ export function UpgradeModal({
       return;
     }
 
-    const urlPlanes = "http://localhost:3000/#planes";
+    const baseUrl = resolveLandingUrl();
+    const urlPlanes = `${baseUrl}/#planes`;
     if (Platform.OS === "web") {
       if (typeof window !== "undefined") {
         window.open(urlPlanes, "_blank");

@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { useAuth } from "../context/AuthContext";
+import { resolveLandingUrl } from "../services/api";
 
 export interface PlanItem {
   id: string;
@@ -31,7 +32,7 @@ export const CATALOGO_PLANES: PlanItem[] = [
     id: "basico",
     nombre: "Básico",
     precio: 599,
-    paypalPlanId: "P-61L31376NX417651DNLWUKSQ",
+    paypalPlanId: "P-9JA53339DW996433FNLXJMJA",
     limitePersonal: 3,
     limitePacientes: 100,
     incluyeCalendar: false,
@@ -48,7 +49,7 @@ export const CATALOGO_PLANES: PlanItem[] = [
     id: "clinica",
     nombre: "Clínica",
     precio: 1199,
-    paypalPlanId: "P-5CC29855SK5899208NLWUMWI",
+    paypalPlanId: "P-18S21614P2665104JNLXJNKI",
     limitePersonal: 10,
     limitePacientes: 500,
     incluyeCalendar: true,
@@ -66,7 +67,7 @@ export const CATALOGO_PLANES: PlanItem[] = [
     id: "profesional",
     nombre: "Profesional",
     precio: 2199,
-    paypalPlanId: "P-5J121652NS326140HNLWUNNI",
+    paypalPlanId: "P-32342459V8640593NNLXJN7A",
     limitePersonal: 20,
     limitePacientes: 1500,
     incluyeCalendar: true,
@@ -84,7 +85,7 @@ export const CATALOGO_PLANES: PlanItem[] = [
     id: "empresarial",
     nombre: "Empresarial",
     precio: 4499,
-    paypalPlanId: "P-64643939B6992035JNLWUOCY",
+    paypalPlanId: "P-3BM73023B1884583RNLXJOSQ",
     limitePersonal: 30,
     limitePacientes: 5000,
     incluyeCalendar: true,
@@ -99,6 +100,8 @@ export const CATALOGO_PLANES: PlanItem[] = [
     ],
   },
 ];
+
+const obtenerLandingUrl = resolveLandingUrl;
 
 interface ModalPlanSuscripcionProps {
   visible: boolean;
@@ -121,7 +124,8 @@ export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionP
   const siguientePlan = planesSuperiores.length > 0 ? planesSuperiores[0] : null;
 
   const handleIrAPagar = (plan: PlanItem) => {
-    const urlCheckout = `http://localhost:3000/registro?plan_id=${plan.paypalPlanId}`;
+    const baseUrl = obtenerLandingUrl();
+    const urlCheckout = `${baseUrl}/registro?plan_id=${plan.paypalPlanId}`;
 
     if (Platform.OS === "web") {
       window.open(urlCheckout, "_blank");
