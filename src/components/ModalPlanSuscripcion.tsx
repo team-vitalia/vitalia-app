@@ -8,11 +8,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
 import { useAuth } from "../context/AuthContext";
-import { resolveLandingUrl } from "../services/api";
+import api, { resolveLandingUrl } from "../services/api";
 
 export interface PlanItem {
   id: string;
@@ -109,8 +110,10 @@ interface ModalPlanSuscripcionProps {
 }
 
 export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionProps) {
-  const { clinica, planActual, recargarSesion } = useAuth();
+  const { usuario, clinica, planActual, recargarSesion } = useAuth();
   const [actualizando, setActualizando] = useState(false);
+  const [vinculandoManual, setVinculandoManual] = useState(false);
+  const [subscriptionIdInput, setSubscriptionIdInput] = useState("");
   const [mensajeEstado, setMensajeEstado] = useState<string | null>(null);
 
   const nombreNormalizado = (planActual?.nombre_plan || "Básico").toLowerCase().trim();
@@ -125,7 +128,21 @@ export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionP
 
   const handleIrAPagar = (plan: PlanItem) => {
     const baseUrl = obtenerLandingUrl();
-    const urlCheckout = `${baseUrl}/registro?plan_id=${plan.paypalPlanId}`;
+    const clinicaId = clinica?.id || (usuario as any)?.clinica_id_FK || (usuario as any)?.clinica_id || "";
+    const correoAdmin = usuario?.correo_electronico || usuario?.correo || "";
+    const nombreClinica = clinica?.nombre_comercial || "";
+    const nombreAdmin = usuario?.nombre || "";
+
+    const params = new URLSearchParams({
+      plan_id: plan.paypalPlanId,
+      clinica_id: String(clinicaId),
+      correo: correoAdmin,
+      nombre_clinica: nombreClinica,
+      nombre_admin: nombreAdmin,
+      modo: "upgrade",
+    });
+
+    const urlCheckout = `${baseUrl}/registro?${params.toString()}`;
 
     if (Platform.OS === "web") {
       window.open(urlCheckout, "_blank");
@@ -133,20 +150,70 @@ export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionP
       Linking.openURL(urlCheckout).catch(() => {});
     }
 
-    setMensajeEstado(`Se ha abierto la pasarela de PayPal para el ${plan.nombre}. Al concluir el pago, pulsa 'Sincronizar Plan'.`);
+    setMensajeEstado(
+      `Se ha abierto PayPal para actualizar tu clínica (${nombreClinica || "actual"}) al Plan ${plan.nombre}. Al concluir tu pago, pulsa 'Sincronizar Plan' o ingresa tu ID de suscripción abajo.`
+    );
   };
 
   const handleSincronizarPlan = async () => {
     setActualizando(true);
     setMensajeEstado(null);
 
+    const planPrevio = (planActual?.nombre_plan || "Básico").toLowerCase().trim();
+
     try {
       await recargarSesion();
-      setMensajeEstado("Plan actualizado y sincronizado exitosamente.");
+
+      const res = await api.get("/api/auth/me");
+      const planActualServidor = res.data?.clinica?.plan_actual?.nombre_plan || "Básico";
+      const planActualNorm = planActualServidor.toLowerCase().trim();
+
+      if (planActualNorm !== planPrevio) {
+        setMensajeEstado(`¡Plan actualizado y sincronizado exitosamente al Plan ${planActualServidor}!`);
+      } else {
+        setMensajeEstado(
+          `Tu clínica continúa registrada en el Plan ${planActualServidor}. Si completaste tu pago en PayPal, ingresa el ID de Suscripción (ej. I-XXXXX) en la casilla de vinculación manual.`
+        );
+      }
     } catch {
-      setMensajeEstado("No se pudo sincronizar en este momento. Intenta de nuevo.");
+      setMensajeEstado("No se pudo conectar con el servidor para sincronizar. Intenta de nuevo.");
     } finally {
       setActualizando(false);
+    }
+  };
+
+  const handleVincularManual = async () => {
+    const subIdLimpio = subscriptionIdInput.trim();
+    if (!subIdLimpio) {
+      setMensajeEstado("Ingresa el ID de Suscripción de PayPal (inicia con 'I-') que te proporcionó PayPal.");
+      return;
+    }
+
+    setVinculandoManual(true);
+    setMensajeEstado(null);
+
+    try {
+      const clinicaId = clinica?.id;
+      const correoAdmin = usuario?.correo_electronico || usuario?.correo || "";
+      const planDestino = siguientePlan?.paypalPlanId || planActualDetalle.paypalPlanId;
+
+      await api.post("/api/suscripciones/confirmar", {
+        subscription_id: subIdLimpio,
+        clinica_id: clinicaId,
+        paypal_plan_id: planDestino,
+        correo: correoAdmin,
+      });
+
+      await recargarSesion();
+      setMensajeEstado(`¡Suscripción ${subIdLimpio} vinculada con éxito! Tu plan ha sido actualizado.`);
+      setSubscriptionIdInput("");
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.data?.detail ||
+        "No se pudo vincular la suscripción. Verifica que el ID sea correcto.";
+      setMensajeEstado(errorMsg);
+    } finally {
+      setVinculandoManual(false);
     }
   };
 
@@ -334,6 +401,39 @@ export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionP
                 </Text>
               </View>
             )}
+
+            <View style={styles.seccionManual}>
+              <View style={styles.filaManualHeader}>
+                <Ionicons name="link-outline" size={16} color="#22D3EE" style={{ marginRight: 6 }} />
+                <Text style={styles.subtituloManual}>Vincular Pago de PayPal Directamente</Text>
+              </View>
+              <Text style={styles.descripcionManual}>
+                Si ya autorizaste tu suscripción en PayPal, pega aquí el ID de Suscripción (inicia con "I-") para actualizar tu clínica al instante:
+              </Text>
+              <View style={styles.filaInputManual}>
+                <TextInput
+                  value={subscriptionIdInput}
+                  onChangeText={setSubscriptionIdInput}
+                  placeholder="ID de Suscripción (ej. I-KPCG02C8AMXP)"
+                  placeholderTextColor="#64748B"
+                  style={styles.inputManual}
+                  autoCapitalize="characters"
+                  testID="input-subscription-id"
+                />
+                <Pressable
+                  onPress={handleVincularManual}
+                  disabled={vinculandoManual}
+                  style={styles.btnVincularManual}
+                  accessibilityRole="button"
+                  accessibilityLabel="Vincular Suscripción"
+                  testID="btn-vincular-manual"
+                >
+                  <Text style={styles.btnVincularManualTexto}>
+                    {vinculandoManual ? "Vinculando..." : "Vincular"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
 
             <Pressable
               onPress={handleSincronizarPlan}
@@ -639,5 +739,57 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#8FA3BF",
     fontWeight: "600",
+  },
+  seccionManual: {
+    backgroundColor: "#0B1220",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#1F2A44",
+    padding: 16,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  filaManualHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  subtituloManual: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#E2E8F0",
+  },
+  descripcionManual: {
+    fontSize: 11,
+    color: "#8FA3BF",
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  filaInputManual: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  inputManual: {
+    flex: 1,
+    backgroundColor: "#111A2C",
+    borderWidth: 1,
+    borderColor: "#1F2A44",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: "#FFFFFF",
+    fontSize: 12,
+  },
+  btnVincularManual: {
+    backgroundColor: "#0EA5E9",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  btnVincularManualTexto: {
+    color: "#04222B",
+    fontSize: 12,
+    fontWeight: "800",
   },
 });

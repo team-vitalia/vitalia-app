@@ -32,7 +32,7 @@ interface NotificationsContextType {
 const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const { usuario } = useAuth();
+  const { usuario, recargarSesion } = useAuth();
   const router = useRouter();
 
   const userId = usuario ? usuario.id ?? usuario.id_PK : null;
@@ -64,6 +64,24 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!socketData.messages.length) return;
+    const ultimo = socketData.messages[0];
+    const data = ultimo?.data;
+    if (!data) return;
+
+    if (
+      data.type === "plan_actualizado" ||
+      data.type === "suscripcion_actualizada" ||
+      data.event === "suscripcion_actualizada"
+    ) {
+      const clinicaIdUsuario = usuario?.clinica?.id || (usuario as any)?.clinica_id_FK;
+      if (!clinicaIdUsuario || !data.clinica_id || Number(data.clinica_id) === Number(clinicaIdUsuario)) {
+        void recargarSesion();
+      }
+    }
+  }, [socketData.messages, recargarSesion, usuario]);
 
   const combinedMessages = [...extraMessages, ...socketData.messages];
 
