@@ -190,6 +190,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         );
       }
 
+      // Cuenta desactivada: es una respuesta esperada de la API, no un error de la app.
+      if (status === 403 && typeof detail === "string") {
+        console.warn("Inicio de sesión rechazado:", detail);
+        throw new Error(detail);
+      }
+
       console.error("ERROR LOGIN COMPLETO:", error);
       console.error("URL DE LA API:", api.defaults.baseURL);
       console.error("CÓDIGO HTTP:", error?.response?.status);
