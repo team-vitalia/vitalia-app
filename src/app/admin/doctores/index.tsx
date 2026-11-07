@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +17,7 @@ import { useFocusEffect } from "expo-router";
 import DocumentoContrato from "../../../components/DocumentoContrato";
 import SelectorFecha from "../../../components/SelectorFecha";
 import { useAuth } from "../../../context/AuthContext";
+import { UpgradeModal, CrownSvg } from "../../../components/UpgradeModal";
 import api from "../../../services/api";
 
 interface Doctor {
@@ -65,7 +67,16 @@ const TIPOS_CONTRATO = [
 ];
 
 export default function ContratosScreen() {
-  const { token } = useAuth();
+  const { token, planActual } = useAuth();
+  const [modalUpgradeVisible, setModalUpgradeVisible] = useState(false);
+
+  const planNormalizado = (planActual?.nombre_plan || "basico")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  const tieneAccesoContratos =
+    !!planActual?.incluye_contratos || planNormalizado === "empresarial";
 
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [doctores, setDoctores] = useState<Doctor[]>([]);
@@ -128,6 +139,12 @@ export default function ContratosScreen() {
       return;
     }
 
+    if (!tieneAccesoContratos) {
+      setCargando(false);
+      setModalUpgradeVisible(true);
+      return;
+    }
+
     setCargando(true);
 
     try {
@@ -161,7 +178,7 @@ export default function ContratosScreen() {
     } finally {
       setCargando(false);
     }
-  }, [token]);
+  }, [token, tieneAccesoContratos]);
 
   useFocusEffect(
     useCallback(() => {
@@ -356,7 +373,61 @@ export default function ContratosScreen() {
       (item) => item.id_PK === id
     );
 
+    if (!tieneAccesoContratos) {
     return (
+      <View style={styles.contenedor}>
+        <View style={styles.encabezado}>
+          <Text style={styles.titulo}>Contratos médicos</Text>
+          <Text style={styles.subtitulo}>
+            Administra la contratación y condiciones legales de los médicos de tu clínica.
+          </Text>
+        </View>
+
+        <View style={styles.premiumBannerWrapper}>
+          <View style={styles.premiumCard}>
+            <View style={styles.premiumIconContainer}>
+              <CrownSvg size={36} color="#FBBF24" />
+            </View>
+
+            <View style={styles.badgePremium}>
+              <Text style={styles.badgePremiumTexto}>
+                FUNCIÓN EXCLUSIVA PLAN EMPRESARIAL
+              </Text>
+            </View>
+
+            <Text style={styles.premiumTitulo}>
+              Gestión de Contratos Médicos
+            </Text>
+
+            <Text style={styles.premiumDescripcion}>
+              Formaliza y gestiona las relaciones contractuales, honorarios, vigencias y documentación legal de tu equipo médico en una sola plataforma segura y auditada.
+            </Text>
+
+            <Pressable
+              style={styles.botonDesbloquear}
+              onPress={() => setModalUpgradeVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Ver planes de mejora"
+            >
+              <Text style={styles.botonDesbloquearTexto}>
+                Ver planes de mejora
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <UpgradeModal
+          visible={modalUpgradeVisible}
+          modulo="Gestión de Contratos"
+          planRequerido="Empresarial"
+          descripcion="La gestión de contratos laborales y de honorarios para tu cuerpo médico es exclusiva del Plan Empresarial. Actualiza tu plan para desbloquear la generación de documentos legales, control de salarios y acuerdos profesionales."
+          onClose={() => setModalUpgradeVisible(false)}
+        />
+      </View>
+    );
+  }
+
+  return (
       doctor?.nombre_completo ??
       doctor?.nombre ??
       doctor?.usuario?.nombre ??
@@ -1162,5 +1233,88 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "700",
+  },
+  premiumBannerWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    alignItems: "center",
+  },
+  premiumCard: {
+    width: "100%",
+    maxWidth: 580,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2ECE9",
+    paddingVertical: 36,
+    paddingHorizontal: 26,
+    alignItems: "center",
+    ...(Platform.OS === "web"
+      ? ({
+          boxShadow:
+            "0 14px 34px rgba(15, 76, 69, 0.08), 0 0 0 1px rgba(15, 76, 69, 0.04)",
+        } as any)
+      : {
+          shadowColor: "#0F4C45",
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.1,
+          shadowRadius: 16,
+          elevation: 4,
+        }),
+  },
+  premiumIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "rgba(251, 191, 36, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.35)",
+  },
+  badgePremium: {
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    borderColor: "rgba(251, 191, 36, 0.35)",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginBottom: 12,
+  },
+  badgePremiumTexto: {
+    color: "#B45309",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  premiumTitulo: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1E293B",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  premiumDescripcion: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#64748B",
+    textAlign: "center",
+    marginBottom: 24,
+    paddingHorizontal: 12,
+  },
+  botonDesbloquear: {
+    backgroundColor: "#0EA5E9",
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  botonDesbloquearTexto: {
+    color: "#FFFFFF",
+    fontSize: 14.5,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 });

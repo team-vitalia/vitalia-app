@@ -29,6 +29,7 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { HeroSaludo } from "../../components/DashboardUI";
 import { useAuth } from "../../context/AuthContext";
+import { UpgradeModal, CrownSvg } from "../../components/UpgradeModal";
 import { useTheme, type Theme } from "../../theme/theme";
 
 /* ============================================================
@@ -348,17 +349,51 @@ function TabsBar({
 
 /* ---------- Accesos ---------- */
 
+
+function restriccionAcceso(
+  id: string,
+  planActual?: any
+): { bloqueado: boolean; planRequerido: string } {
+  const normalizar = (n?: string) =>
+    (n || "basico")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+  const plan = normalizar(planActual?.nombre_plan);
+
+  if (id === "inventario") {
+    const permitido = plan === "profesional" || plan === "empresarial";
+    return { bloqueado: !permitido, planRequerido: "Profesional" };
+  }
+  if (id === "contratos") {
+    const permitido = !!planActual?.incluye_contratos || plan === "empresarial";
+    return { bloqueado: !permitido, planRequerido: "Empresarial" };
+  }
+  if (id === "reportes") {
+    const permitido = plan === "profesional" || plan === "empresarial";
+    return { bloqueado: !permitido, planRequerido: "Profesional" };
+  }
+  if (id === "auditoria") {
+    const permitido = plan === "empresarial";
+    return { bloqueado: !permitido, planRequerido: "Empresarial" };
+  }
+  return { bloqueado: false, planRequerido: "" };
+}
+
 function AccesoTile({
   c,
   m,
   acceso,
   frecuente,
+  bloqueado,
   onPress,
 }: {
   c: Theme;
   m: Medidas;
   acceso: Acceso;
   frecuente: boolean;
+  bloqueado?: boolean;
   onPress: () => void;
 }) {
   const s = useRef(new Animated.Value(1)).current;
@@ -384,6 +419,7 @@ function AccesoTile({
               flex: 1,
               minHeight: m.r(128),
               padding: m.r(14),
+              opacity: bloqueado ? 0.70 : 1,
               borderColor: state.hovered ? color : c.glassBorder,
               shadowOpacity: state.hovered ? 0.16 : 0.08,
             }}
@@ -409,7 +445,21 @@ function AccesoTile({
                 <Ionicons name={acceso.icon} size={m.r(22)} color={state.hovered ? "#FFFFFF" : color} />
               </View>
 
-              {frecuente && (
+              {bloqueado ? (
+                <View
+                  accessibilityLabel="Función bloqueada por plan"
+                  style={{
+                    width: m.r(26),
+                    height: m.r(26),
+                    borderRadius: m.r(13),
+                    backgroundColor: "rgba(251, 191, 36, 0.16)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <CrownSvg size={m.r(15)} color="#FBBF24" />
+                </View>
+              ) : frecuente ? (
                 <View
                   accessibilityLabel="Acceso frecuente"
                   style={{
@@ -423,7 +473,7 @@ function AccesoTile({
                 >
                   <Ionicons name="trending-up-outline" size={m.r(14)} color={c.primary} />
                 </View>
-              )}
+              ) : null}
             </View>
 
             <Text numberOfLines={2} style={{ fontSize: 14 * m.esc, fontWeight: "800", color: c.text }}>
@@ -676,7 +726,16 @@ function OcupacionSalas({
 
 export default function AdminScreen() {
   const router = useRouter();
-  const { usuario } = useAuth();
+  const { usuario, planActual } = useAuth();
+  const [modalUpgrade, setModalUpgrade] = useState<{
+    visible: boolean;
+    modulo: string;
+    planRequerido: string;
+  }>({
+    visible: false,
+    modulo: "",
+    planRequerido: "Superior",
+  });
   const c = useTheme();
   const { width } = useWindowDimensions();
 
@@ -744,13 +803,22 @@ export default function AdminScreen() {
 
   const abrirAcceso = useCallback(
     (a: Acceso) => {
+      const res = restriccionAcceso(a.id, planActual);
+      if (res.bloqueado) {
+        setModalUpgrade({
+          visible: true,
+          modulo: a.titulo,
+          planRequerido: res.planRequerido,
+        });
+        return;
+      }
       const siguiente = { ...clicsRef.current, [a.id]: (clicsRef.current[a.id] || 0) + 1 };
       clicsRef.current = siguiente;
       setClics(siguiente);
       AsyncStorage.setItem(claveClics, JSON.stringify(siguiente)).catch(() => {});
       router.push(a.ruta as any);
     },
-    [claveClics, router]
+    [claveClics, router, planActual]
   );
 
   const ordenados = useMemo(
@@ -1007,6 +1075,14 @@ export default function AdminScreen() {
           )}
         </View>
       </Animated.View>
+      <UpgradeModal
+        visible={modalUpgrade.visible}
+        modulo={modalUpgrade.modulo}
+        planRequerido={modalUpgrade.planRequerido}
+        onClose={() =>
+          setModalUpgrade((prev) => ({ ...prev, visible: false }))
+        }
+      />
     </View>
   );
 }

@@ -12,6 +12,11 @@ export interface PlanActual {
   nombre_plan: "Básico" | "Clínica" | "Profesional" | "Empresarial" | string;
   incluye_ia: boolean;
   incluye_calendar: boolean;
+  incluye_contratos?: boolean;
+  limite_personal?: number;
+  limite_pacientes?: number;
+  limite_ia_mensual?: number;
+  precio_mensual?: number;
 }
 
 export interface ClinicaInfo {
@@ -38,6 +43,11 @@ export const DEFAULT_PLAN: PlanActual = {
   nombre_plan: "Básico",
   incluye_ia: false,
   incluye_calendar: false,
+  incluye_contratos: false,
+  limite_personal: 3,
+  limite_pacientes: 100,
+  limite_ia_mensual: 0,
+  precio_mensual: 599.0,
 };
 
 export interface AuthContextType {
@@ -47,6 +57,7 @@ export interface AuthContextType {
   planActual: PlanActual;
   login: (correo_electronico: string, password: string) => Promise<Usuario>;
   logout: () => void;
+  recargarSesion: () => Promise<void>;
   cargando: boolean;
 }
 
@@ -193,6 +204,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   };
 
+  const recargarSesion = async (): Promise<void> => {
+    const tokenActual = token || (await AsyncStorage.getItem(TOKEN_KEY));
+    if (!tokenActual) return;
+
+    try {
+      api.defaults.headers.common["Authorization"] = `Bearer ${tokenActual}`;
+      const respuesta = await api.get("/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${tokenActual}`,
+        },
+      });
+
+      if (respuesta.data) {
+        setUsuario(respuesta.data);
+        await AsyncStorage.setItem(USER_KEY, JSON.stringify(respuesta.data));
+      }
+    } catch (error) {
+      console.error("Error al recargar sesión:", error);
+    }
+  };
+
   const clinica = usuario?.clinica ?? null;
   const planActual = clinica?.plan_actual ?? usuario?.plan_actual ?? DEFAULT_PLAN;
 
@@ -205,6 +237,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         planActual,
         login,
         logout,
+        recargarSesion,
         cargando,
       }}
     >
