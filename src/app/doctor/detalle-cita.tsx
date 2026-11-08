@@ -13,9 +13,9 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { AsistenteIAModal } from "../../components/AsistenteIAModal";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
-import { AsistenteIAModal } from "../../components/AsistenteIAModal";
 
 interface CitaDetalle {
   id_PK: number;
@@ -449,6 +449,33 @@ export default function DetalleCitaScreen() {
             </Pressable>
           )}
           {/* 👆 FIN BOTÓN ASISTENTE CLÍNICO IA 👆 */}
+
+          {/* 👇 BOTÓN REGISTRAR CONSULTA / EXPEDIENTE 👇 */}
+          {cita.paciente && (
+            <>
+              <Pressable
+                style={[styles.actionButton, { backgroundColor: "#0F766E", marginTop: 15 }]}
+                onPress={() =>
+                  router.push({
+                    pathname: "/doctor/registrar-consulta",
+                    params: { citaId: cita.id_PK.toString(), pacienteId: cita.paciente?.id_PK.toString() },
+                  })
+                }
+              >
+                <FontAwesome name="stethoscope" size={16} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.actionButtonText}>Registrar consulta</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.actionButton, { backgroundColor: "#2B6CB0", marginTop: 15 }]}
+                onPress={() =>
+                  router.push({ pathname: "/doctor/expediente", params: { pacienteId: cita.paciente?.id_PK.toString() } })
+                }
+              >
+                <FontAwesome name="folder-open-o" size={16} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={styles.actionButtonText}>Ver expediente</Text>
+              </Pressable>
+            </>
+          )}
 
           {/* 👇 BOTÓN DE RECETA 👇 */}
           {cita.paciente && (

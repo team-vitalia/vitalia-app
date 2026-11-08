@@ -178,10 +178,10 @@ export default function PacienteScreen() {
                       <AccionCard c={c} esc={esc} icon="time-outline" color={c.info} titulo="Mis citas" descripcion="Consulta tus próximas citas y horarios de atención." onPress={() => irATab(1)} />
                     </View>
                     <View style={{ width: anchoAcceso }}>
-                      <AccionCard c={c} esc={esc} icon="document-text-outline" color={c.primary} titulo="Mi expediente" descripcion="Consulta la información disponible de tu expediente clínico." />
+                      <AccionCard c={c} esc={esc} icon="document-text-outline" color={c.primary} titulo="Mi expediente" descripcion="Consulta la información disponible de tu expediente clínico." onPress={() => router.push("/paciente/expediente")} />
                     </View>
                     <View style={{ width: anchoAcceso }}>
-                      <AccionCard c={c} esc={esc} icon="checkmark-circle-outline" color={c.success} titulo="Mi seguimiento" descripcion="Consulta información relacionada con tu atención." />
+                      <AccionCard c={c} esc={esc} icon="medkit-outline" color={c.success} titulo="Mis recetas" descripcion="Consulta tus recetas y si ya fueron entregadas en almacén." onPress={() => router.push("/paciente/recetas")} />
                     </View>
                   </View>
 

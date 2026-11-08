@@ -18,13 +18,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { InstallPrompt } from "../components/InstallPrompt";
+import { ModalPlanSuscripcion } from "../components/ModalPlanSuscripcion";
+import { OfflineBanner } from "../components/OfflineBanner";
+import { CrownSvg, UpgradeModal } from "../components/UpgradeModal";
 import { AuthProvider, useAuth, type PlanActual } from "../context/AuthContext";
 import { CalendarProvider } from "../context/CalendarContext";
 import { NotificationsProvider } from "../context/NotificationsContext";
-import { OfflineBanner } from "../components/OfflineBanner";
-import { InstallPrompt } from "../components/InstallPrompt";
-import { ModalPlanSuscripcion } from "../components/ModalPlanSuscripcion";
-import { UpgradeModal, CrownSvg } from "../components/UpgradeModal";
 import {
   BP_DESKTOP,
   BP_MOBILE,
@@ -84,6 +84,7 @@ const RUTAS_INICIO: Record<number, string> = {
   3: "/paciente",
   4: "/recepcion",
   5: "/coordinador",
+  6: "/almacen",
 };
 
 const ROLES: Record<number, string> = {
@@ -92,18 +93,25 @@ const ROLES: Record<number, string> = {
   3: "Paciente",
   4: "Recepción",
   5: "Coordinador",
+  6: "Almacén",
 };
 
 const NAV: NavItem[] = [
-  { key: "inicio", label: "Inicio", short: "Inicio", icon: "home-outline", iconActive: "home", ruta: "inicio", roles: [1, 2, 3, 4, 5], activo: (p) => Object.values(RUTAS_INICIO).includes(p) },
+  { key: "inicio", label: "Inicio", short: "Inicio", icon: "home-outline", iconActive: "home", ruta: "inicio", roles: [1, 2, 3, 4, 5, 6], activo: (p) => Object.values(RUTAS_INICIO).includes(p) },
   { key: "citas", label: "Citas médicas", short: "Citas", icon: "calendar-outline", iconActive: "calendar", ruta: "/recepcion/citas", roles: [4], activo: (p) => p.includes("/recepcion/citas") },
   { key: "cola", label: "Lista de espera", short: "Espera", icon: "list-outline", iconActive: "list", ruta: "/recepcion/cola", roles: [4], activo: (p) => p.includes("/recepcion/cola") },
+  { key: "espera-citas", label: "Espera de citas", short: "Pendientes", icon: "hourglass-outline", iconActive: "hourglass", ruta: "/recepcion/espera", roles: [4], activo: (p) => p.includes("/recepcion/espera") },
   { key: "consultas", label: "Mis consultas", short: "Consultas", icon: "clipboard-outline", iconActive: "clipboard", ruta: "/doctor/consultas", roles: [2], activo: (p) => p.includes("/doctor/consultas") },
   { key: "pacientes", label: "Mis pacientes", short: "Pacientes", icon: "people-outline", iconActive: "people", ruta: "/doctor/pacientes", roles: [2], activo: (p) => p.includes("/doctor/pacientes") },
+  { key: "mis-recetas", label: "Mis recetas", short: "Recetas", icon: "medkit-outline", iconActive: "medkit", ruta: "/paciente/recetas", roles: [3], activo: (p) => p.includes("/paciente/recetas") },
+  { key: "mi-expediente", label: "Mi expediente", short: "Expediente", icon: "folder-open-outline", iconActive: "folder-open", ruta: "/paciente/expediente", roles: [3], activo: (p) => p.includes("/paciente/expediente") },
   { key: "usuarios", label: "Gestionar usuarios", short: "Usuarios", icon: "people-outline", iconActive: "people", ruta: "/admin/usuarios", roles: [1, 5], activo: (p) => p.includes("/admin/usuarios") },
   { key: "plan-suscripcion", label: "Plan y suscripción", short: "Suscripción", icon: "card-outline", iconActive: "card", ruta: "plan-modal", roles: [1], activo: () => false },
   { key: "contratos", label: "Contratos médicos", short: "Contratos", icon: "document-text-outline", iconActive: "document-text", ruta: "/admin/doctores", roles: [1], activo: (p) => p === "/admin/doctores" },
-  { key: "inventario", label: "Almacén e inventario", short: "Inventario", icon: "cube-outline", iconActive: "cube", ruta: "/admin/inventario", roles: [1], activo: (p) => p.includes("/admin/inventario") },
+  { key: "inventario", label: "Almacén e inventario", short: "Inventario", icon: "cube-outline", iconActive: "cube", ruta: "/admin/inventario", roles: [1, 6], activo: (p) => p.includes("/admin/inventario") },
+  { key: "alm-dispensacion", label: "Dispensación de recetas", short: "Dispensar", icon: "medkit-outline", iconActive: "medkit", ruta: "/almacen/dispensacion", roles: [6], activo: (p) => p.includes("/almacen/dispensacion") },
+  { key: "alm-caducidades", label: "Caducidades", short: "Caducidad", icon: "alarm-outline", iconActive: "alarm", ruta: "/almacen/caducidades", roles: [6], activo: (p) => p.includes("/almacen/caducidades") },
+  { key: "alm-movimientos", label: "Movimientos de inventario", short: "Movimientos", icon: "swap-vertical-outline", iconActive: "swap-vertical", ruta: "/almacen/movimientos", roles: [6], activo: (p) => p.includes("/almacen/movimientos") },
   { key: "reportes", label: "Reportes", short: "Reportes", icon: "bar-chart-outline", iconActive: "bar-chart", ruta: "/admin/reportes", roles: [1, 5], activo: (p) => p.includes("/admin/reportes") },
   { key: "salas", label: "Salas y equipamiento", short: "Salas", icon: "business-outline", iconActive: "business", ruta: "/admin/salas", roles: [1, 5], activo: (p) => p.includes("/admin/salas") },
   { key: "auditoria", label: "Auditoría", short: "Auditoría", icon: "receipt-outline", iconActive: "receipt", ruta: "/admin/auditoria", roles: [1, 5], activo: (p) => p.includes("/admin/auditoria") },
@@ -116,7 +124,7 @@ const NOTIF: NavItem = {
   icon: "notifications-outline",
   iconActive: "notifications",
   ruta: "/notificaciones",
-  roles: [1, 2, 3, 4, 5],
+  roles: [1, 2, 3, 4, 5, 6],
   activo: (p) => p === "/notificaciones",
 };
 
@@ -154,7 +162,7 @@ function obtenerRestriccionPlan(
       .trim();
   const plan = normalizar(planActual?.nombre_plan);
 
-  if (itemKey === "inventario") {
+  if (itemKey === "inventario" || itemKey.startsWith("alm-")) {
     const permitido = plan === "profesional" || plan === "empresarial";
     return { bloqueado: !permitido, planRequerido: "Profesional" };
   }

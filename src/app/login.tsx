@@ -187,6 +187,7 @@ const irSegunRol = (router: ReturnType<typeof useRouter>, rolId: number | undefi
     case 3: router.replace("/paciente"); return true;
     case 4: router.replace("/recepcion"); return true;
     case 5: router.replace("/coordinador"); return true;
+    case 6: router.replace("/almacen"); return true;
     default: return false;
   }
 };
