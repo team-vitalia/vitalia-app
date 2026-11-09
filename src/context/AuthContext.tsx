@@ -180,6 +180,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new Error("Correo o contraseña incorrectos");
       }
 
+      if (status === 403) {
+        const err403 = new Error(
+          typeof detail === "string"
+            ? detail
+            : "El acceso a esta clínica ha sido suspendido. Por favor, contacte a soporte o regularice su suscripción."
+        );
+        (err403 as any).status = 403;
+        (err403 as any).isSuspended = true;
+        (err403 as any).detail = detail;
+        throw err403;
+      }
+
       if (!error?.response) {
         throw new Error(
           "No se pudo conectar con el servidor. Verifica la URL de la API y la conexión."

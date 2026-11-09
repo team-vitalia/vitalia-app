@@ -10,6 +10,7 @@ import {
   Easing,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -1296,6 +1297,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [errorLogin, setErrorLogin] = useState("");
+  const [modalSuspensionVisible, setModalSuspensionVisible] = useState(false);
   const [recordarSesion, setRecordarSesion] = useState(true);
 
   // Pestaña activa: inicio de sesión o registro de pacientes (misma pantalla, sin cambiar de ruta)
@@ -1385,6 +1387,25 @@ export default function LoginScreen() {
       }
     } catch (error: any) {
       console.log("ERROR MOSTRADO EN LOGIN:", error?.message);
+      const is403 =
+        error?.status === 403 ||
+        error?.isSuspended ||
+        error?.response?.status === 403 ||
+        (typeof error?.message === "string" &&
+          (error.message.toLowerCase().includes("suspendid") ||
+           error.message.toLowerCase().includes("suspensión")));
+
+      if (is403) {
+        const mensajeSuspension =
+          error?.detail ||
+          error?.message ||
+          "El acceso a esta clínica ha sido suspendido. Por favor, contacte a soporte o regularice su suscripción.";
+        setErrorLogin(mensajeSuspension);
+        setModalSuspensionVisible(true);
+        avisar("Clínica Suspendida", mensajeSuspension);
+        return;
+      }
+
       if (error?.message === "Correo o contraseña incorrectos") {
         setErrorLogin("Correo o contraseña incorrectos.");
         avisar("Inicio de sesión", "Correo o contraseña incorrectos.");
@@ -1787,6 +1808,32 @@ export default function LoginScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={modalSuspensionVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalSuspensionVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: c.card, borderColor: c.border }]}>
+            <View style={[styles.modalIconContainer, { backgroundColor: c.errorBg }]}>
+              <Ionicons name="lock-closed" size={28} color={c.error} />
+            </View>
+            <T style={[styles.modalTitle, { color: c.text }]}>Clínica Suspendida</T>
+            <T style={[styles.modalMessage, { color: c.muted }]}>
+              {errorLogin || "El acceso a esta clínica ha sido suspendido temporalmente. Por favor, contacte a soporte administrativo o regularice su suscripción para reactivar el servicio."}
+            </T>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setModalSuspensionVisible(false)}
+              style={[styles.modalButton, { backgroundColor: c.primary }]}
+            >
+              <T style={styles.modalButtonText}>Entendido</T>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -2122,4 +2169,56 @@ const createStyles = (c: Theme, L: Layout) =>
     },
     mobileLogo: { width: L.xs ? 26 : 30, height: L.xs ? 26 : 30 },
     mobileBrandName: { color: c.onBrand, fontSize: L.xs ? 15 : 17, fontWeight: "900", letterSpacing: 2.5 },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(15, 23, 42, 0.7)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+    },
+    modalCard: {
+      width: "100%",
+      maxWidth: 400,
+      borderRadius: 24,
+      padding: 28,
+      alignItems: "center",
+      borderWidth: 1,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 16 },
+      shadowOpacity: 0.25,
+      shadowRadius: 32,
+      elevation: 12,
+    },
+    modalIconContainer: {
+      width: 56,
+      height: 56,
+      borderRadius: 18,
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "800",
+      textAlign: "center",
+      marginBottom: 10,
+    },
+    modalMessage: {
+      fontSize: 13,
+      lineHeight: 20,
+      textAlign: "center",
+      marginBottom: 24,
+    },
+    modalButton: {
+      width: "100%",
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    modalButtonText: {
+      color: "#FFFFFF",
+      fontSize: 14,
+      fontWeight: "700",
+    },
   });
