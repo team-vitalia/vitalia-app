@@ -2,18 +2,21 @@ import { FontAwesome } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
-import { useAuth } from "../../context/AuthContext";
-import api from "../../services/api";
 import { AsistenteIAModal } from "../../components/AsistenteIAModal";
+import { useAuth } from "../../context/AuthContext";
+import { evaluarInteracciones } from "../../services/almacenService";
+import api from "../../services/api";
+import { mensajeError } from "../../services/c2Service";
+import { crearReceta, RecetaCreada } from "../../services/clinicoService";
 
 interface Medicamento {
   id_PK: number;
@@ -62,6 +65,26 @@ export default function RecetaScreen() {
 
   const [items, setItems] = useState<ItemReceta[]>([]);
   const [guardando, setGuardando] = useState(false);
+
+  // Avisos de seguridad (interacciones) y resultado del guardado.
+  // Se muestran en pantalla porque Alert.alert no hace nada en web.
+  type Interaccion = RecetaCreada["advertencias_interacciones"][number];
+  const [interacciones, setInteracciones] = useState<Interaccion[]>([]);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [requiereConfirmar, setRequiereConfirmar] = useState(false);
+  const [resultado, setResultado] = useState<RecetaCreada | null>(null);
+
+  // Revisión de interacciones en vivo cada vez que cambian los medicamentos
+  useEffect(() => {
+    setRequiereConfirmar(false);
+    if (items.length < 2) {
+      setInteracciones([]);
+      return;
+    }
+    evaluarInteracciones(items.map((i) => i.medicamento_id_FK)).then((r) =>
+      setInteracciones(r?.detalles ?? [])
+    );
+  }, [items]);
 
   useEffect(() => {
     if (sugerenciaNombre && typeof sugerenciaNombre === "string") {
@@ -131,37 +154,37 @@ export default function RecetaScreen() {
     setCantidad("");
   };
 
-  const guardarReceta = async () => {
+  const guardarReceta = async (confirmarInteracciones = false) => {
+    setErrorMsg("");
     if (items.length === 0) {
-      Alert.alert(
-        "Receta vacía",
-        "Agrega al menos un medicamento a la receta.",
-      );
+      setErrorMsg("Agrega al menos un medicamento a la receta.");
+      return;
+    }
+    if (!citaId) {
+      setErrorMsg("Abre la receta desde el detalle de una cita para vincularla a la consulta.");
       return;
     }
 
     setGuardando(true);
     try {
-      const consulta_id = 1;
-
-      const payload = {
-        paciente_id_FK: parseInt(pacienteId as string),
-        consulta_id_FK: consulta_id,
-        items: items,
-      };
-
-      await api.post("/api/recetas/", payload, {
-        headers: { Authorization: `Bearer ${token}` },
+      // El backend busca o crea la consulta de la cita (ya no se usa un id fijo)
+      const creada = await crearReceta({
+        pacienteId: parseInt(pacienteId as string),
+        citaId: parseInt(citaId as string),
+        items: items.map(({ nombre_medicamento, ...resto }) => resto),
+        confirmarInteracciones,
       });
-
-      Alert.alert("Éxito", "Receta guardada correctamente.");
-      router.replace("/doctor/consultas"); // Volver a la lista
+      setResultado(creada);
     } catch (error: any) {
-      console.error(error);
-      Alert.alert(
-        "Error",
-        error?.response?.data?.detail || "No se pudo guardar la receta.",
-      );
+      const detalle = error?.response?.data?.detail;
+      if (error?.response?.status === 409 && detalle?.codigo === "INTERACCION_GRAVE") {
+        // Interacción grave: el médico debe revisar y confirmar de forma explícita
+        setInteracciones(detalle.advertencias_interacciones ?? []);
+        setRequiereConfirmar(true);
+        setErrorMsg("Se detectaron interacciones graves. Revisa los avisos y confirma si deseas continuar.");
+      } else {
+        setErrorMsg(typeof detalle === "string" ? detalle : mensajeError(error, "No se pudo guardar la receta."));
+      }
     } finally {
       setGuardando(false);
     }
@@ -377,19 +400,62 @@ export default function RecetaScreen() {
         )}
       </View>
 
+      {/* AVISOS DE INTERACCIONES (apoyo; no sustituyen el criterio clínico) */}
+      {interacciones.length > 0 && !resultado && (
+        <View style={{ backgroundColor: "#FFF5F5", borderColor: "#D65A5A", borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 15, gap: 6 }}>
+          <Text style={{ fontWeight: "800", color: "#B03A3A" }}>⚠ Interacciones detectadas</Text>
+          {interacciones.map((i, n) => (
+            <Text key={n} style={{ fontSize: 13, color: "#7A2E2E" }}>
+              {i.medicamento_1} + {i.medicamento_2} ({i.severidad}): {i.descripcion}
+              {i.accion_requerida ? ` → ${i.accion_requerida}` : ""}
+            </Text>
+          ))}
+        </View>
+      )}
+
+      {!!errorMsg && !resultado && (
+        <Text style={{ color: "#B03A3A", fontWeight: "700", marginBottom: 10 }}>{errorMsg}</Text>
+      )}
+
       {/* BOTÓN GUARDAR */}
-      {items.length > 0 && (
+      {items.length > 0 && !resultado && (
         <Pressable
-          style={styles.mainButton}
-          onPress={guardarReceta}
+          style={[styles.mainButton, requiereConfirmar && { backgroundColor: "#B03A3A" }]}
+          onPress={() => guardarReceta(requiereConfirmar)}
           disabled={guardando}
         >
           {guardando ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.mainButtonText}>Guardar Receta Médica</Text>
+            <Text style={styles.mainButtonText}>
+              {requiereConfirmar ? "Confirmar y guardar de todos modos" : "Guardar Receta Médica"}
+            </Text>
           )}
         </Pressable>
+      )}
+
+      {/* RESULTADO: receta creada + avisos de alergias y disponibilidad */}
+      {resultado && (
+        <View style={[styles.card, { borderColor: "#247F76", borderWidth: 2, gap: 8 }]}>
+          <Text style={styles.cardTitle}>✓ Receta #{resultado.id_PK} guardada</Text>
+          {resultado.alertas_alergias.map((a, n) => (
+            <Text key={n} style={{ fontSize: 13, color: "#B7791F", fontWeight: "700" }}>⚠ {a.mensaje}</Text>
+          ))}
+          {resultado.advertencias_interacciones.length > 0 && (
+            <Text style={{ fontSize: 13, color: "#B03A3A" }}>
+              Se guardó con {resultado.advertencias_interacciones.length} interacción(es) confirmada(s) por ti.
+            </Text>
+          )}
+          {resultado.hay_faltantes && (
+            <Text style={{ fontSize: 13, color: "#B7791F", fontWeight: "700" }}>{resultado.mensaje_disponibilidad}</Text>
+          )}
+          {!resultado.hay_faltantes && (
+            <Text style={{ fontSize: 13, color: "#247F76" }}>Medicamentos disponibles en almacén (si la clínica usa inventario).</Text>
+          )}
+          <Pressable style={styles.mainButton} onPress={() => router.replace("/doctor/consultas")}>
+            <Text style={styles.mainButtonText}>Terminar</Text>
+          </Pressable>
+        </View>
       )}
       {Boolean(citaId) && (
         <AsistenteIAModal

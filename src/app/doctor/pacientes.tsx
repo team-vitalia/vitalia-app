@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 import { router } from "expo-router";
@@ -197,6 +197,13 @@ export default function MisPacientesScreen() {
                 </Text>
               </View>
             )}
+
+            <Pressable
+              style={{ marginTop: 10, alignSelf: "flex-start", backgroundColor: "#247F76", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 }}
+              onPress={() => router.push({ pathname: "/doctor/expediente", params: { pacienteId: String(paciente.id_PK) } })}
+            >
+              <Text style={{ color: "#FFF", fontWeight: "800", fontSize: 13 }}>Ver expediente</Text>
+            </Pressable>
 
             {paciente.genero && (
               <View style={styles.infoRow}>

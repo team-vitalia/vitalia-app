@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createContext,
   ReactNode,
@@ -5,7 +6,6 @@ import {
   useEffect,
   useState,
 } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "../services/api";
 
 export interface PlanActual {

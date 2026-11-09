@@ -1,4 +1,5 @@
-import React, { ReactNode } from "react";
+import { useRouter } from "expo-router";
+import { ReactNode } from "react";
 import {
   ActivityIndicator,
   KeyboardTypeOptions,
@@ -10,7 +11,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
 
 import { useAuth } from "../../context/AuthContext";
 import type { PageMeta } from "../../services/c2Service";
@@ -39,7 +39,7 @@ export const C = {
 /* ============================================================
    Acceso por rol: 1 = Administrador, 5 = Coordinador
 ============================================================ */
-export function useAccesoC2() {
+export function useAccesoC2(rolesPermitidos: number[] = [1, 5]) {
   const { usuario, token, cargando } = useAuth();
   const rolId = usuario?.rol_id ?? usuario?.rol_id_FK;
   return {
@@ -49,7 +49,7 @@ export function useAccesoC2() {
     rolId,
     esAdmin: rolId === 1,
     esCoordinador: rolId === 5,
-    permitido: rolId === 1 || rolId === 5,
+    permitido: !!rolId && rolesPermitidos.includes(rolId),
   };
 }
 
@@ -90,21 +90,32 @@ export function etiquetaEstado(valor: string | null | undefined): string {
 /* ============================================================
    Pantalla base (encabezado, volver y guarda de acceso)
 ============================================================ */
+const INICIO_POR_ROL: Record<number, string> = {
+  1: "/admin",
+  2: "/doctor",
+  3: "/paciente",
+  4: "/recepcion",
+  5: "/coordinador",
+  6: "/almacen",
+};
+
 export function PantallaC2({
   titulo,
   subtitulo,
   children,
+  roles = [1, 5],
 }: {
   titulo: string;
   subtitulo?: string;
   children: ReactNode;
+  /** Roles que pueden ver la pantalla (por defecto administración y coordinación). */
+  roles?: number[];
 }) {
   const router = useRouter();
-  const acceso = useAccesoC2();
+  const acceso = useAccesoC2(roles);
 
   const irInicio = () => {
-    if (acceso.rolId === 5) router.replace("/coordinador");
-    else router.replace("/admin");
+    router.replace((INICIO_POR_ROL[acceso.rolId ?? 0] ?? "/login") as any);
   };
 
   const volver = () => {
@@ -126,16 +137,11 @@ export function PantallaC2({
         <View style={s.restringido}>
           <Text style={s.restringidoTitulo}>Acceso restringido</Text>
           <Text style={s.restringidoTexto}>
-            Esta sección es solo para administración y coordinación.
+            Esta sección no está disponible para tu rol.
           </Text>
           <Boton
             texto="Ir a mi panel"
-            onPress={() => {
-              if (acceso.rolId === 2) router.replace("/doctor");
-              else if (acceso.rolId === 3) router.replace("/paciente");
-              else if (acceso.rolId === 4) router.replace("/recepcion");
-              else router.replace("/login");
-            }}
+            onPress={irInicio}
           />
         </View>
       </View>

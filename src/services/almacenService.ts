@@ -121,3 +121,110 @@ export const evaluarInteracciones = async (medicamentosIds: number[]) => {
     return { tiene_interaccion: false, detalles: [] };
   }
 };
+
+/* ============================================================
+   Almacén: resumen, caducidades, movimientos y dispensación
+   (estas funciones LANZAN el error para que la pantalla muestre el mensaje)
+============================================================ */
+export interface ResumenAlmacen {
+  total_medicamentos: number;
+  total_lotes: number;
+  unidades_vigentes: number;
+  lotes_vencidos: number;
+  lotes_por_vencer: number;
+  medicamentos_stock_bajo: number;
+  recetas_pendientes: number;
+  umbral_stock_bajo: number;
+  dias_alerta_caducidad: number;
+}
+
+export interface Caducidad {
+  inventario_id: number;
+  medicamento_id: number;
+  medicamento: string | null;
+  numero_lote: string | null;
+  stock_actual: number;
+  ubicacion: string | null;
+  fecha_vencimiento: string;
+  dias_restantes: number;
+  estado: "vencido" | "por_vencer";
+}
+
+export interface DisponibilidadItem {
+  item_receta_id: number;
+  medicamento_id: number | null;
+  medicamento: string | null;
+  presentacion: string | null;
+  cantidad_recetada: number;
+  cantidad_dispensada: number;
+  cantidad_pendiente: number;
+  stock_disponible: number;
+  estado: "disponible" | "parcial" | "no_disponible" | "dispensado";
+}
+
+export interface RecetaPendiente {
+  id_PK: number;
+  paciente: string | null;
+  doctor: string | null;
+  estado: string | null;
+  creado_en: string;
+  items: {
+    id_PK: number;
+    medicamento: string | null;
+    dosis: string | null;
+    frecuencia: string | null;
+    duracion: string | null;
+    cantidad: number | null;
+    cantidad_dispensada: number;
+  }[];
+  disponibilidad: DisponibilidadItem[];
+}
+
+export interface DispensarResultado {
+  receta_id: number;
+  estado_receta: string | null;
+  completa: boolean;
+  dispensaciones: { item_receta_id: number; medicamento: string | null; numero_lote: string | null; cantidad: number }[];
+  faltantes: { item_receta_id: number; medicamento: string | null; cantidad_pendiente: number }[];
+}
+
+export interface MovimientoInventario {
+  id_PK: number;
+  medicamento: string | null;
+  numero_lote: string | null;
+  tipo: string | null;
+  cantidad: number | null;
+  stock_anterior: number | null;
+  stock_nuevo: number | null;
+  id_referencia: number | null;
+  creado_en: string | null;
+}
+
+export type TipoMovimiento = "entrada" | "salida" | "merma" | "ajuste";
+
+export const getResumenAlmacen = async (): Promise<ResumenAlmacen> =>
+  (await api.get("/api/almacen/resumen")).data;
+
+export const getCaducidades = async (dias = 60): Promise<Caducidad[]> =>
+  (await api.get("/api/almacen/caducidades", { params: { dias } })).data;
+
+export const getRecetasPendientes = async (): Promise<RecetaPendiente[]> =>
+  (await api.get("/api/almacen/recetas-pendientes")).data;
+
+/** Sin `items` dispensa todo lo pendiente que haya en existencia (puede quedar parcial). */
+export const dispensarReceta = async (
+  recetaId: number,
+  items?: { item_receta_id: number; cantidad: number }[],
+  notas?: string
+): Promise<DispensarResultado> =>
+  (await api.post("/api/almacen/dispensar", { receta_id: recetaId, items: items ?? null, notas: notas || null })).data;
+
+export const getMovimientos = async (limite = 100): Promise<MovimientoInventario[]> =>
+  (await api.get("/api/almacen/movimientos", { params: { limite } })).data;
+
+export const registrarMovimientoLote = async (
+  loteId: number,
+  tipo: TipoMovimiento,
+  cantidad: number,
+  motivo?: string
+) => (await api.post(`/api/almacen/inventario/${loteId}/movimientos`, { tipo, cantidad, motivo: motivo || null })).data;
