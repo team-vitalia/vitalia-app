@@ -1,5 +1,4 @@
-import { useRouter } from "expo-router";
-import { ReactNode } from "react";
+import React, { ReactNode } from "react";
 import {
   ActivityIndicator,
   KeyboardTypeOptions,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 
 import { useAuth } from "../../context/AuthContext";
 import type { PageMeta } from "../../services/c2Service";

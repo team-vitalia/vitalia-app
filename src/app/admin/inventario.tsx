@@ -45,6 +45,12 @@ export default function ControlInventarioScreen() {
   const [numeroLote, setNumeroLote] = useState<string>("");
   const [stockActual, setStockActual] = useState<string>("");
   const [ubicacion, setUbicacion] = useState<string>("");
+  // Caducidad del lote (AAAA-MM-DD). Vacía = el artículo no caduca (p. ej. equipo).
+  const [fechaVencimiento, setFechaVencimiento] = useState<string>("");
+  // Tipo de artículo: medicamento, insumo (guantes, jeringas, alcohol...) o equipo
+  const [tipoArticulo, setTipoArticulo] = useState<"medicamento" | "insumo" | "equipo">("medicamento");
+  const [unidadMedida, setUnidadMedida] = useState<string>("");
+  const [stockMinimo, setStockMinimo] = useState<string>("");
   const [nombreMedicamento, setNombreMedicamento] = useState<string>("");
   const [principioActivo, setPrincipioActivo] = useState<string>("");
   const [presentacion, setPresentacion] = useState<string>("");
@@ -85,12 +91,19 @@ export default function ControlInventarioScreen() {
       return;
     }
 
+    const fechaTxt = fechaVencimiento.trim();
+    const fechaOk = /^\d{4}-\d{2}-\d{2}$/.test(fechaTxt) && !Number.isNaN(Date.parse(fechaTxt));
+    if (fechaTxt && !fechaOk) {
+      Alert.alert("Fecha inválida", "Escribe la caducidad como AAAA-MM-DD (ej. 2027-08-31) o déjala vacía si no caduca.");
+      return;
+    }
+
     const datosLote = {
         medicamento_id_FK: medSeleccionado,
         numero_lote: numeroLote,
         stock_actual: parseInt(stockActual, 10),
         ubicacion: ubicacion || undefined,
-        fecha_vencimiento: loteEditando?.fecha_vencimiento,
+        fecha_vencimiento: fechaTxt || null,
         precio_venta: loteEditando?.precio_venta,
         proveedor_id_FK: loteEditando?.proveedor_id_FK,
         fecha_recepcion: loteEditando?.fecha_recepcion,
@@ -114,6 +127,7 @@ export default function ControlInventarioScreen() {
       setNumeroLote("");
       setStockActual("");
       setUbicacion("");
+      setFechaVencimiento("");
       setMedSeleccionado(null);
       setLoteEditando(null);
       cargarDatos();
@@ -134,6 +148,7 @@ export default function ControlInventarioScreen() {
     setNumeroLote(item.numero_lote || "");
     setStockActual(String(item.stock_actual ?? ""));
     setUbicacion(item.ubicacion || "");
+    setFechaVencimiento(item.fecha_vencimiento ? String(item.fecha_vencimiento).slice(0, 10) : "");
     setModalMode("editar-lote");
     setModalVisible(true);
   };
@@ -153,7 +168,10 @@ export default function ControlInventarioScreen() {
         categoria,
         codigo_barras: codigoBarras,
         descripcion,
-        requiere_receta: requiereReceta,
+        requiere_receta: tipoArticulo === "medicamento" ? requiereReceta : false,
+        tipo_articulo: tipoArticulo,
+        unidad_medida: unidadMedida,
+        stock_minimo: parseInt(stockMinimo, 10) || 0,
       });
 
       setMedicamentos((actuales) =>
@@ -169,6 +187,9 @@ export default function ControlInventarioScreen() {
       setCodigoBarras("");
       setDescripcion("");
       setRequiereReceta(false);
+      setTipoArticulo("medicamento");
+      setUnidadMedida("");
+      setStockMinimo("");
       setModalMode("lote");
     } catch (error: any) {
       Alert.alert(
@@ -307,6 +328,17 @@ export default function ControlInventarioScreen() {
               <Text style={styles.cardDetail}>
                 Cantidad disponible: <Text style={styles.bold}>{item.stock_actual} unidades</Text>
               </Text>
+              {(() => {
+                if (!item.fecha_vencimiento) return <Text style={styles.cardDetail}>Sin fecha de caducidad</Text>;
+                const dias = Math.ceil((new Date(String(item.fecha_vencimiento).slice(0, 10) + "T00:00:00").getTime() - Date.now()) / 86400000);
+                const color = dias < 0 ? "#D65A5A" : dias <= 60 ? "#B7791F" : "#26443F";
+                return (
+                  <Text style={[styles.cardDetail, { color, fontWeight: dias <= 60 ? "700" : "400" }]}>
+                    Caduca: {String(item.fecha_vencimiento).slice(0, 10)}
+                    {dias < 0 ? " (VENCIDO)" : dias <= 60 ? ` (en ${dias} días)` : ""}
+                  </Text>
+                );
+              })()}
               {item.ubicacion && (
                 <Text style={styles.cardDetail}>
                   Ubicación en almacén: {item.ubicacion}
@@ -411,6 +443,20 @@ export default function ControlInventarioScreen() {
                   onChangeText={setUbicacion}
                 />
 
+                <Text style={styles.label}>Fecha de caducidad (AAAA-MM-DD):</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ej. 2027-08-31"
+                  value={fechaVencimiento}
+                  onChangeText={setFechaVencimiento}
+                  maxLength={10}
+                  autoCapitalize="none"
+                />
+                <Text style={styles.helperText}>
+                  Déjala vacía si el artículo no caduca (p. ej. equipo). Con fecha, el sistema avisa antes de vencer y no
+                  entrega lotes vencidos.
+                </Text>
+
                 <View style={styles.modalButtons}>
                   <Pressable
                     style={[styles.btnModal, styles.btnCancelar]}
@@ -443,10 +489,40 @@ export default function ControlInventarioScreen() {
                 <Text style={styles.modalTitle}>Agregar Medicamento</Text>
                 <Text style={styles.helperText}>El nombre es obligatorio; los demás datos son opcionales.</Text>
 
+                <Text style={styles.label}>Tipo de artículo *</Text>
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
+                  {([
+                    ["medicamento", "Medicamento"],
+                    ["insumo", "Insumo"],
+                    ["equipo", "Equipo"],
+                  ] as const).map(([valor, texto]) => (
+                    <Pressable
+                      key={valor}
+                      onPress={() => setTipoArticulo(valor)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: tipoArticulo === valor }}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 9,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        alignItems: "center",
+                        borderColor: tipoArticulo === valor ? "#247F76" : "#D5E3DF",
+                        backgroundColor: tipoArticulo === valor ? "#E2F4F0" : "#FFFFFF",
+                      }}
+                    >
+                      <Text style={{ fontWeight: "700", color: tipoArticulo === valor ? "#247F76" : "#667773" }}>{texto}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.helperText}>
+                  Insumo = guantes, jeringas, agujas, alcohol, gasas... Los insumos y el equipo no se pueden recetar.
+                </Text>
+
                 <Text style={styles.label}>Nombre *</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Ej. Paracetamol"
+                  placeholder="Ej. Paracetamol o Guantes de nitrilo talla M"
                   value={nombreMedicamento}
                   onChangeText={setNombreMedicamento}
                   maxLength={200}
@@ -473,10 +549,28 @@ export default function ControlInventarioScreen() {
                 <Text style={styles.label}>Categoría</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Ej. Analgésico"
+                  placeholder="Ej. Analgésico, Protección personal"
                   value={categoria}
                   onChangeText={setCategoria}
                   maxLength={100}
+                />
+
+                <Text style={styles.label}>Unidad de medida</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ej. pieza, caja, par, frasco"
+                  value={unidadMedida}
+                  onChangeText={setUnidadMedida}
+                  maxLength={30}
+                />
+
+                <Text style={styles.label}>Stock mínimo (alerta de reposición)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ej. 50 (0 = usar el umbral general)"
+                  keyboardType="numeric"
+                  value={stockMinimo}
+                  onChangeText={setStockMinimo}
                 />
 
                 <Text style={styles.label}>Código de barras</Text>

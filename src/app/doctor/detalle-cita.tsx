@@ -13,9 +13,9 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { AsistenteIAModal } from "../../components/AsistenteIAModal";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
+import { AsistenteIAModal } from "../../components/AsistenteIAModal";
 
 interface CitaDetalle {
   id_PK: number;

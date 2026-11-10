@@ -5,11 +5,12 @@ import { StyleSheet, Text, View } from "react-native";
 import {
   Aviso, Boton, C, Cargando, ConfirmarModal, Etiqueta, Opciones, PantallaC2, soloFecha, Tarjeta, Vacio,
 } from "../../components/c2/ui";
-import { Caducidad, getCaducidades, registrarMovimientoLote } from "../../services/almacenService";
+import { Caducidad, getCaducidades, registrarMovimientoLote, TipoArticulo } from "../../services/almacenService";
 import { mensajeError } from "../../services/c2Service";
 
 export default function Caducidades() {
   const [dias, setDias] = useState<"30" | "60" | "90">("60");
+  const [tipo, setTipo] = useState<"todos" | TipoArticulo>("todos");
   const [lotes, setLotes] = useState<Caducidad[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -20,14 +21,14 @@ export default function Caducidades() {
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      setLotes(await getCaducidades(Number(dias)));
+      setLotes(await getCaducidades(Number(dias), tipo === "todos" ? undefined : tipo));
       setError("");
     } catch (e) {
       setError(mensajeError(e, "No se pudieron cargar las caducidades."));
     } finally {
       setCargando(false);
     }
-  }, [dias]);
+  }, [dias, tipo]);
 
   useFocusEffect(useCallback(() => { cargar(); }, [cargar]));
 
@@ -58,6 +59,16 @@ export default function Caducidades() {
           { valor: "90", etiqueta: "90 días" },
         ]}
       />
+      <Opciones
+        valor={tipo}
+        onChange={setTipo}
+        opciones={[
+          { valor: "todos", etiqueta: "Todo" },
+          { valor: "medicamento", etiqueta: "Medicamentos" },
+          { valor: "insumo", etiqueta: "Insumos" },
+          { valor: "equipo", etiqueta: "Equipo" },
+        ]}
+      />
       {!!error && <Aviso tipo="error" texto={error} />}
       {!!exito && <Aviso tipo="ok" texto={exito} />}
 
@@ -76,7 +87,7 @@ export default function Caducidades() {
               />
             </View>
             <Text style={s.sub}>
-              Lote {l.numero_lote ?? "s/n"} · {l.stock_actual} u. · {l.ubicacion ?? "sin ubicación"} · vence {soloFecha(l.fecha_vencimiento)}
+              {l.tipo_articulo === "insumo" ? "Insumo" : l.tipo_articulo === "equipo" ? "Equipo" : "Medicamento"} · Lote {l.numero_lote ?? "s/n"} · {l.stock_actual} {l.unidad_medida ?? "u."} · {l.ubicacion ?? "sin ubicación"} · vence {soloFecha(l.fecha_vencimiento)}
             </Text>
             {l.estado === "vencido" && <Boton pequeno variante="peligro" texto="Dar de baja (merma)" onPress={() => setBaja(l)} />}
           </Tarjeta>

@@ -2,21 +2,21 @@ import { FontAwesome } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    Alert,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
-import { AsistenteIAModal } from "../../components/AsistenteIAModal";
 import { useAuth } from "../../context/AuthContext";
-import { evaluarInteracciones } from "../../services/almacenService";
 import api from "../../services/api";
+import { evaluarInteracciones } from "../../services/almacenService";
 import { mensajeError } from "../../services/c2Service";
 import { crearReceta, RecetaCreada } from "../../services/clinicoService";
+import { AsistenteIAModal } from "../../components/AsistenteIAModal";
 
 interface Medicamento {
   id_PK: number;

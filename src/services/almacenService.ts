@@ -9,7 +9,13 @@ export interface Medicamento {
   descripcion?: string;
   codigo_barras?: string;
   categoria?: string;
+  /** medicamento | insumo | equipo (insumos: guantes, jeringas, alcohol, gasas...) */
+  tipo_articulo?: TipoArticulo;
+  unidad_medida?: string | null;
+  stock_minimo?: number;
+  stock_actual?: number;
 }
+export type TipoArticulo = "medicamento" | "insumo" | "equipo";
 export type MedicamentoCreate = Omit<Medicamento, "id_PK">;
 
 export interface LoteData {
@@ -44,6 +50,9 @@ export const registrarMedicamento = async (
     descripcion: medicamento.descripcion?.trim() || null,
     codigo_barras: medicamento.codigo_barras?.trim() || null,
     categoria: medicamento.categoria?.trim() || null,
+    tipo_articulo: medicamento.tipo_articulo ?? "medicamento",
+    unidad_medida: medicamento.unidad_medida?.trim() || null,
+    stock_minimo: medicamento.stock_minimo ?? 0,
   };
 
   try {
@@ -148,6 +157,8 @@ export interface Caducidad {
   fecha_vencimiento: string;
   dias_restantes: number;
   estado: "vencido" | "por_vencer";
+  tipo_articulo?: TipoArticulo;
+  unidad_medida?: string | null;
 }
 
 export interface DisponibilidadItem {
@@ -205,8 +216,8 @@ export type TipoMovimiento = "entrada" | "salida" | "merma" | "ajuste";
 export const getResumenAlmacen = async (): Promise<ResumenAlmacen> =>
   (await api.get("/api/almacen/resumen")).data;
 
-export const getCaducidades = async (dias = 60): Promise<Caducidad[]> =>
-  (await api.get("/api/almacen/caducidades", { params: { dias } })).data;
+export const getCaducidades = async (dias = 60, tipo?: TipoArticulo): Promise<Caducidad[]> =>
+  (await api.get("/api/almacen/caducidades", { params: { dias, tipo } })).data;
 
 export const getRecetasPendientes = async (): Promise<RecetaPendiente[]> =>
   (await api.get("/api/almacen/recetas-pendientes")).data;
@@ -228,3 +239,82 @@ export const registrarMovimientoLote = async (
   cantidad: number,
   motivo?: string
 ) => (await api.post(`/api/almacen/inventario/${loteId}/movimientos`, { tipo, cantidad, motivo: motivo || null })).data;
+
+
+/* ============================================================
+   Consumo interno, gráficas y predicción de demanda
+============================================================ */
+export const registrarConsumo = async (p: { medicamentoId: number; cantidad: number; area?: string; motivo?: string }) =>
+  (
+    await api.post("/api/almacen/consumos", {
+      medicamento_id: p.medicamentoId,
+      cantidad: p.cantidad,
+      area: p.area || null,
+      motivo: p.motivo || null,
+    })
+  ).data as {
+    medicamento: string | null;
+    cantidad: number;
+    lotes: { numero_lote: string | null; cantidad: number }[];
+    stock_restante: number;
+  };
+
+export interface PanelAnalitico {
+  consumo_mensual: { mes: string; medicamentos: number; insumos: number; merma: number }[];
+  top_consumo_90d: { medicamento_id: number; nombre: string; tipo_articulo: TipoArticulo; unidades: number }[];
+  stock_por_tipo: { tipo_articulo: TipoArticulo; unidades: number; valor: number }[];
+  caducidad_unidades: { vencido: number; por_vencer_30: number; por_vencer_90: number; vigente: number; sin_fecha: number };
+}
+
+export type RiesgoStock = "agotado" | "critico" | "bajo" | "ok" | "sin_movimiento";
+
+export interface ItemPrediccion {
+  medicamento_id: number;
+  nombre: string;
+  presentacion: string | null;
+  tipo_articulo: TipoArticulo;
+  unidad_medida: string | null;
+  stock_vigente: number;
+  stock_minimo: number;
+  consumo_ultimos_30d: number;
+  pronostico_horizonte: number;
+  cobertura_dias: number | null;
+  unidades_por_vencer: number;
+  excedente_por_vencer: number;
+  sugerido_pedir: number;
+  riesgo: RiesgoStock;
+  confianza: "alta" | "media" | "baja" | "sin_datos";
+  tendencia_pct: number | null;
+  error_backtest_pct: number | null;
+  serie_semanal: number[];
+}
+
+export interface Prediccion {
+  generado: string;
+  horizonte_dias: number;
+  nota: string;
+  resumen_riesgo: Record<RiesgoStock, number>;
+  mas_demandados: { medicamento_id: number; nombre: string; tipo_articulo: TipoArticulo; pronostico_horizonte: number; unidad_medida: string | null }[];
+  items: ItemPrediccion[];
+}
+
+export interface AnalisisIA {
+  resumen: string;
+  alertas: { articulo: string; nivel: string; detalle: string }[];
+  recomendaciones: string[];
+  observaciones: string;
+  origen: "ia" | "reglas";
+  modelo: string | null;
+  aviso: string | null;
+  articulos_analizados: number;
+  nota: string;
+}
+
+export const getPanelAnalitico = async (meses = 6): Promise<PanelAnalitico> =>
+  (await api.get("/api/almacen/analitica/panel", { params: { meses } })).data;
+
+export const getPrediccion = async (horizonteDias = 30, tipo?: TipoArticulo): Promise<Prediccion> =>
+  (await api.get("/api/almacen/analitica/prediccion", { params: { horizonte_dias: horizonteDias, tipo } })).data;
+
+export const getAnalisisIA = async (horizonteDias = 30, tipo?: TipoArticulo): Promise<AnalisisIA> =>
+  (await api.post("/api/almacen/analitica/analisis-ia", { horizonte_dias: horizonteDias, tipo: tipo ?? null })).data;

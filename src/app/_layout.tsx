@@ -18,13 +18,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { InstallPrompt } from "../components/InstallPrompt";
-import { ModalPlanSuscripcion } from "../components/ModalPlanSuscripcion";
-import { OfflineBanner } from "../components/OfflineBanner";
-import { CrownSvg, UpgradeModal } from "../components/UpgradeModal";
 import { AuthProvider, useAuth, type PlanActual } from "../context/AuthContext";
 import { CalendarProvider } from "../context/CalendarContext";
 import { NotificationsProvider } from "../context/NotificationsContext";
+import { OfflineBanner } from "../components/OfflineBanner";
+import { InstallPrompt } from "../components/InstallPrompt";
+import { ModalPlanSuscripcion } from "../components/ModalPlanSuscripcion";
+import { UpgradeModal, CrownSvg } from "../components/UpgradeModal";
 import {
   BP_DESKTOP,
   BP_MOBILE,
@@ -110,6 +110,8 @@ const NAV: NavItem[] = [
   { key: "contratos", label: "Contratos médicos", short: "Contratos", icon: "document-text-outline", iconActive: "document-text", ruta: "/admin/doctores", roles: [1], activo: (p) => p === "/admin/doctores" },
   { key: "inventario", label: "Almacén e inventario", short: "Inventario", icon: "cube-outline", iconActive: "cube", ruta: "/admin/inventario", roles: [1, 6], activo: (p) => p.includes("/admin/inventario") },
   { key: "alm-dispensacion", label: "Dispensación de recetas", short: "Dispensar", icon: "medkit-outline", iconActive: "medkit", ruta: "/almacen/dispensacion", roles: [6], activo: (p) => p.includes("/almacen/dispensacion") },
+  { key: "alm-analitica", label: "Analítica y predicción", short: "Analítica", icon: "stats-chart-outline", iconActive: "stats-chart", ruta: "/almacen/analitica", roles: [6], activo: (p) => p.includes("/almacen/analitica") },
+  { key: "alm-consumo", label: "Registrar consumo", short: "Consumo", icon: "remove-circle-outline", iconActive: "remove-circle", ruta: "/almacen/consumo", roles: [6], activo: (p) => p.includes("/almacen/consumo") },
   { key: "alm-caducidades", label: "Caducidades", short: "Caducidad", icon: "alarm-outline", iconActive: "alarm", ruta: "/almacen/caducidades", roles: [6], activo: (p) => p.includes("/almacen/caducidades") },
   { key: "alm-movimientos", label: "Movimientos de inventario", short: "Movimientos", icon: "swap-vertical-outline", iconActive: "swap-vertical", ruta: "/almacen/movimientos", roles: [6], activo: (p) => p.includes("/almacen/movimientos") },
   { key: "reportes", label: "Reportes", short: "Reportes", icon: "bar-chart-outline", iconActive: "bar-chart", ruta: "/admin/reportes", roles: [1, 5], activo: (p) => p.includes("/admin/reportes") },
