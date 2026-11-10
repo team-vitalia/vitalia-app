@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import type { AxiosRequestHeaders } from "axios";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { offlineStorage } from "./offlineStorage";
@@ -99,6 +100,11 @@ const api = axios.create({
 
 console.log(`[API Service] baseURL: "${api.defaults.baseURL}" | wsURL: "${WS_URL}"`);
 
+function apiCacheKey(url: string, headers: AxiosRequestHeaders): string {
+  const clinicId = headers.get("X-Clinic-Id");
+  return `api_cache_${url}${clinicId ? `::clinic:${clinicId}` : ""}`;
+}
+
 api.interceptors.request.use(async (config) => {
   let token: string | null = null;
 
@@ -130,9 +136,13 @@ api.interceptors.response.use(
       response.status === 200
     ) {
       const normalizedUrl = response.config.url.replace(/^(?:https?:\/\/[^\/]+)?/, "");
-      offlineStorage.saveState("api_cache_" + normalizedUrl, response.data).catch(() => {});
+      offlineStorage
+        .saveState(apiCacheKey(normalizedUrl, response.config.headers), response.data)
+        .catch(() => {});
       if (normalizedUrl !== response.config.url) {
-        offlineStorage.saveState("api_cache_" + response.config.url, response.data).catch(() => {});
+        offlineStorage
+          .saveState(apiCacheKey(response.config.url, response.config.headers), response.data)
+          .catch(() => {});
       }
     }
     return response;
@@ -150,9 +160,9 @@ api.interceptors.response.use(
 
       if (method === "GET" && url) {
         const normalizedUrl = url.replace(/^(?:https?:\/\/[^\/]+)?/, "");
-        let cached = await offlineStorage.getState("api_cache_" + normalizedUrl);
+        let cached = await offlineStorage.getState(apiCacheKey(normalizedUrl, error.config.headers));
         if (cached === null) {
-          cached = await offlineStorage.getState("api_cache_" + url);
+          cached = await offlineStorage.getState(apiCacheKey(url, error.config.headers));
         }
         if (cached !== null && cached !== undefined) {
           return {

@@ -22,6 +22,10 @@ export default function Index() {
 
   if (usuario) {
     const rolId = usuario.rol_id ?? usuario.rol_id_FK;
+    const rolNombre = (usuario.rol_nombre || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    if (rolNombre === "almacen") {
+      return <Redirect href="/almacen" />;
+    }
     switch (rolId) {
       case 1:
         return <Redirect href="/admin" />;
@@ -31,6 +35,10 @@ export default function Index() {
         return <Redirect href="/paciente" />;
       case 4:
         return <Redirect href="/recepcion" />;
+      case 5:
+        return <Redirect href="/coordinador" />;
+      case 6:
+        return <Redirect href="/almacen" />;
       default:
         return <Redirect href="/login" />;
     }

@@ -52,6 +52,7 @@ const ICONO_ROL: Record<number, React.ComponentProps<typeof FontAwesome>["name"]
   3: "user",
   4: "id-card-o",
   5: "sitemap",
+  6: "cube",
 };
 
 const ROL_ADMIN = 1;

@@ -84,6 +84,7 @@ const RUTAS_INICIO: Record<number, string> = {
   3: "/paciente",
   4: "/recepcion",
   5: "/coordinador",
+  6: "/almacen",
 };
 
 const ROLES: Record<number, string> = {
@@ -92,10 +93,11 @@ const ROLES: Record<number, string> = {
   3: "Paciente",
   4: "Recepción",
   5: "Coordinador",
+  6: "Almacén",
 };
 
 const NAV: NavItem[] = [
-  { key: "inicio", label: "Inicio", short: "Inicio", icon: "home-outline", iconActive: "home", ruta: "inicio", roles: [1, 2, 3, 4, 5], activo: (p) => Object.values(RUTAS_INICIO).includes(p) },
+  { key: "inicio", label: "Inicio", short: "Inicio", icon: "home-outline", iconActive: "home", ruta: "inicio", roles: [1, 2, 3, 4, 5, 6], activo: (p) => Object.values(RUTAS_INICIO).includes(p) },
   { key: "citas", label: "Citas médicas", short: "Citas", icon: "calendar-outline", iconActive: "calendar", ruta: "/recepcion/citas", roles: [4], activo: (p) => p.includes("/recepcion/citas") },
   { key: "cola", label: "Lista de espera", short: "Espera", icon: "list-outline", iconActive: "list", ruta: "/recepcion/cola", roles: [4], activo: (p) => p.includes("/recepcion/cola") },
   { key: "consultas", label: "Mis consultas", short: "Consultas", icon: "clipboard-outline", iconActive: "clipboard", ruta: "/doctor/consultas", roles: [2], activo: (p) => p.includes("/doctor/consultas") },
@@ -103,7 +105,7 @@ const NAV: NavItem[] = [
   { key: "usuarios", label: "Gestionar usuarios", short: "Usuarios", icon: "people-outline", iconActive: "people", ruta: "/admin/usuarios", roles: [1, 5], activo: (p) => p.includes("/admin/usuarios") },
   { key: "plan-suscripcion", label: "Plan y suscripción", short: "Suscripción", icon: "card-outline", iconActive: "card", ruta: "plan-modal", roles: [1], activo: () => false },
   { key: "contratos", label: "Contratos médicos", short: "Contratos", icon: "document-text-outline", iconActive: "document-text", ruta: "/admin/doctores", roles: [1], activo: (p) => p === "/admin/doctores" },
-  { key: "inventario", label: "Almacén e inventario", short: "Inventario", icon: "cube-outline", iconActive: "cube", ruta: "/admin/inventario", roles: [1], activo: (p) => p.includes("/admin/inventario") },
+  { key: "inventario", label: "Almacén e inventario", short: "Inventario", icon: "cube-outline", iconActive: "cube", ruta: "/admin/inventario", roles: [1, 6], activo: (p) => p.includes("/admin/inventario") },
   { key: "reportes", label: "Reportes", short: "Reportes", icon: "bar-chart-outline", iconActive: "bar-chart", ruta: "/admin/reportes", roles: [1, 5], activo: (p) => p.includes("/admin/reportes") },
   { key: "salas", label: "Salas y equipamiento", short: "Salas", icon: "business-outline", iconActive: "business", ruta: "/admin/salas", roles: [1, 5], activo: (p) => p.includes("/admin/salas") },
   { key: "auditoria", label: "Auditoría", short: "Auditoría", icon: "receipt-outline", iconActive: "receipt", ruta: "/admin/auditoria", roles: [1, 5], activo: (p) => p.includes("/admin/auditoria") },
@@ -116,7 +118,7 @@ const NOTIF: NavItem = {
   icon: "notifications-outline",
   iconActive: "notifications",
   ruta: "/notificaciones",
-  roles: [1, 2, 3, 4, 5],
+  roles: [1, 2, 3, 4, 5, 6],
   activo: (p) => p === "/notificaciones",
 };
 
@@ -937,6 +939,12 @@ function AppLayout() {
     pathname === "/condiciones-servicio" ||
     pathname === "/eliminacion-cuenta";
   const rolId: number | undefined = usuario?.rol_id ?? usuario?.rol_id_FK;
+  const nombreRolNormalizado = (usuario?.rol_nombre || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  const rolNavegacionId = nombreRolNormalizado === "almacen" ? 6 : rolId;
   const mostrarMenu = !isAuthPage && !!usuario;
 
   const cerrarSesion = () => {
@@ -947,7 +955,7 @@ function AppLayout() {
 
   const irInicio = () => {
     if (!usuario) return;
-    const ruta = rolId ? RUTAS_INICIO[rolId] : undefined;
+    const ruta = rolNavegacionId ? RUTAS_INICIO[rolNavegacionId] : undefined;
     if (ruta) router.replace(ruta as any);
   };
 
@@ -961,7 +969,7 @@ function AppLayout() {
     setMasAbierto(false);
   }, [pathname]);
 
-  const itemsRol = NAV.filter((i) => !!rolId && i.roles.includes(rolId));
+  const itemsRol = NAV.filter((i) => !!rolNavegacionId && i.roles.includes(rolNavegacionId));
   const itemsLateral = itemsRol.length ? [itemsRol[0], NOTIF, ...itemsRol.slice(1)] : [];
   const tabs = itemsRol.slice(0, 4);
   const masItems = itemsRol.slice(4);
@@ -997,7 +1005,7 @@ function AppLayout() {
           c={c}
           nombre={usuario?.nombre}
           correo={usuario?.correo || usuario?.correo_electronico}
-          rolId={rolId}
+          rolId={rolNavegacionId}
           items={itemsLateral}
           pathname={pathname}
           compact={isCompactRail}
@@ -1014,7 +1022,7 @@ function AppLayout() {
           <MobileHeader
             c={c}
             topInset={topInset}
-            rolId={rolId}
+            rolId={rolNavegacionId}
             notifActiva={notifActiva}
             planActual={planActual}
             onHome={irInicio}
@@ -1049,7 +1057,7 @@ function AppLayout() {
           bottomInset={insets.bottom}
           nombre={usuario?.nombre}
           correo={usuario?.correo || usuario?.correo_electronico}
-          rolId={rolId}
+          rolId={rolNavegacionId}
           items={masItems}
           pathname={pathname}
           planActual={planActual}

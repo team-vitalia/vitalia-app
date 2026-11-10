@@ -34,6 +34,7 @@ export interface Usuario {
   correo_electronico?: string;
   rol_id?: number;
   rol_id_FK?: number;
+  rol_nombre?: string;
   estado?: string;
   clinica?: ClinicaInfo | null;
   plan_actual?: PlanActual;
