@@ -56,6 +56,7 @@ export interface AuthContextType {
   clinica: ClinicaInfo | null;
   planActual: PlanActual;
   login: (correo_electronico: string, password: string) => Promise<Usuario>;
+  loginConGoogle?: (tokenGoogle: string) => Promise<Usuario>;
   logout: () => void;
   recargarSesion: () => Promise<void>;
   cargando: boolean;
@@ -206,6 +207,77 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const loginConGoogle = async (tokenGoogle: string): Promise<Usuario> => {
+    setCargando(true);
+
+    try {
+      const respuesta = await api.post("/api/auth/google-login", {
+        token: tokenGoogle,
+      });
+
+      const accessToken = respuesta.data?.access_token;
+
+      if (!accessToken) {
+        throw new Error("No se recibió el token de acceso.");
+      }
+
+      api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+
+      const respuestaUsuario = await api.get("/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const usuarioActual: Usuario = respuestaUsuario.data;
+
+      await AsyncStorage.multiSet([
+        [TOKEN_KEY, accessToken],
+        [USER_KEY, JSON.stringify(usuarioActual)],
+      ]);
+
+      setToken(accessToken);
+      setUsuario(usuarioActual);
+
+      return usuarioActual;
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.detail;
+
+      if (status === 404) {
+        throw new Error(
+          typeof detail === "string"
+            ? detail
+            : "No existe una cuenta registrada con este correo de Google. Por favor, registra tu clínica primero."
+        );
+      }
+
+      if (status === 403) {
+        const err403 = new Error(
+          typeof detail === "string"
+            ? detail
+            : "El acceso a esta clínica ha sido suspendido. Por favor, contacte a soporte o regularice su suscripción."
+        );
+        (err403 as any).status = 403;
+        (err403 as any).isSuspended = true;
+        (err403 as any).detail = detail;
+        throw err403;
+      }
+
+      if (!error?.response) {
+        throw new Error(
+          "No se pudo conectar con el servidor. Verifica la URL de la API y la conexión."
+        );
+      }
+
+      throw new Error(
+        typeof detail === "string" ? detail : "No se pudo iniciar sesión con Google."
+      );
+    } finally {
+      setCargando(false);
+    }
+  };
+
   const logout = () => {
     setUsuario(null);
     setToken(null);
@@ -248,6 +320,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         clinica,
         planActual,
         login,
+        loginConGoogle,
         logout,
         recargarSesion,
         cargando,

@@ -1,4 +1,4 @@
-﻿import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { ComponentProps, ReactNode, RefObject, forwardRef, useEffect, useMemo, useRef, useState } from "react";
@@ -44,7 +44,11 @@ import {
   vPassword,
   vTelefono,
 } from "../components/admin/validaciones";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
 import { useAuth } from "../context/AuthContext";
+
+WebBrowser.maybeCompleteAuthSession();
 import { registrarPaciente } from "../services/registroService";
 import { mensajeError } from "../services/util";
 
@@ -1288,7 +1292,7 @@ const createRegStyles = (c: Theme, L: Layout) =>
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, cargando, usuario } = useAuth();
+  const { login, loginConGoogle, cargando, usuario } = useAuth();
   const L = useLayout();
   const scheme = useColorScheme();
   const c: Theme = scheme === "dark" ? DARK : LIGHT;
@@ -1304,6 +1308,57 @@ export default function LoginScreen() {
   // Pestaña activa: inicio de sesión o registro de pacientes (misma pantalla, sin cambiar de ruta)
   const [modo, setModo] = useState<"login" | "registro">("login");
   const reg = useRegistroPaciente();
+
+  const cleanWebClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
+    "393671162434-3e031lvkhq3107bfaa2to2hndsvu57tp.apps.googleusercontent.com";
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    clientId: cleanWebClientId,
+    webClientId: cleanWebClientId,
+    redirectUri: Platform.select({
+      web: typeof window !== "undefined" ? window.location.origin : "http://localhost:8081",
+      default: undefined,
+    }),
+    scopes: ["openid", "profile", "email"],
+  });
+
+  const ejecutarLoginGoogle = async (tokenGoogle: string) => {
+    setErrorLogin("");
+    try {
+      const usuarioLogueado = await loginConGoogle(tokenGoogle);
+      const rolId = usuarioLogueado.rol_id ?? usuarioLogueado.rol_id_FK;
+      if (!irSegunRol(router, rolId)) {
+        setErrorLogin("El usuario no tiene un rol válido.");
+        avisar("Acceso no disponible", "El usuario no tiene un rol válido.");
+      }
+    } catch (err: any) {
+      const msg = err.message || "Error al autenticar con Google.";
+      setErrorLogin(msg);
+      avisar("Acceso Denegado", msg);
+    }
+  };
+
+  useEffect(() => {
+    if (googleResponse?.type === "success") {
+      const token =
+        googleResponse.params?.id_token ||
+        googleResponse.authentication?.idToken ||
+        googleResponse.authentication?.accessToken;
+      if (token) {
+        ejecutarLoginGoogle(token);
+      }
+    } else if (googleResponse?.type === "error") {
+      setErrorLogin("Error al autenticar con Google.");
+    }
+  }, [googleResponse]);
+
+  const iniciarSesionGoogle = async () => {
+    try {
+      await promptGoogleAsync();
+    } catch (e: any) {
+      setErrorLogin("No se pudo iniciar el flujo de Google.");
+    }
+  };
 
   const passwordRef = useRef<TextInput>(null);
 
@@ -1601,9 +1656,9 @@ export default function LoginScreen() {
           editable={!cargando}
           right={
             <Pressable
-              onPress={() => setPasswordVisible(!passwordVisible)}
+              onPress={() => setPasswordVisible((v: boolean) => !v)}
               disabled={cargando}
-              hitSlop={10}
+              hitSlop={12}
               style={[styles.showButton, POINTER]}
               accessibilityRole="button"
               accessibilityLabel={passwordVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
@@ -1611,7 +1666,7 @@ export default function LoginScreen() {
               <Ionicons
                 name={passwordVisible ? "eye-off-outline" : "eye-outline"}
                 size={20}
-                color={c.muted}
+                color={passwordVisible ? c.primary : c.muted}
               />
             </Pressable>
           }
@@ -1698,7 +1753,13 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.secondaryRow}>
-          <PressScale disabled={cargando} style={styles.secondaryButton}>
+          <PressScale
+            disabled={cargando}
+            onPress={iniciarSesionGoogle}
+            style={styles.secondaryButton}
+            accessibilityRole="button"
+            accessibilityLabel="Acceder con Google"
+          >
             <Ionicons name="logo-google" size={18} color={c.primary} style={{ marginRight: 10 }} />
             <T style={styles.secondaryText}>Acceder con Google</T>
           </PressScale>
