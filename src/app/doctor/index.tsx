@@ -56,7 +56,12 @@ export default function DoctorScreen() {
 
   const fade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(fade, { toValue: 1, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: ND }).start();
+    Animated.timing(fade, {
+      toValue: 1,
+      duration: 420,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: ND,
+    }).start();
   }, []);
 
   /* ---------- Tabs con pager horizontal ---------- */
@@ -85,16 +90,22 @@ export default function DoctorScreen() {
           }
         },
       }),
-    [pager.w]
+    [pager.w],
   );
 
   useEffect(() => {
-    if (pager.w) pagerRef.current?.scrollTo({ x: tabRef.current * pager.w, animated: false });
+    if (pager.w)
+      pagerRef.current?.scrollTo({
+        x: tabRef.current * pager.w,
+        animated: false,
+      });
   }, [pager.w]);
 
   /* ---------- Lógica de contratos (intacta) ---------- */
   const [modalContrato, setModalContrato] = useState(false);
-  const [contratoSeleccionado, setContratoSeleccionado] = useState<any | null>(null);
+  const [contratoSeleccionado, setContratoSeleccionado] = useState<any | null>(
+    null,
+  );
   const [nombreDoctor, setNombreDoctor] = useState("");
   const [cargandoContrato, setCargandoContrato] = useState(false);
   const [errorContrato, setErrorContrato] = useState("");
@@ -118,18 +129,30 @@ export default function DoctorScreen() {
         setErrorContrato("Tu sesión ha expirado. Inicia sesión nuevamente.");
         return;
       }
-      const respuesta = await api.get("/api/contratos/mi-contrato", { headers: { Authorization: `Bearer ${token}` } });
-      const listaContratos = Array.isArray(respuesta.data) ? respuesta.data : respuesta.data ? [respuesta.data] : [];
+      const respuesta = await api.get("/api/contratos/mi-contrato", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const listaContratos = Array.isArray(respuesta.data)
+        ? respuesta.data
+        : respuesta.data
+          ? [respuesta.data]
+          : [];
       if (listaContratos.length === 0) {
         setErrorContrato("No tienes contratos registrados.");
         return;
       }
-      const contratosOrdenados = [...listaContratos].sort((a, b) => Number(b.id_PK) - Number(a.id_PK));
+      const contratosOrdenados = [...listaContratos].sort(
+        (a, b) => Number(b.id_PK) - Number(a.id_PK),
+      );
       setContratos(contratosOrdenados);
       setNombreDoctor(usuario?.nombre?.trim() || "Médico");
     } catch (err: any) {
       const detalle = err?.response?.data?.detail;
-      setErrorContrato(typeof detalle === "string" ? detalle : "No fue posible consultar tus contratos.");
+      setErrorContrato(
+        typeof detalle === "string"
+          ? detalle
+          : "No fue posible consultar tus contratos.",
+      );
     } finally {
       setCargandoContrato(false);
     }
@@ -141,9 +164,15 @@ export default function DoctorScreen() {
       <ScrollView
         nestedScrollEnabled
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: pad, paddingTop: 16, paddingBottom: 40 }}
+        contentContainerStyle={{
+          paddingHorizontal: pad,
+          paddingTop: 16,
+          paddingBottom: 40,
+        }}
       >
-        <View style={{ width: "100%", maxWidth: 1100, alignSelf: "center" }}>{children}</View>
+        <View style={{ width: "100%", maxWidth: 1100, alignSelf: "center" }}>
+          {children}
+        </View>
       </ScrollView>
     </View>
   );
@@ -151,12 +180,48 @@ export default function DoctorScreen() {
   const anchoAcceso = cols === 1 ? "100%" : "48.5%";
 
   const accesos = [
-    { icon: "time-outline" as const, color: c.info, titulo: "Mis consultas", desc: "Consulta tus citas y pacientes programados.", onPress: () => router.push("/doctor/consultas") },
-    { icon: "people-outline" as const, color: c.success, titulo: "Mis pacientes", desc: "Consulta la información de los pacientes asignados.", onPress: () => router.push("/doctor/pacientes") },
-    { icon: "document-text-outline" as const, color: c.primary, titulo: "Expedientes clínicos", desc: "Accede y consulta los expedientes de tus pacientes." },
-    { icon: "create-outline" as const, color: c.warning, titulo: "Mi perfil profesional", desc: "Consulta y edita tu licencia, costo y especialidades.", onPress: () => router.push("/doctor/perfil") },
-    { icon: "medkit-outline" as const, color: c.info, titulo: "Evaluador de Interacciones", desc: "Verifica incompatibilidades farmacológicas entre medicamentos.", onPress: () => router.push("/doctor/evaluar-interacciones") },
-    { icon: "document-outline" as const, color: c.primary, titulo: "Mis contratos", desc: "Consulta y visualiza tus contratos profesionales.", onPress: abrirContrato },
+    {
+      icon: "time-outline" as const,
+      color: c.info,
+      titulo: "Mis consultas",
+      desc: "Consulta tus citas y pacientes programados.",
+      onPress: () => router.push("/doctor/consultas"),
+    },
+    {
+      icon: "people-outline" as const,
+      color: c.success,
+      titulo: "Mis pacientes",
+      desc: "Consulta la información de los pacientes asignados.",
+      onPress: () => router.push("/doctor/pacientes"),
+    },
+    {
+      icon: "document-text-outline" as const,
+      color: c.primary,
+      titulo: "Expedientes clínicos",
+      desc: "Accede y consulta los expedientes de tus pacientes.",
+      onPress: () => router.push("/doctor/pacientes"),
+    },
+    {
+      icon: "create-outline" as const,
+      color: c.warning,
+      titulo: "Mi perfil profesional",
+      desc: "Consulta y edita tu licencia, costo y especialidades.",
+      onPress: () => router.push("/doctor/perfil"),
+    },
+    {
+      icon: "medkit-outline" as const,
+      color: c.info,
+      titulo: "Evaluador de Interacciones",
+      desc: "Verifica incompatibilidades farmacológicas entre medicamentos.",
+      onPress: () => router.push("/doctor/evaluar-interacciones"),
+    },
+    {
+      icon: "document-outline" as const,
+      color: c.primary,
+      titulo: "Mis contratos",
+      desc: "Consulta y visualiza tus contratos profesionales.",
+      onPress: abrirContrato,
+    },
   ];
 
   return (
@@ -164,7 +229,13 @@ export default function DoctorScreen() {
       <FondoLuces c={c} />
       <Animated.View style={{ flex: 1, opacity: fade }}>
         {/* Cabecera fija: hero fusionado + tabs */}
-        <View style={{ paddingHorizontal: pad, paddingTop: 14, alignItems: "center" }}>
+        <View
+          style={{
+            paddingHorizontal: pad,
+            paddingTop: 14,
+            alignItems: "center",
+          }}
+        >
           <View style={{ width: "100%", maxWidth: 1100 }}>
             <HeroSaludo
               c={c}
@@ -189,7 +260,12 @@ export default function DoctorScreen() {
         {/* Páginas */}
         <View
           style={{ flex: 1, minHeight: 0, marginTop: 6 }}
-          onLayout={(e) => setPager({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+          onLayout={(e) =>
+            setPager({
+              w: e.nativeEvent.layout.width,
+              h: e.nativeEvent.layout.height,
+            })
+          }
         >
           {pager.w > 0 && pager.h > 0 && (
             <Animated.ScrollView
@@ -207,18 +283,50 @@ export default function DoctorScreen() {
               {pagina(
                 "resumen",
                 <>
-                  <SectionTitle c={c} esc={esc} icon="speedometer-outline" color={c.info}>
+                  <SectionTitle
+                    c={c}
+                    esc={esc}
+                    icon="speedometer-outline"
+                    color={c.info}
+                  >
                     Resumen de hoy
                   </SectionTitle>
-                  <View style={{ flexDirection: "row", gap: 10, marginBottom: 4 }}>
-                    <InfoCard c={c} esc={esc} icon="time-outline" color={c.info} valor={0} label="Consultas programadas" />
-                    <InfoCard c={c} esc={esc} icon="people-outline" color={c.success} valor={0} label="Pacientes en atención" />
+                  <View
+                    style={{ flexDirection: "row", gap: 10, marginBottom: 4 }}
+                  >
+                    <InfoCard
+                      c={c}
+                      esc={esc}
+                      icon="time-outline"
+                      color={c.info}
+                      valor={0}
+                      label="Consultas programadas"
+                    />
+                    <InfoCard
+                      c={c}
+                      esc={esc}
+                      icon="people-outline"
+                      color={c.success}
+                      valor={0}
+                      label="Pacientes en atención"
+                    />
                   </View>
 
-                  <SectionTitle c={c} esc={esc} icon="flash-outline" color={c.primary}>
+                  <SectionTitle
+                    c={c}
+                    esc={esc}
+                    icon="flash-outline"
+                    color={c.primary}
+                  >
                     Accesos rápidos
                   </SectionTitle>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      justifyContent: "space-between",
+                    }}
+                  >
                     {accesos.map((a) => (
                       <View key={a.titulo} style={{ width: anchoAcceso }}>
                         <AccionCard
@@ -234,16 +342,27 @@ export default function DoctorScreen() {
                     ))}
                   </View>
 
-                  <Notice c={c} esc={esc} icon="shield-checkmark-outline" titulo="Sistema listo" texto="Tu sesión está activa y protegida." />
+                  <Notice
+                    c={c}
+                    esc={esc}
+                    icon="shield-checkmark-outline"
+                    titulo="Sistema listo"
+                    texto="Tu sesión está activa y protegida."
+                  />
                   <Footer c={c} esc={esc} />
-                </>
+                </>,
               )}
 
               {/* TAB 2: Mi sala y horarios */}
               {pagina(
                 "salas",
                 <>
-                  <SectionTitle c={c} esc={esc} icon="business-outline" color={c.success}>
+                  <SectionTitle
+                    c={c}
+                    esc={esc}
+                    icon="business-outline"
+                    color={c.success}
+                  >
                     Mi sala y horarios
                   </SectionTitle>
                   <SalasDoctor />
@@ -256,7 +375,7 @@ export default function DoctorScreen() {
                     texto="Cuando el administrador te asigne una sala o un horario, aparecerá aquí automáticamente."
                   />
                   <Footer c={c} esc={esc} />
-                </>
+                </>,
               )}
             </Animated.ScrollView>
           )}
@@ -287,83 +406,221 @@ export default function DoctorScreen() {
             }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 20, fontWeight: "700", color: c.primary }}>
-                {contratoSeleccionado ? `Contrato CT-${String(contratoSeleccionado.id_PK).padStart(4, "0")}` : "Mis contratos"}
+              <Text
+                style={{ fontSize: 20, fontWeight: "700", color: c.primary }}
+              >
+                {contratoSeleccionado
+                  ? `Contrato CT-${String(contratoSeleccionado.id_PK).padStart(4, "0")}`
+                  : "Mis contratos"}
               </Text>
-              <Text style={{ fontSize: 12, color: c.muted, marginTop: 3 }}>VITALIA · Documento contractual</Text>
+              <Text style={{ fontSize: 12, color: c.muted, marginTop: 3 }}>
+                VITALIA · Documento contractual
+              </Text>
             </View>
             <Pressable
               onPress={() => {
                 setModalContrato(false);
                 setContratoSeleccionado(null);
               }}
-              style={{ backgroundColor: c.activeBg, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10 }}
+              style={{
+                backgroundColor: c.activeBg,
+                paddingHorizontal: 14,
+                paddingVertical: 9,
+                borderRadius: 10,
+              }}
             >
-              <Text style={{ color: c.primary, fontWeight: "600", fontSize: 14 }}>Cerrar ✕</Text>
+              <Text
+                style={{ color: c.primary, fontWeight: "600", fontSize: 14 }}
+              >
+                Cerrar ✕
+              </Text>
             </Pressable>
           </View>
 
           {cargandoContrato ? (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                padding: 24,
+              }}
+            >
               <ActivityIndicator size="large" color={c.primary} />
-              <Text style={{ marginTop: 14, color: c.muted, fontSize: 15 }}>Cargando contratos...</Text>
+              <Text style={{ marginTop: 14, color: c.muted, fontSize: 15 }}>
+                Cargando contratos...
+              </Text>
             </View>
           ) : errorContrato ? (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 28 }}>
-              <Text style={{ fontSize: 17, fontWeight: "700", color: c.error, marginBottom: 8, textAlign: "center" }}>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                padding: 28,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 17,
+                  fontWeight: "700",
+                  color: c.error,
+                  marginBottom: 8,
+                  textAlign: "center",
+                }}
+              >
                 No se pudieron mostrar los contratos
               </Text>
-              <Text style={{ color: c.muted, textAlign: "center", fontSize: 14, lineHeight: 21 }}>{errorContrato}</Text>
+              <Text
+                style={{
+                  color: c.muted,
+                  textAlign: "center",
+                  fontSize: 14,
+                  lineHeight: 21,
+                }}
+              >
+                {errorContrato}
+              </Text>
               <Pressable
                 onPress={() => setModalContrato(false)}
-                style={{ marginTop: 20, backgroundColor: c.primary, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 10 }}
+                style={{
+                  marginTop: 20,
+                  backgroundColor: c.primary,
+                  paddingHorizontal: 22,
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                }}
               >
-                <Text style={{ color: "#FFFFFF", fontWeight: "600" }}>Regresar</Text>
+                <Text style={{ color: "#FFFFFF", fontWeight: "600" }}>
+                  Regresar
+                </Text>
               </Pressable>
             </View>
           ) : contratoSeleccionado ? (
             <View style={{ flex: 1, backgroundColor: c.bg }}>
               <Pressable
                 onPress={() => setContratoSeleccionado(null)}
-                style={{ alignSelf: "flex-start", marginHorizontal: 16, marginTop: 12, marginBottom: 4, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: c.activeBg }}
+                style={{
+                  alignSelf: "flex-start",
+                  marginHorizontal: 16,
+                  marginTop: 12,
+                  marginBottom: 4,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  backgroundColor: c.activeBg,
+                }}
               >
-                <Text style={{ color: c.primary, fontWeight: "700" }}>← Volver a mis contratos</Text>
+                <Text style={{ color: c.primary, fontWeight: "700" }}>
+                  ← Volver a mis contratos
+                </Text>
               </Pressable>
               <View style={{ flex: 1 }}>
-                <DocumentoContrato contrato={contratoSeleccionado} nombreDoctor={nombreDoctor} />
+                <DocumentoContrato
+                  contrato={contratoSeleccionado}
+                  nombreDoctor={nombreDoctor}
+                />
               </View>
             </View>
           ) : (
-            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-              <Text style={{ fontSize: 22, fontWeight: "800", color: c.text, marginBottom: 6 }}>Historial de contratos</Text>
-              <Text style={{ fontSize: 14, color: c.muted, lineHeight: 21, marginBottom: 20 }}>
-                Selecciona un contrato para consultar sus condiciones, fechas, remuneración y estado.
+            <ScrollView
+              contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text
+                style={{
+                  fontSize: 22,
+                  fontWeight: "800",
+                  color: c.text,
+                  marginBottom: 6,
+                }}
+              >
+                Historial de contratos
+              </Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: c.muted,
+                  lineHeight: 21,
+                  marginBottom: 20,
+                }}
+              >
+                Selecciona un contrato para consultar sus condiciones, fechas,
+                remuneración y estado.
               </Text>
               {contratos.length === 0 ? (
-                <Glass c={c} radius={16} style={{ padding: 24, alignItems: "center" }}>
-                  <Text style={{ fontSize: 15, color: c.muted, textAlign: "center" }}>No tienes contratos registrados.</Text>
+                <Glass
+                  c={c}
+                  radius={16}
+                  style={{ padding: 24, alignItems: "center" }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      color: c.muted,
+                      textAlign: "center",
+                    }}
+                  >
+                    No tienes contratos registrados.
+                  </Text>
                 </Glass>
               ) : (
                 contratos.map((contrato) => (
                   <Pressable
                     key={contrato.id_PK}
                     onPress={() => setContratoSeleccionado(contrato)}
-                    style={({ pressed }) => ({ marginBottom: 12, opacity: pressed ? 0.85 : 1 })}
+                    style={({ pressed }) => ({
+                      marginBottom: 12,
+                      opacity: pressed ? 0.85 : 1,
+                    })}
                   >
                     <Glass c={c} radius={16} style={{ padding: 16 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: c.activeBg, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
-                          <Ionicons name="document-text-outline" size={20} color={c.primary} />
+                      <View
+                        style={{ flexDirection: "row", alignItems: "center" }}
+                      >
+                        <View
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 12,
+                            backgroundColor: c.activeBg,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            marginRight: 12,
+                          }}
+                        >
+                          <Ionicons
+                            name="document-text-outline"
+                            size={20}
+                            color={c.primary}
+                          />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 15, fontWeight: "800", color: c.text }}>
-                            Contrato CT-{String(contrato.id_PK).padStart(4, "0")}
+                          <Text
+                            style={{
+                              fontSize: 15,
+                              fontWeight: "800",
+                              color: c.text,
+                            }}
+                          >
+                            Contrato CT-
+                            {String(contrato.id_PK).padStart(4, "0")}
                           </Text>
-                          <Text style={{ fontSize: 12, color: c.muted, marginTop: 3 }}>
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: c.muted,
+                              marginTop: 3,
+                            }}
+                          >
                             {contrato.tipo_contrato || "Tipo no especificado"}
                           </Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={18} color={c.muted} />
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={c.muted}
+                        />
                       </View>
                     </Glass>
                   </Pressable>
