@@ -1,6 +1,5 @@
 
 import { useCallback, useMemo, useState } from "react";
-import { useTheme, type Theme } from "../../../theme/theme";
 import {
   ActivityIndicator,
   FlatList,
@@ -13,13 +12,18 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useTheme, type Theme } from "../../../theme/theme";
 
+import * as Print from "expo-print";
 import { useFocusEffect } from "expo-router";
+import * as Sharing from "expo-sharing";
+import { Download } from "lucide-react-native";
 import DocumentoContrato from "../../../components/DocumentoContrato";
 import SelectorFecha from "../../../components/SelectorFecha";
+import { CrownSvg, UpgradeModal } from "../../../components/UpgradeModal";
 import { useAuth } from "../../../context/AuthContext";
-import { UpgradeModal, CrownSvg } from "../../../components/UpgradeModal";
 import api from "../../../services/api";
+import { generarHtmlContrato } from "../../../utils/contratoPdf";
 
 interface Doctor {
   id_PK: number;
@@ -72,6 +76,7 @@ export default function ContratosScreen() {
   const styles = useMemo(() => createStyles(c), [c]);
   const { token, planActual } = useAuth();
   const [modalUpgradeVisible, setModalUpgradeVisible] = useState(false);
+  const [descargandoId, setDescargandoId] = useState<number | null>(null);
 
   const planNormalizado = (planActual?.nombre_plan || "basico")
     .toLowerCase()
@@ -381,6 +386,150 @@ export default function ContratosScreen() {
       doctor?.usuario?.nombre ??
       `Médico #${id}`
     );
+  };
+
+  const descargarContrato = async (contrato: Contrato) => {
+    try {
+      setDescargandoId(contrato.id_PK);
+
+      const html = generarHtmlContrato(
+        contrato,
+        nombreDoctor(contrato.doctor_id_FK)
+      );
+
+      
+  if (Platform.OS === "web") {
+    if (
+      typeof window === "undefined" ||
+      typeof document === "undefined"
+    ) {
+      throw new Error("La descarga solo está disponible en el navegador.");
+    }
+
+    const modulo = await import("html2pdf.js");
+    const html2pdf = modulo.default;
+
+    // Leer el HTML completo del contrato.
+    const documento = new DOMParser().parseFromString(
+      html,
+      "text/html"
+    );
+
+    // Crear el contenedor que se convertirá en PDF.
+    const contenedor = document.createElement("div");
+
+    contenedor.innerHTML = documento.body.innerHTML;
+
+    contenedor.style.width = "186mm";
+    contenedor.style.maxWidth = "186mm";
+    contenedor.style.padding = "0";
+    contenedor.style.margin = "0 auto";
+    contenedor.style.backgroundColor = "#FFFFFF";
+    contenedor.style.color = "#000000";
+    contenedor.style.overflow = "visible";
+
+    // Copiar los estilos originales del contrato.
+    const estilosTemporales: HTMLElement[] = [];
+
+    documento.head
+      .querySelectorAll('style, link[rel="stylesheet"]')
+      .forEach((estilo) => {
+        const copia = estilo.cloneNode(true) as HTMLElement;
+
+        document.head.appendChild(copia);
+        estilosTemporales.push(copia);
+      });
+    
+    contenedor.style.width = "190mm";
+    contenedor.style.padding = "0";
+    contenedor.style.margin = "0 auto";
+    contenedor.style.backgroundColor = "#FFFFFF";
+    contenedor.style.color = "#000000";
+
+    // Evitar cortes innecesarios dentro de los elementos.
+    contenedor.style.setProperty("overflow", "visible");
+
+    document.body.appendChild(contenedor);
+
+    try {
+      // Esperar a que estén disponibles las fuentes.
+      if (document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+
+      // Configuración de generación del PDF.
+      const opcionesPdf = {
+        margin: [12, 12, 12, 12],
+        filename: `Contrato-${contrato.id_PK}.pdf`,
+
+        image: {
+          type: "jpeg",
+          quality: 0.98,
+        },
+
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#FFFFFF",
+          logging: false,
+          scrollX: 0,
+          scrollY: 0,
+        },
+
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "portrait",
+        },
+
+        pagebreak: {
+          mode: ["css", "legacy"],
+          avoid: [
+            ".encabezado",
+            ".campo",
+            ".columnas",
+            ".pie",
+            "h3",
+          ],
+        },
+      };
+
+      await html2pdf()
+        .set(opcionesPdf as any)
+        .from(contenedor)
+        .save();
+    } finally {
+      document.body.removeChild(contenedor);
+
+      // Retirar los estilos temporales.
+      estilosTemporales.forEach((estilo) => {
+        estilo.remove();
+      });
+    }
+
+    return;
+  }
+
+      // Android e iOS.
+      const resultado = await Print.printToFileAsync({ html });
+
+      const disponible = await Sharing.isAvailableAsync();
+
+      if (!disponible) {
+        mostrarAlerta("Aviso", "No está disponible compartir el PDF.");
+        return;
+      }
+
+      await Sharing.shareAsync(resultado.uri, {
+        mimeType: "application/pdf",
+        dialogTitle: "Guardar contrato PDF",
+      });
+    } catch (error) {
+      console.error("Error al generar contrato:", error);
+      mostrarAlerta("Error", "No se pudo generar el PDF del contrato.");
+    } finally {
+      setDescargandoId(null);
+    }
   };
 
   if (!tieneAccesoContratos) {
@@ -802,7 +951,7 @@ export default function ContratosScreen() {
       >
         <View style={styles.contenedorDocumento}>
           <View style={styles.encabezadoDocumento}>
-            <View style={styles.flex}>
+            <View style={styles.infoDocumento}>
               <Text style={styles.tituloDocumento}>
                 Vista previa del contrato
               </Text>
@@ -816,14 +965,35 @@ export default function ContratosScreen() {
               </Text>
             </View>
 
-            <Pressable
-              style={styles.botonCerrarDocumento}
-              onPress={() => setDocumentoVisible(false)}
-            >
-              <Text style={styles.botonCerrarDocumentoTexto}>
-                Cerrar
-              </Text>
-            </Pressable>
+            <View style={styles.accionesDocumento}>
+              <Pressable
+                style={[
+                  styles.botonDescargar,
+                  descargandoId !== null && styles.botonDeshabilitado,
+                ]}
+                onPress={() => {
+                  if (contratoDocumento && descargandoId === null) {
+                    descargarContrato(contratoDocumento);
+                  }
+                }}
+                disabled={!contratoDocumento || descargandoId !== null}
+              >
+                {descargandoId === contratoDocumento?.id_PK ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Download size={20} color="#FFFFFF" />
+                )}
+              </Pressable>
+
+              <Pressable
+                style={styles.botonCerrarDocumento}
+                onPress={() => setDocumentoVisible(false)}
+              >
+                <Text style={styles.botonCerrarDocumentoTexto}>
+                  Cerrar
+                </Text>
+              </Pressable>
+            </View>
           </View>
 
           {contratoDocumento && (
@@ -1213,16 +1383,6 @@ const createStyles = (c: Theme) => {
     flex: 1,
     backgroundColor: c.bg,
   },
-  encabezadoDocumento: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    backgroundColor: c.card,
-    borderBottomWidth: 1,
-    borderBottomColor: c.border,
-  },
   tituloDocumento: {
     color: c.text,
     fontSize: 18,
@@ -1314,6 +1474,42 @@ const createStyles = (c: Theme) => {
     fontSize: 14.5,
     fontWeight: "700",
     letterSpacing: 0.2,
+  },
+
+  infoDocumento: {
+    flex: 1,
+    minWidth: 180,
+  },
+
+  encabezadoDocumento: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: c.card,
+    borderBottomWidth: 1,
+    borderBottomColor: c.border,
+    zIndex: 10,
+  },
+
+  accionesDocumento: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+
+  botonDescargar: {
+    backgroundColor: "#08BFA4",
+    borderRadius: 9,
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 };

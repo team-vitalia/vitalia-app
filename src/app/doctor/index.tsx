@@ -1,5 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Print from "expo-print";
 import { useRouter } from "expo-router";
+import * as Sharing from "expo-sharing";
+import { Download } from "lucide-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -33,6 +36,7 @@ import SalasDoctor from "../../components/SalasDoctor";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 import { useTheme } from "../../theme/theme";
+import { generarHtmlContrato } from "../../utils/contratoPdf";
 
 const ND = Platform.OS !== "web";
 
@@ -46,6 +50,7 @@ export default function DoctorScreen() {
   const { usuario, token } = useAuth();
   const c = useTheme();
   const { width } = useWindowDimensions();
+  const [descargandoId, setDescargandoId] = useState<number | null>(null);
 
   const { pad, esc, cols } = useMemo(() => {
     const esc = width < 560 ? 1 : width < 900 ? 1.06 : 1.12;
@@ -132,11 +137,20 @@ export default function DoctorScreen() {
       const respuesta = await api.get("/api/contratos/mi-contrato", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const listaContratos = Array.isArray(respuesta.data)
-        ? respuesta.data
-        : respuesta.data
-          ? [respuesta.data]
-          : [];
+      const data = respuesta.data;
+
+      const listaContratos = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.contratos)
+          ? data.contratos
+          : Array.isArray(data?.items)
+            ? data.items
+            : Array.isArray(data?.resultados)
+              ? data.resultados
+              : data?.id_PK != null
+                ? [data]
+                : [];
+
       if (listaContratos.length === 0) {
         setErrorContrato("No tienes contratos registrados.");
         return;
@@ -155,6 +169,164 @@ export default function DoctorScreen() {
       );
     } finally {
       setCargandoContrato(false);
+    }
+  };
+
+  
+  const descargarContrato = async (contrato: any) => {
+    if (!contrato || contrato.id_PK == null || descargandoId !== null) {
+      return;
+    }
+
+    const id = Number(contrato.id_PK);
+    setDescargandoId(id);
+
+    try {
+      const html = generarHtmlContrato(
+        contrato,
+        nombreDoctor || "Médico"
+      );
+
+      if (Platform.OS === "web") {
+        if (
+          typeof window === "undefined" ||
+          typeof document === "undefined"
+        ) {
+          throw new Error(
+            "La descarga solo está disponible en el navegador."
+          );
+        }
+
+        const modulo = await import("html2pdf.js");
+        const html2pdf = modulo.default;
+
+        // Leer el HTML completo del contrato.
+        const documento = new DOMParser().parseFromString(
+          html,
+          "text/html"
+        );
+
+        // Copiar los estilos originales del contrato.
+        const estilosTemporales: HTMLElement[] = [];
+
+        documento.head
+          .querySelectorAll('style, link[rel="stylesheet"]')
+          .forEach((estilo) => {
+            const copia = estilo.cloneNode(true) as HTMLElement;
+
+            document.head.appendChild(copia);
+            estilosTemporales.push(copia);
+          });
+
+        // Crear el contenedor que se convertirá en PDF.
+        const contenedor = document.createElement("div");
+
+        contenedor.innerHTML = documento.body.innerHTML;
+
+        contenedor.style.width = "190mm";
+        contenedor.style.maxWidth = "190mm";
+        contenedor.style.padding = "0";
+        contenedor.style.margin = "0 auto";
+        contenedor.style.backgroundColor = "#FFFFFF";
+        contenedor.style.color = "#000000";
+        contenedor.style.overflow = "visible";
+
+        // IMPORTANTE: mantenerlo dentro del documento.
+        // No utilizar left: -10000px ni position: fixed.
+        document.body.appendChild(contenedor);
+
+        try {
+          // Esperar a que estén disponibles las fuentes.
+          if (document.fonts?.ready) {
+            await document.fonts.ready;
+          }
+
+          // Misma configuración que funciona en administrador.
+          const opcionesPdf = {
+            margin: [12, 12, 12, 12],
+            filename: `Contrato-${id}.pdf`,
+
+            image: {
+              type: "jpeg",
+              quality: 0.98,
+            },
+
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              backgroundColor: "#FFFFFF",
+              logging: false,
+              scrollX: 0,
+              scrollY: 0,
+            },
+
+            jsPDF: {
+              unit: "mm",
+              format: "a4",
+              orientation: "portrait",
+            },
+
+            pagebreak: {
+              mode: ["css", "legacy"],
+              avoid: [
+                ".encabezado",
+                ".campo",
+                ".columnas",
+                ".pie",
+                "h3",
+              ],
+            },
+          };
+
+          await html2pdf()
+            .set(opcionesPdf as any)
+            .from(contenedor)
+            .save();
+
+        } finally {
+          // Retirar el documento temporal.
+          if (contenedor.parentNode) {
+            contenedor.parentNode.removeChild(contenedor);
+          }
+
+          // Retirar los estilos temporales.
+          estilosTemporales.forEach((estilo) => {
+            estilo.remove();
+          });
+        }
+
+        return;
+      }
+
+      // Android e iOS.
+      const archivo = await Print.printToFileAsync({ html });
+
+      const disponible = await Sharing.isAvailableAsync();
+
+      if (!disponible) {
+        throw new Error(
+          "No está disponible la opción para compartir o guardar el PDF."
+        );
+      }
+
+      await Sharing.shareAsync(archivo.uri, {
+        mimeType: "application/pdf",
+        dialogTitle: "Guardar contrato PDF",
+      });
+
+    } catch (error) {
+      console.error(
+        "Error al descargar contrato:",
+        error
+      );
+
+      console.error(
+        "Detalles:",
+        error instanceof Error ? error.message : error
+      );
+
+    } finally {
+      setDescargandoId(null);
     }
   };
 
@@ -498,29 +670,84 @@ export default function DoctorScreen() {
             </View>
           ) : contratoSeleccionado ? (
             <View style={{ flex: 1, backgroundColor: c.bg }}>
-              <Pressable
-                onPress={() => setContratoSeleccionado(null)}
+
+              {/* Acciones dentro de la vista previa */}
+              <View
                 style={{
-                  alignSelf: "flex-start",
-                  marginHorizontal: 16,
-                  marginTop: 12,
-                  marginBottom: 4,
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                  borderRadius: 10,
-                  backgroundColor: c.activeBg,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  gap: 12,
                 }}
               >
-                <Text style={{ color: c.primary, fontWeight: "700" }}>
-                  ← Volver a mis contratos
-                </Text>
-              </Pressable>
+                {/* Regresar al historial */}
+                <Pressable
+                  onPress={() => setContratoSeleccionado(null)}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 11,
+                    borderRadius: 10,
+                    backgroundColor: c.activeBg,
+                  }}
+                >
+                  <Text style={{ color: c.primary, fontWeight: "700" }}>
+                    ← Volver a mis contratos
+                  </Text>
+                </Pressable>
+
+                {/* Descargar PDF */}
+                <Pressable
+                  onPress={() => descargarContrato(contratoSeleccionado)}
+                  disabled={
+                    !contratoSeleccionado ||
+                    descargandoId !== null
+                  }
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    backgroundColor: "#08BFA4",
+                    paddingHorizontal: 16,
+                    paddingVertical: 11,
+                    borderRadius: 10,
+                    opacity: descargandoId !== null ? 0.6 : 1,
+                  }}
+                >
+                  {descargandoId === Number(contratoSeleccionado.id_PK) ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Download
+                      size={19}
+                      color="#FFFFFF"
+                      strokeWidth={2.2}
+                    />
+                  )}
+
+                  <Text
+                    style={{
+                      color: "#FFFFFF",
+                      fontSize: 13,
+                      fontWeight: "700",
+                    }}
+                  >
+                    {descargandoId === Number(contratoSeleccionado.id_PK)
+                      ? "Generando..."
+                      : "Descargar PDF"}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Documento contractual */}
               <View style={{ flex: 1 }}>
                 <DocumentoContrato
                   contrato={contratoSeleccionado}
                   nombreDoctor={nombreDoctor}
                 />
               </View>
+
             </View>
           ) : (
             <ScrollView
