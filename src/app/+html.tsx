@@ -21,15 +21,23 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="application-name" content="Vitalia" />
         <meta name="msapplication-TileColor" content="#0B1220" />
         <meta name="msapplication-TileImage" content="/icons/icon-512.png" />
-        <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
         <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
-        <link rel="shortcut icon" type="image/png" href="/favicon.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
+        <link rel="icon" type="image/png" href="/logo.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
         <link rel="stylesheet" href="/css/all.min.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
         <link rel="stylesheet" href="/styles.css" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){function enforceVitalia(){if(document.title!=='Vitalia'){document.title='Vitalia';}}enforceVitalia();try{var titleEl=document.querySelector('title');if(titleEl){new MutationObserver(enforceVitalia).observe(titleEl,{childList:true,characterData:true,subtree:true});}window.addEventListener('popstate',enforceVitalia);setInterval(enforceVitalia,1000);}catch(e){}})();`,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'){document.documentElement.classList.add('dark-theme');if(document.body){document.body.classList.add('dark-theme');}else{document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('dark-theme');});}}else{document.documentElement.classList.remove('dark-theme');}}catch(e){}})();`,

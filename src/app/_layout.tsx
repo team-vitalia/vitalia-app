@@ -1037,6 +1037,9 @@ function AppLayout() {
 
   useEffect(() => {
     setMasAbierto(false);
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      document.title = "Vitalia";
+    }
   }, [pathname]);
 
   const itemsRol = NAV.filter((i) => !!rolId && i.roles.includes(rolId));
@@ -1108,7 +1111,7 @@ function AppLayout() {
         <OfflineBanner />
         <InstallPrompt />
         <View style={styles.stackContainer}>
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }} />
+          <Stack screenOptions={{ headerShown: false, title: "Vitalia", contentStyle: { backgroundColor: c.bg } }} />
         </View>
 
         {mostrarMenu && isMobile && (
@@ -1167,6 +1170,10 @@ function AppLayout() {
 
 export default function RootLayout() {
   useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      document.title = "Vitalia";
+    }
+
     if (
       Platform.OS === "web" &&
       typeof window !== "undefined" &&
