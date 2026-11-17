@@ -1,10 +1,13 @@
-const STATIC_CACHE_NAME = 'vitalia-static-v4';
+const STATIC_CACHE_NAME = 'vitalia-static-v5';
 const DATA_CACHE_NAME = 'vitalia-data-v3';
 
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
+  '/logo.png',
+  '/icons/logo.png',
   '/favicon.png',
+  '/favicon.ico',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable.png',
