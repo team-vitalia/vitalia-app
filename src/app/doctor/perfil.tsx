@@ -1,6 +1,7 @@
+import { useTheme, type Theme } from "../../theme/theme";
 
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useMemo,  useEffect, useState  } from "react";
 import {
     ActivityIndicator,
     Modal,
@@ -47,6 +48,8 @@ function AlertaPersonalizada({
   tipo,
   onCerrar,
 }: AlertaProps) {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   return (
     <Modal
       visible={visible}
@@ -99,6 +102,8 @@ function AlertaPersonalizada({
 }
 
 export default function PerfilDoctorScreen() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
     const router = useRouter();
     const { token } = useAuth();
 
@@ -666,10 +671,12 @@ const [codigoEspecialidad, setCodigoEspecialidad] = useState("");
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
   },
   content: {
     width: "100%",
@@ -682,70 +689,70 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
   },
   loadingText: {
     marginTop: 12,
     color: "#58716C",
   },
   back: {
-    color: "#247F76",
+    color: c.primary,
     fontWeight: "700",
     marginBottom: 20,
   },
   heading: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
   },
   subtitle: {
     fontSize: 14,
-    color: "#82938F",
+    color: c.muted,
     marginTop: 6,
     marginBottom: 22,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 20,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 18,
   },
   label: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#31534D",
+    color: c.text,
     marginBottom: 7,
     marginTop: 12,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#DCE8E4",
-    backgroundColor: "#FFFFFF",
+    borderColor: c.border,
+    backgroundColor: c.card,
     borderRadius: 11,
     paddingHorizontal: 13,
     paddingVertical: 12,
     fontSize: 14,
-    color: "#173F3A",
+    color: c.text,
   },
   readOnly: {
-    backgroundColor: "#F0F5F3",
+    backgroundColor: isDark ? "#1E2631" : "#FBFEFD",
     color: "#71837E",
   },
   status: {
-    color: "#247F76",
+    color: c.primary,
     fontWeight: "700",
     textTransform: "capitalize",
   },
   helper: {
-    color: "#82938F",
+    color: c.muted,
     fontSize: 12,
     marginBottom: 10,
     lineHeight: 18,
@@ -755,12 +762,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 13,
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
     borderRadius: 12,
     marginBottom: 9,
   },
   specialtySelected: {
-    backgroundColor: "#EAF7F4",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderColor: "#73B9AE",
   },
   checkbox: {
@@ -768,13 +775,13 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#B9CBC5",
+    borderColor: c.border,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 11,
   },
   checkboxSelected: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderColor: "#247F76",
   },
   checkmark: {
@@ -782,16 +789,16 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   specialtyText: {
-    color: "#49625C",
+    color: c.muted,
     flex: 1,
   },
   specialtyTextSelected: {
-    color: "#17685F",
+    color: c.primary,
     fontWeight: "700",
   },
   saveButton: {
     marginTop: 22,
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderRadius: 12,
     padding: 15,
     alignItems: "center",
@@ -805,7 +812,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   errorBox: {
-    backgroundColor: "#FFF0EF",
+    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
     borderColor: "#F2C7C3",
     borderWidth: 1,
     borderRadius: 12,
@@ -816,12 +823,12 @@ const styles = StyleSheet.create({
     color: "#A83228",
   },
   retry: {
-    color: "#247F76",
+    color: c.primary,
     fontWeight: "800",
     marginTop: 10,
   },
   notificationBox: {
-    backgroundColor: "#EAF7F4",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderWidth: 1,
     borderColor: "#73B9AE",
     borderRadius: 12,
@@ -830,25 +837,25 @@ const styles = StyleSheet.create({
     },
 
     notificationError: {
-    backgroundColor: "#FFF0EF",
+    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
     borderColor: "#F2C7C3",
     },
 
     notificationTitle: {
-    color: "#17685F",
+    color: c.primary,
     fontSize: 16,
     fontWeight: "800",
     marginBottom: 6,
     },
 
     notificationMessage: {
-    color: "#31534D",
+    color: c.text,
     fontSize: 14,
     lineHeight: 20,
     },
 
     notificationClose: {
-    color: "#247F76",
+    color: c.primary,
     fontWeight: "800",
     textAlign: "right",
     marginTop: 12,
@@ -865,7 +872,7 @@ const styles = StyleSheet.create({
     alertaCaja: {
     width: "100%",
     maxWidth: 390,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 24,
     paddingHorizontal: 28,
     paddingTop: 30,
@@ -893,14 +900,14 @@ const styles = StyleSheet.create({
     },
 
     alertaIconoError: {
-    backgroundColor: "#FFF0EF",
+    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
     borderColor: "#F4D0CC",
     },
 
     alertaIcono: {
     fontSize: 34,
     fontWeight: "700",
-    color: "#247F76",
+    color: c.primary,
     },
 
     alertaIconoTextoError: {
@@ -910,7 +917,7 @@ const styles = StyleSheet.create({
     alertaTitulo: {
     fontSize: 21,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
     textAlign: "center",
     marginBottom: 10,
     },
@@ -926,7 +933,7 @@ const styles = StyleSheet.create({
     alertaBoton: {
     width: "100%",
     minHeight: 48,
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderRadius: 13,
     justifyContent: "center",
     alignItems: "center",
@@ -957,7 +964,7 @@ const styles = StyleSheet.create({
     },
 
     crearEspecialidadTexto: {
-        color: "#247F76",
+        color: c.primary,
         fontSize: 14,
         fontWeight: "800",
     },
@@ -965,7 +972,7 @@ const styles = StyleSheet.create({
     modalEspecialidadCaja: {
         width: "100%",
         maxWidth: 420,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderRadius: 24,
         padding: 24,
         alignSelf: "center",
@@ -987,3 +994,4 @@ const styles = StyleSheet.create({
         textAlignVertical: "top",
     },
 });
+};

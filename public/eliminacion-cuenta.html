@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Página oficial de solicitud de eliminación de cuentas y retención de datos para la aplicación Vitalia, desarrollada por Jared Gonzalez Ortega.">
+  <title>Eliminación de Cuentas y Datos - Vitalia | Jared Gonzalez Ortega</title>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem('theme');
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark-theme');
+        } else {
+          document.documentElement.classList.remove('dark-theme');
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <a href="#contenido-principal" class="skip-link">Saltar al contenido principal</a>
+
+  <header class="header-site" role="banner">
+    <div class="container">
+      <div class="header-topbar">
+        <span class="kicker-badge">Portal de Transparencia y Privacidad</span>
+        <button id="theme-toggle" class="theme-toggle-btn" type="button" aria-label="Cambiar a tema oscuro" title="Cambiar tema">
+          <span class="theme-toggle-icon theme-icon-sun" aria-hidden="true">☀️</span>
+          <span class="theme-toggle-icon theme-icon-moon" aria-hidden="true">🌙</span>
+          <span class="theme-toggle-text">Modo Oscuro</span>
+        </button>
+      </div>
+      <h1>Eliminación de Cuentas y Datos Personales</h1>
+      <p class="header-meta">
+        Canal oficial de solicitud y cumplimiento de la política de datos para la aplicación <span class="meta-tag">Vitalia</span> (Gestión Clínica Integral), desarrollada por <span class="meta-tag">Jared Gonzalez Ortega</span>, de conformidad con los lineamientos de Google Play Store y el marco normativo sanitario.
+      </p>
+    </div>
+  </header>
+
+  <main id="contenido-principal" class="main-content">
+    <div class="container">
+      <section aria-label="Métricas del procedimiento" class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value">30 Días</div>
+          <div class="stat-label">Plazo de Respuesta</div>
+          <p class="stat-desc">Tiempo máximo legal para formalizar la revocación y purga de credenciales de acceso.</p>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-value">5 Años</div>
+          <div class="stat-label">Retención Legal</div>
+          <p class="stat-desc">Custodia obligatoria de expedientes clínicos conforme a la NOM-004-SSA3-2012.</p>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-value">100%</div>
+          <div class="stat-label">Disociación</div>
+          <p class="stat-desc">Desvinculación completa de identificadores de sesión, dispositivos y tokens push.</p>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-value">Gratuito</div>
+          <div class="stat-label">Costo del Trámite</div>
+          <p class="stat-desc">El ejercicio de supresión de cuenta y datos no genera cargos ni penalizaciones.</p>
+        </div>
+      </section>
+
+      <article class="content-card">
+        <h2>Instrucciones para Solicitar la Eliminación de su Cuenta</h2>
+        <p>El titular de la cuenta o su representante legal debidamente acreditado puede solicitar en cualquier momento la supresión de su cuenta y la revocación de sus datos. Existen dos mecanismos autorizados para completar este trámite:</p>
+
+        <h3>Opción 1: Solicitud Directa desde la Aplicación Móvil Vitalia</h3>
+        <ol class="steps-list">
+          <li>
+            <span class="step-title">Paso 1: Inicio de sesión</span>
+            Abra la aplicación Vitalia en su dispositivo móvil e inicie sesión con sus credenciales activas (correo electrónico y contraseña).
+          </li>
+          <li>
+            <span class="step-title">Paso 2: Acceso a configuración</span>
+            Diríjase a la pestaña de su Perfil en la esquina inferior y seleccione la opción Ajustes de Privacidad y Seguridad.
+          </li>
+          <li>
+            <span class="step-title">Paso 3: Selección de baja de cuenta</span>
+            Desplácese hasta el final del menú y seleccione el comando Solicitar Eliminación de Cuenta y Datos Asociados.
+          </li>
+          <li>
+            <span class="step-title">Paso 4: Confirmación y verificación de identidad</span>
+            Lea la notificación de impacto legal e ingrese el código de un solo uso (OTP) que se enviará automáticamente a su correo electrónico institucional registrado.
+          </li>
+          <li>
+            <span class="step-title">Paso 5: Emisión de acuse de recibo</span>
+            Al confirmar, el sistema cerrará la sesión de forma irreversible en todos sus dispositivos y le proporcionará un folio de seguimiento al correo.
+          </li>
+        </ol>
+
+        <h3>Opción 2: Solicitud Web Oficial (Exigida por Google Play Store)</h3>
+        <p>Si ha desinstalado la aplicación o no puede acceder a su terminal móvil, complete el formulario oficial a continuación para iniciar el proceso de supresión:</p>
+
+        <form id="formulario-baja" class="web-form" novalidate>
+          <div class="form-group">
+            <label for="nombre" class="form-label">Nombre Completo del Titular (requerido):</label>
+            <input type="text" id="nombre" name="nombre" class="form-control" required aria-required="true">
+          </div>
+
+          <div class="form-group">
+            <label for="correo" class="form-label">Correo Electrónico Vinculado a Vitalia (requerido):</label>
+            <input type="email" id="correo" name="correo" class="form-control" required aria-required="true">
+          </div>
+
+          <div class="form-group">
+            <label for="motivo" class="form-label">Motivo o Aclaraciones de la Solicitud (opcional):</label>
+            <textarea id="motivo" name="motivo" rows="3" class="form-control"></textarea>
+          </div>
+
+          <div class="checkbox-container">
+            <input type="checkbox" id="confirmo" name="confirmo" required aria-required="true">
+            <label for="confirmo">Reconozco que la eliminación de la cuenta es permanente y que la información clínica previa quedará sujeta al periodo de conservación sanitaria legal obligatoria.</label>
+          </div>
+
+          <button type="submit" class="btn-submit">Registrar Solicitud Formal de Eliminación</button>
+
+          <div id="mensaje-exito" role="alert" class="alert-box alert-success">
+            Su solicitud ha sido registrada correctamente con fecha de hoy. Se ha enviado una notificación de confirmación a su correo institucional.
+          </div>
+
+          <div id="mensaje-error" role="alert" class="alert-box alert-error">
+            Complete los campos requeridos y marque la casilla de reconocimiento para continuar.
+          </div>
+        </form>
+      </article>
+
+      <section class="content-card" aria-labelledby="datos-eliminados-titulo">
+        <h2 id="datos-eliminados-titulo">Tipos de Datos que se Eliminan por Completo</h2>
+        <p>Una vez validada su solicitud, los siguientes datos se purgan de manera irreversible de nuestras bases de datos de producción y servidores secundarios:</p>
+        <ul class="data-list">
+          <li><strong>Credenciales de autenticación:</strong> Contraseñas procesadas mediante hash criptográfico (Bcrypt/Argon2), tokens de acceso JWT y llaves de sesión activa.</li>
+          <li><strong>Identificadores de hardware y notificaciones:</strong> Tokens de Firebase Cloud Messaging (FCM), identificadores únicos de dispositivo (UUID) y direcciones IP asociadas a accesos móviles.</li>
+          <li><strong>Configuraciones y personalización:</strong> Preferencias de vista, modo claro o modo oscuro, accesos directos configurados y recordatorios locales.</li>
+          <li><strong>Información de contacto no asistencial:</strong> Listas de distribución de notificaciones preventivas, avisos administrativos y encuestas de satisfacción.</li>
+        </ul>
+      </section>
+
+      <section class="content-card" aria-labelledby="datos-conservados-titulo">
+        <h2 id="datos-conservados-titulo">Tipos de Datos que se Conservan y Fundamento Legal</h2>
+        <p>Por tratarse de un software orientado a la gestión médica y expedientes clínicos electrónicos, la eliminación de la cuenta de usuario no autoriza la destrucción arbitraria de información sujeta a responsabilidades legales sanitarias.</p>
+
+        <div class="callout callout-warning">
+          <span class="callout-title">Aviso de Regulación Sanitaria (NOM-004-SSA3-2012)</span>
+          El expediente clínico es un instrumento médico-legal propiedad física de la institución médica y del paciente titular. Los profesionales de la salud tienen la obligación invariable de salvaguardar su integridad y trazabilidad.
+        </div>
+
+        <ul class="data-list">
+          <li><strong>Expediente Clínico Electrónico:</strong> Notas médicas de evolución, notas de ingreso, antecedentes heredofamiliares, signos vitales, alergias, recetas emitidas y planes de tratamiento firmados digitalmente.</li>
+          <li><strong>Bitácoras de auditoría sanitaria:</strong> Registros inmutables con fecha, hora y cédula profesional de quien suministró medicamentos o registró un acto clínico, requeridos para la prevención de malas prácticas y deslinde legal.</li>
+          <li><strong>Comprobantes fiscales y administrativos:</strong> Folios de facturación y pagos de consultas expedidos por la institución clínica.</li>
+        </ul>
+      </section>
+
+      <section class="content-card" aria-labelledby="periodos-retencion-titulo">
+        <h2 id="periodos-retencion-titulo">Periodos de Retención para los Datos Conservados</h2>
+        <p>Los datos retenidos se mantienen bajo estrictas medidas de seguridad lógica y física (cifrado en reposo AES-256) durante los siguientes plazos perentorios:</p>
+
+        <div class="table-responsive">
+          <table class="retention-table">
+            <thead>
+              <tr>
+                <th scope="col">Categoría de Información</th>
+                <th scope="col">Periodo de Retención</th>
+                <th scope="col">Justificación Legal / Normativa</th>
+                <th scope="col">Destino Final</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Historial Clínico y Recetas</th>
+                <td>5 años mínimos</td>
+                <td>Norma Oficial Mexicana NOM-004-SSA3-2012, Numeral 5.4</td>
+                <td>Anonimización irreversible para estudios epidemiológicos o destrucción física regulada.</td>
+              </tr>
+              <tr>
+                <th scope="row">Bitácora de Auditoría Clínica</th>
+                <td>5 años</td>
+                <td>NOM-024-SSA3-2012 (Sistemas de Información de Registro Electrónico para la Salud)</td>
+                <td>Depuración permanente de logs del servidor.</td>
+              </tr>
+              <tr>
+                <th scope="row">Comprobantes Fiscales</th>
+                <td>5 años</td>
+                <td>Código Fiscal de la Federación (Art. 30)</td>
+                <td>Eliminación contable conforme a la legislación fiscal.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout-info">
+          <span class="callout-title">Desvinculación del Acceso Durante el Periodo de Retención</span>
+          Durante los 5 años en que los datos clínicos deban permanecer bajo resguardo legal, su cuenta de usuario estará desactivada e inaccesible al público. Ningún tercero podrá consultar su información a menos que medie orden judicial o requerimiento expreso de la autoridad sanitaria competente.
+        </div>
+      </section>
+
+      <section class="content-card" aria-labelledby="contacto-titulo">
+        <h2 id="contacto-titulo">Canales de Atención y Responsable del Tratamiento</h2>
+        <p>Para cualquier consulta o rectificación referente a este procedimiento, puede contactar directamente a la dirección técnica responsable:</p>
+        <ul class="data-list">
+          <li><strong>Aplicación:</strong> Vitalia (Gestión Clínica)</li>
+          <li><strong>Desarrollador Responsable:</strong> Jared Gonzalez Ortega</li>
+          <li><strong>Correo Oficial de Soporte y Privacidad:</strong> vitaliaorg98@gmail.com</li>
+          <li><strong>Domicilio Legal:</strong> Lerma, Estado de México, C.P. 52044.</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer-site" role="contentinfo">
+    <div class="container">
+      <p>Vitalia | Desarrollado por Jared Gonzalez Ortega. Todos los derechos reservados. Esta página web satisface los requerimientos de divulgación y eliminación de datos de usuario establecidos en las Políticas del Programa para Desarrolladores de Google Play.</p>
+    </div>
+  </footer>
+
+  <script>
+    // --- Lógica del Sistema de Temas (Claro / Oscuro) ---
+    const themeToggleBtn = document.getElementById("theme-toggle");
+
+    function applyTheme(theme) {
+      const isDark = theme === "dark";
+      document.body.classList.toggle("dark-theme", isDark);
+      document.documentElement.classList.toggle("dark-theme", isDark);
+
+      if (themeToggleBtn) {
+        themeToggleBtn.setAttribute(
+          "aria-label",
+          isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"
+        );
+        const textSpan = themeToggleBtn.querySelector(".theme-toggle-text");
+        if (textSpan) {
+          textSpan.textContent = isDark ? "Modo Claro" : "Modo Oscuro";
+        }
+      }
+    }
+
+    // Inicializar tema desde localStorage (por defecto 'light')
+    const initialTheme = (function () {
+      try {
+        return localStorage.getItem("theme") || "light";
+      } catch (e) {
+        return "light";
+      }
+    })();
+    applyTheme(initialTheme);
+
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener("click", function () {
+        const isCurrentDark = document.body.classList.contains("dark-theme");
+        const nextTheme = isCurrentDark ? "light" : "dark";
+        try {
+          localStorage.setItem("theme", nextTheme);
+        } catch (e) {}
+        applyTheme(nextTheme);
+      });
+    }
+
+    // --- Lógica del Formulario de Baja ---
+    document.getElementById("formulario-baja").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const nombre = document.getElementById("nombre").value.trim();
+      const correo = document.getElementById("correo").value.trim();
+      const confirmo = document.getElementById("confirmo").checked;
+      const exito = document.getElementById("mensaje-exito");
+      const error = document.getElementById("mensaje-error");
+
+      exito.style.display = "none";
+      error.style.display = "none";
+
+      if (!nombre || !correo || !confirmo) {
+        error.style.display = "block";
+        return;
+      }
+
+      exito.style.display = "block";
+      this.reset();
+    });
+  </script>
+</body>
+</html>

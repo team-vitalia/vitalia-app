@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Modal,
   Platform,
@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path } from "react-native-svg";
 import { resolveLandingUrl } from "../services/api";
+import { useTheme, type Theme } from "../theme/theme";
 
 export interface UpgradeModalProps {
   visible: boolean;
@@ -50,6 +51,8 @@ export function UpgradeModal({
   onClose,
   onVerPlanes,
 }: UpgradeModalProps) {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const nombreModulo = modulo || funcionBloqueada || "este módulo";
 
   const handleVerPlanes = () => {
@@ -154,13 +157,15 @@ export function UpgradeModal({
 
 export const MejoraPlanModal = UpgradeModal;
 
-const styles = StyleSheet.create({
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "rgba(11, 18, 32, 0.78)",
+    backgroundColor: isDark ? "rgba(0, 0, 0, 0.75)" : "rgba(11, 18, 32, 0.55)",
     ...(Platform.OS === "web"
       ? ({
           backdropFilter: "blur(8px)",
@@ -174,22 +179,23 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#111A2C",
+    backgroundColor: c.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: c.border,
     paddingVertical: 28,
     paddingHorizontal: 24,
     alignItems: "center",
     ...(Platform.OS === "web"
       ? ({
-          boxShadow:
-            "0 20px 45px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08)",
+          boxShadow: isDark
+            ? "0 20px 45px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08)"
+            : "0 20px 45px rgba(15, 76, 69, 0.12), 0 0 0 1px rgba(15, 76, 69, 0.05)",
         } as any)
       : {
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.35,
+          shadowOpacity: isDark ? 0.35 : 0.15,
           shadowRadius: 20,
           elevation: 10,
         }),
@@ -224,7 +230,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: c.text,
     textAlign: "center",
     marginBottom: 10,
     letterSpacing: 0.3,
@@ -232,7 +238,7 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 13.5,
     lineHeight: 20,
-    color: "#94A3B8",
+    color: c.muted,
     textAlign: "center",
     marginBottom: 24,
     paddingHorizontal: 8,
@@ -254,7 +260,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   primaryButtonText: {
-    color: "#04222B",
+    color: isDark ? "#04222B" : "#FFFFFF",
     fontSize: 14,
     fontWeight: "700",
     letterSpacing: 0.2,
@@ -266,8 +272,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   ghostButtonText: {
-    color: "#94A3B8",
+    color: c.muted,
     fontSize: 13,
     fontWeight: "600",
   },
 });
+};

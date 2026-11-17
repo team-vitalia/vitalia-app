@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useTheme, type Theme } from "../../../theme/theme";
+import { useMemo,  useEffect, useState  } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -16,6 +17,8 @@ import {
 } from "../../../services/colasService";
 
 export default function AtendidasScreen() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const { token } = useAuth();
 
   const [colas, setColas] = useState<Cola[]>([]);
@@ -173,8 +176,10 @@ export default function AtendidasScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4FAF8" },
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
 
   content: {
     padding: 30,
@@ -196,7 +201,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 
-  backText: { color: "#247F76", fontSize: 14, fontWeight: "800" },
+  backText: { color: c.primary, fontSize: 14, fontWeight: "800" },
 
   headerActions: { flexDirection: "row", gap: 10 },
 
@@ -204,27 +209,27 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: "#DDF3EF",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     justifyContent: "center",
     alignItems: "center",
   },
 
-  refreshText: { fontSize: 22, color: "#247F76", fontWeight: "800" },
+  refreshText: { fontSize: 22, color: c.primary, fontWeight: "800" },
 
   smallTitle: {
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 2,
-    color: "#2A8C82",
+    color: c.primary,
     marginBottom: 5,
   },
 
-  title: { fontSize: 30, fontWeight: "900", color: "#173F3A" },
+  title: { fontSize: 30, fontWeight: "900", color: c.text },
 
-  subtitle: { fontSize: 13, color: "#82938F", marginTop: 5, marginBottom: 25 },
+  subtitle: { fontSize: 13, color: c.muted, marginTop: 5, marginBottom: 25 },
 
   summaryCard: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderRadius: 20,
     padding: 22,
     marginBottom: 28,
@@ -237,29 +242,29 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 14,
   },
 
   center: { alignItems: "center", paddingVertical: 50 },
 
-  loadingText: { marginTop: 12, color: "#82938F", fontSize: 13 },
+  loadingText: { marginTop: 12, color: c.muted, fontSize: 13 },
 
   errorCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 25,
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
   },
 
   errorTitle: { fontSize: 15, fontWeight: "800", color: "#8A4B4B" },
 
-  errorText: { fontSize: 12, color: "#879691", marginTop: 6 },
+  errorText: { fontSize: 12, color: c.muted, marginTop: 6 },
 
   retryButton: {
     marginTop: 18,
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     paddingVertical: 11,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -269,32 +274,32 @@ const styles = StyleSheet.create({
   retryText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
 
   emptyCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 35,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
   },
 
-  emptyIcon: { fontSize: 35, color: "#247F76", marginBottom: 12 },
+  emptyIcon: { fontSize: 35, color: c.primary, marginBottom: 12 },
 
-  emptyTitle: { fontSize: 16, fontWeight: "800", color: "#26443F" },
+  emptyTitle: { fontSize: 16, fontWeight: "800", color: c.text },
 
   emptyText: {
     fontSize: 12,
-    color: "#879691",
+    color: c.muted,
     marginTop: 6,
     textAlign: "center",
   },
 
   colaCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 18,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
   },
 
   colaHeader: {
@@ -304,7 +309,7 @@ const styles = StyleSheet.create({
   },
 
   turnoBox: {
-    backgroundColor: "#E7F5F2",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 14,
@@ -314,19 +319,19 @@ const styles = StyleSheet.create({
   turnoLabel: {
     fontSize: 9,
     fontWeight: "800",
-    color: "#247F76",
+    color: c.primary,
     letterSpacing: 1,
   },
 
   turnoNumero: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#173F3A",
+    color: c.text,
     marginTop: 2,
   },
 
   statusAtendido: {
-    backgroundColor: "#E7F5F2",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderRadius: 10,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -335,17 +340,18 @@ const styles = StyleSheet.create({
   statusAtendidoText: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#247F76",
+    color: c.primary,
     letterSpacing: 0.5,
   },
 
   divider: {
     height: 1,
-    backgroundColor: "#E8F0EE",
+    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1",
     marginVertical: 14,
   },
 
-  detail: { fontSize: 12, color: "#667874", marginBottom: 6 },
+  detail: { fontSize: 12, color: c.muted, marginBottom: 6 },
 
-  detailLabel: { fontWeight: "800", color: "#31534D" },
+  detailLabel: { fontWeight: "800", color: c.text },
 });
+};

@@ -1,3 +1,4 @@
+import { useTheme, type Theme } from "../theme/theme";
 import React, { useState, useEffect, useMemo } from "react";
 import {
   StyleSheet,
@@ -34,6 +35,8 @@ type FiltroEstado = "todos" | "no_leido" | "leido";
  * selección múltiple, marcado como leído y eliminación individual o en lote.
  */
 export default function NotificationsScreen() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const router = useRouter();
   const { token } = useAuth();
   const { messages, status, pushSupported, subscribeToPush } = useNotifications();
@@ -610,10 +613,12 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
   },
 
   header: {
@@ -630,19 +635,19 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 24,
     fontWeight: "900",
-    color: "#173F3A",
+    color: c.text,
   },
 
   subtitle: {
     fontSize: 13,
-    color: "#748884",
+    color: c.muted,
     marginTop: 3,
   },
 
   statusBarCard: {
     marginHorizontal: 20,
     marginBottom: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -650,7 +655,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderWidth: 1,
-    borderColor: "#E1EDE9",
+    borderColor: c.border,
     flexWrap: "wrap",
     gap: 8,
   },
@@ -662,7 +667,7 @@ const styles = StyleSheet.create({
 
   statusLabel: {
     fontSize: 12,
-    color: "#566C68",
+    color: c.muted,
     fontWeight: "600",
     marginRight: 8,
   },
@@ -676,7 +681,7 @@ const styles = StyleSheet.create({
   },
 
   statusBadgeConnected: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
   },
 
   statusBadgeDisconnected: {
@@ -697,7 +702,7 @@ const styles = StyleSheet.create({
   unreadCounterText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#247F76",
+    color: c.primary,
   },
 
   pushBadge: {
@@ -710,13 +715,13 @@ const styles = StyleSheet.create({
   },
 
   pushBadgeActive: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderColor: "#247F76",
   },
 
   pushBadgeInactive: {
     backgroundColor: "#E8F5F2",
-    borderColor: "#BEE2D9",
+    borderColor: c.border,
   },
 
   pushBadgeText: {
@@ -729,17 +734,17 @@ const styles = StyleSheet.create({
   },
 
   pushBadgeTextInactive: {
-    color: "#247F76",
+    color: c.primary,
   },
 
   toolbarCard: {
     marginHorizontal: 20,
     marginBottom: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#E1EDE9",
+    borderColor: c.border,
   },
 
   filterChipsRow: {
@@ -753,20 +758,20 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
-    backgroundColor: "#F1F7F5",
+    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1",
     borderWidth: 1,
-    borderColor: "#DCEAE6",
+    borderColor: c.border,
   },
 
   filterChipActive: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderColor: "#247F76",
   },
 
   filterChipText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#57706B",
+    color: c.muted,
   },
 
   filterChipTextActive: {
@@ -794,7 +799,7 @@ const styles = StyleSheet.create({
   selectToggleText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#247F76",
+    color: c.primary,
   },
 
   selectedActionsGroup: {
@@ -810,17 +815,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "#E8F5F2",
     borderWidth: 1,
-    borderColor: "#BEE2D9",
+    borderColor: c.border,
   },
 
   bulkActionText: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#247F76",
+    color: c.primary,
   },
 
   deleteBulkBtn: {
-    backgroundColor: "#FFF0EF",
+    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
     borderColor: "#F0B8B8",
   },
 
@@ -835,12 +840,12 @@ const styles = StyleSheet.create({
 
   notifCard: {
     flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#E1EDE9",
+    borderColor: c.border,
     alignItems: "flex-start",
   },
 
@@ -885,7 +890,7 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#247F76",
+    color: c.primary,
   },
 
   timeContainer: {
@@ -895,18 +900,18 @@ const styles = StyleSheet.create({
 
   timeText: {
     fontSize: 11,
-    color: "#82938F",
+    color: c.muted,
   },
 
   mensajeText: {
     fontSize: 13,
-    color: "#3F5651",
+    color: c.muted,
     lineHeight: 18,
   },
 
   mensajeTextBold: {
     fontWeight: "700",
-    color: "#183F3A",
+    color: c.text,
   },
 
   enlaceRow: {
@@ -918,7 +923,7 @@ const styles = StyleSheet.create({
   enlaceText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#247F76",
+    color: c.primary,
   },
 
   itemActionButtons: {
@@ -932,7 +937,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -947,29 +952,30 @@ const styles = StyleSheet.create({
   centerText: {
     marginTop: 10,
     fontSize: 13,
-    color: "#748884",
+    color: c.muted,
   },
 
   emptyCard: {
     marginHorizontal: 20,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 35,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E1EDE9",
+    borderColor: c.border,
   },
 
   emptyTitle: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#254842",
+    color: c.text,
   },
 
   emptySubtitle: {
     fontSize: 12,
-    color: "#7E938F",
+    color: c.muted,
     marginTop: 5,
     textAlign: "center",
   },
 });
+};

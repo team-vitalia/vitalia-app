@@ -13,6 +13,7 @@ import {
 import { useRouter } from "expo-router";
 
 import { useAuth } from "../../context/AuthContext";
+import { useTheme, type Theme } from "../../theme/theme";
 import type { PageMeta } from "../../services/c2Service";
 
 /* ============================================================
@@ -35,6 +36,31 @@ export const C = {
   info: "#2B6CB0",
   infoSuave: "#E8F1FB",
 };
+
+export function useC2Colors() {
+  const c = useTheme();
+  const isDark = c.mode === "dark";
+  return {
+    c,
+    isDark,
+    primario: c.primary,
+    primarioSuave: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
+    titulo: c.text,
+    texto: c.text,
+    texto2: c.muted,
+    muted: c.muted,
+    borde: c.border,
+    fondo: c.bg,
+    tarjeta: c.card,
+    peligro: c.error,
+    peligroSuave: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
+    aviso: c.warning,
+    avisoSuave: isDark ? "rgba(251,191,36,0.18)" : "#FFF6E5",
+    info: c.info,
+    infoSuave: isDark ? "rgba(56,189,248,0.18)" : "#E8F1FB",
+    inputBg: isDark ? "#1E2631" : "#FBFEFD",
+  };
+}
 
 /* ============================================================
    Acceso por rol: 1 = Administrador, 5 = Coordinador
@@ -113,6 +139,7 @@ export function PantallaC2({
 }) {
   const router = useRouter();
   const acceso = useAccesoC2(roles);
+  const { c } = useC2Colors();
 
   const irInicio = () => {
     router.replace((INICIO_POR_ROL[acceso.rolId ?? 0] ?? "/login") as any);
@@ -125,18 +152,18 @@ export function PantallaC2({
 
   if (acceso.cargando || !acceso.hayUsuario) {
     return (
-      <View style={s.centro}>
-        <ActivityIndicator size="large" color={C.primario} />
+      <View style={[s.centro, { backgroundColor: c.bg }]}>
+        <ActivityIndicator size="large" color={c.primary} />
       </View>
     );
   }
 
   if (!acceso.permitido) {
     return (
-      <View style={s.centro}>
-        <View style={s.restringido}>
-          <Text style={s.restringidoTitulo}>Acceso restringido</Text>
-          <Text style={s.restringidoTexto}>
+      <View style={[s.centro, { backgroundColor: c.bg }]}>
+        <View style={[s.restringido, { backgroundColor: c.card, borderColor: c.border }]}>
+          <Text style={[s.restringidoTitulo, { color: c.text }]}>Acceso restringido</Text>
+          <Text style={[s.restringidoTexto, { color: c.muted }]}>
             Esta sección no está disponible para tu rol.
           </Text>
           <Boton
@@ -150,16 +177,16 @@ export function PantallaC2({
 
   return (
     <ScrollView
-      style={s.pantalla}
+      style={[s.pantalla, { backgroundColor: c.bg }]}
       contentContainerStyle={s.pantallaContenido}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
       <Pressable onPress={volver} style={s.volver}>
-        <Text style={s.volverTexto}>← Volver</Text>
+        <Text style={[s.volverTexto, { color: c.primary }]}>← Volver</Text>
       </Pressable>
-      <Text style={s.titulo}>{titulo}</Text>
-      {!!subtitulo && <Text style={s.subtitulo}>{subtitulo}</Text>}
+      <Text style={[s.titulo, { color: c.text }]}>{titulo}</Text>
+      {!!subtitulo && <Text style={[s.subtitulo, { color: c.muted }]}>{subtitulo}</Text>}
       {children}
     </ScrollView>
   );
@@ -170,16 +197,16 @@ export function PantallaC2({
 ============================================================ */
 export type Tono = "ok" | "warn" | "danger" | "info" | "neutral";
 
-const TONOS: Record<Tono, { fondo: string; texto: string }> = {
-  ok: { fondo: C.primarioSuave, texto: C.primario },
-  warn: { fondo: C.avisoSuave, texto: C.aviso },
-  danger: { fondo: C.peligroSuave, texto: C.peligro },
-  info: { fondo: C.infoSuave, texto: C.info },
-  neutral: { fondo: "#EEF2F1", texto: C.texto2 },
-};
-
 export function Etiqueta({ texto, tono = "neutral" }: { texto: string; tono?: Tono }) {
-  const t = TONOS[tono];
+  const { c, isDark } = useC2Colors();
+  const tonos: Record<Tono, { fondo: string; texto: string }> = {
+    ok: { fondo: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0", texto: isDark ? "#2DD4BF" : c.primary },
+    warn: { fondo: isDark ? "rgba(251,191,36,0.18)" : "#FFF6E5", texto: isDark ? "#FBBF24" : c.warning },
+    danger: { fondo: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5", texto: isDark ? "#F87171" : c.error },
+    info: { fondo: isDark ? "rgba(56,189,248,0.18)" : "#E8F1FB", texto: isDark ? "#38BDF8" : c.info },
+    neutral: { fondo: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1", texto: c.muted },
+  };
+  const t = tonos[tono];
   return (
     <View style={[s.etiqueta, { backgroundColor: t.fondo }]}>
       <Text style={[s.etiquetaTexto, { color: t.texto }]}>{texto}</Text>
@@ -188,28 +215,36 @@ export function Etiqueta({ texto, tono = "neutral" }: { texto: string; tono?: To
 }
 
 export function Aviso({ tipo, texto }: { tipo: "ok" | "error" | "info"; texto: string }) {
-  const t = tipo === "ok" ? TONOS.ok : tipo === "error" ? TONOS.danger : TONOS.info;
+  const { c, isDark } = useC2Colors();
+  const config = {
+    ok: { fondo: isDark ? "rgba(8,191,164,0.15)" : "#E2F4F0", borde: c.primary, texto: isDark ? "#2DD4BF" : c.primary },
+    error: { fondo: isDark ? "rgba(248,113,113,0.15)" : "#FFF5F5", borde: c.error, texto: isDark ? "#F87171" : c.error },
+    info: { fondo: isDark ? "rgba(56,189,248,0.15)" : "#E8F1FB", borde: c.info, texto: isDark ? "#38BDF8" : c.info },
+  }[tipo];
   return (
-    <View style={[s.aviso, { backgroundColor: t.fondo, borderColor: t.texto }]}>
-      <Text style={[s.avisoTexto, { color: t.texto }]}>{texto}</Text>
+    <View style={[s.aviso, { backgroundColor: config.fondo, borderColor: config.borde }]}>
+      <Text style={[s.avisoTexto, { color: config.texto }]}>{texto}</Text>
     </View>
   );
 }
 
 export function Vacio({ texto }: { texto: string }) {
+  const { c } = useC2Colors();
   return (
-    <View style={s.vacio}>
-      <Text style={s.vacioTexto}>{texto}</Text>
+    <View style={[s.vacio, { backgroundColor: c.card, borderColor: c.border }]}>
+      <Text style={[s.vacioTexto, { color: c.muted }]}>{texto}</Text>
     </View>
   );
 }
 
 export function Cargando() {
-  return <ActivityIndicator size="large" color={C.primario} style={{ marginVertical: 28 }} />;
+  const { c } = useC2Colors();
+  return <ActivityIndicator size="large" color={c.primary} style={{ marginVertical: 28 }} />;
 }
 
 export function Tarjeta({ children, style }: { children: ReactNode; style?: object }) {
-  return <View style={[s.tarjeta, style]}>{children}</View>;
+  const { c } = useC2Colors();
+  return <View style={[s.tarjeta, { backgroundColor: c.card, borderColor: c.border }, style]}>{children}</View>;
 }
 
 export function Boton({
@@ -227,10 +262,11 @@ export function Boton({
   cargando?: boolean;
   pequeno?: boolean;
 }) {
+  const { c, isDark } = useC2Colors();
   const estilos = {
-    primario: { fondo: C.primario, texto: "#FFFFFF", borde: C.primario },
-    secundario: { fondo: "#FFFFFF", texto: C.primario, borde: C.primario },
-    peligro: { fondo: C.peligroSuave, texto: C.peligro, borde: C.peligro },
+    primario: { fondo: c.primary, texto: isDark ? "#121212" : "#FFFFFF", borde: c.primary },
+    secundario: { fondo: c.card, texto: c.primary, borde: c.border },
+    peligro: { fondo: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5", texto: c.error, borde: isDark ? "rgba(248,113,113,0.3)" : c.error },
   }[variante];
   return (
     <Pressable
@@ -270,20 +306,29 @@ export function Campo({
   multiline?: boolean;
   ayuda?: string;
 }) {
+  const { c, isDark } = useC2Colors();
   return (
     <View style={s.campo}>
-      <Text style={s.campoEtiqueta}>{etiqueta}</Text>
+      <Text style={[s.campoEtiqueta, { color: c.muted }]}>{etiqueta}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#A8B6B2"
+        placeholderTextColor={c.muted}
         keyboardType={keyboardType}
         multiline={multiline}
-        style={[s.input, multiline && { minHeight: 80, textAlignVertical: "top" }]}
+        style={[
+          s.input,
+          {
+            backgroundColor: isDark ? "#1E2631" : "#FBFEFD",
+            borderColor: c.border,
+            color: c.text,
+          },
+          multiline && { minHeight: 80, textAlignVertical: "top" },
+        ]}
         autoCapitalize="none"
       />
-      {!!ayuda && <Text style={s.campoAyuda}>{ayuda}</Text>}
+      {!!ayuda && <Text style={[s.campoAyuda, { color: c.muted }]}>{ayuda}</Text>}
     </View>
   );
 }
@@ -297,6 +342,7 @@ export function Opciones<T extends string>({
   valor: T;
   onChange: (v: T) => void;
 }) {
+  const { c, isDark } = useC2Colors();
   return (
     <View style={s.opciones}>
       {opciones.map((o) => {
@@ -305,9 +351,22 @@ export function Opciones<T extends string>({
           <Pressable
             key={o.valor}
             onPress={() => onChange(o.valor)}
-            style={[s.opcion, activo && s.opcionActiva]}
+            style={[
+              s.opcion,
+              {
+                backgroundColor: activo ? c.primary : c.card,
+                borderColor: activo ? c.primary : c.border,
+              },
+            ]}
           >
-            <Text style={[s.opcionTexto, activo && s.opcionTextoActivo]}>{o.etiqueta}</Text>
+            <Text
+              style={[
+                s.opcionTexto,
+                { color: activo ? (isDark ? "#121212" : "#FFFFFF") : c.muted },
+              ]}
+            >
+              {o.etiqueta}
+            </Text>
           </Pressable>
         );
       })}
@@ -322,6 +381,7 @@ export function Paginador({
   meta: PageMeta | null;
   onCambiar: (pagina: number) => void;
 }) {
+  const { c } = useC2Colors();
   if (!meta || meta.total === 0) return null;
   const pages = Math.max(meta.pages, 1);
   return (
@@ -333,7 +393,7 @@ export function Paginador({
         deshabilitado={meta.page <= 1}
         onPress={() => onCambiar(meta.page - 1)}
       />
-      <Text style={s.paginadorTexto}>
+      <Text style={[s.paginadorTexto, { color: c.muted }]}>
         Página {meta.page} de {pages} · {meta.total} registros
       </Text>
       <Boton
@@ -358,14 +418,15 @@ export function ModalBase({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const { c, isDark } = useC2Colors();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={s.modalFondo}>
-        <View style={s.modalCaja}>
+      <View style={[s.modalFondo, { backgroundColor: isDark ? "rgba(0,0,0,0.75)" : "rgba(10,30,27,0.45)" }]}>
+        <View style={[s.modalCaja, { backgroundColor: c.card, borderColor: c.border, borderWidth: 1 }]}>
           <View style={s.modalCabecera}>
-            <Text style={s.modalTitulo}>{titulo}</Text>
-            <Pressable onPress={onClose} style={s.modalCerrar}>
-              <Text style={s.modalCerrarTexto}>✕</Text>
+            <Text style={[s.modalTitulo, { color: c.text }]}>{titulo}</Text>
+            <Pressable onPress={onClose} style={[s.modalCerrar, { backgroundColor: isDark ? "#2D3748" : "#F1F8F6" }]}>
+              <Text style={[s.modalCerrarTexto, { color: c.muted }]}>✕</Text>
             </Pressable>
           </View>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -394,12 +455,13 @@ export function ConfirmarModal({
   onConfirmar: () => void;
   onCancelar: () => void;
 }) {
+  const { c, isDark } = useC2Colors();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancelar}>
-      <View style={s.modalFondo}>
-        <View style={[s.modalCaja, { maxWidth: 420 }]}>
-          <Text style={s.modalTitulo}>{titulo}</Text>
-          <Text style={[s.vacioTexto, { textAlign: "left", marginVertical: 14 }]}>{mensaje}</Text>
+      <View style={[s.modalFondo, { backgroundColor: isDark ? "rgba(0,0,0,0.75)" : "rgba(10,30,27,0.45)" }]}>
+        <View style={[s.modalCaja, { maxWidth: 420, backgroundColor: c.card, borderColor: c.border, borderWidth: 1 }]}>
+          <Text style={[s.modalTitulo, { color: c.text }]}>{titulo}</Text>
+          <Text style={[s.vacioTexto, { textAlign: "left", marginVertical: 14, color: c.muted }]}>{mensaje}</Text>
           <View style={s.fila}>
             <Boton texto="Cancelar" variante="secundario" onPress={onCancelar} deshabilitado={cargando} />
             <Boton texto={textoConfirmar} variante="peligro" onPress={onConfirmar} cargando={cargando} />
@@ -411,20 +473,36 @@ export function ConfirmarModal({
 }
 
 export function Estadistica({ titulo, valor, tono = "ok" }: { titulo: string; valor: string | number; tono?: Tono }) {
-  const t = TONOS[tono];
+  const { c, isDark } = useC2Colors();
+  const fondos: Record<Tono, string> = {
+    ok: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
+    warn: isDark ? "rgba(251,191,36,0.18)" : "#FFF6E5",
+    danger: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
+    info: isDark ? "rgba(56,189,248,0.18)" : "#E8F1FB",
+    neutral: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1",
+  };
+  const colores: Record<Tono, string> = {
+    ok: isDark ? "#2DD4BF" : c.primary,
+    warn: isDark ? "#FBBF24" : c.warning,
+    danger: isDark ? "#F87171" : c.error,
+    info: isDark ? "#38BDF8" : c.info,
+    neutral: c.muted,
+  };
   return (
-    <View style={[s.estadistica, { backgroundColor: t.fondo }]}>
-      <Text style={[s.estadisticaValor, { color: t.texto }]}>{valor}</Text>
-      <Text style={s.estadisticaTitulo}>{titulo}</Text>
+    <View style={[s.estadistica, { backgroundColor: fondos[tono] }]}>
+      <Text style={[s.estadisticaValor, { color: colores[tono] }]}>{valor}</Text>
+      <Text style={[s.estadisticaTitulo, { color: c.muted }]}>{titulo}</Text>
     </View>
   );
 }
 
-export function Barra({ valor, maximo, color = C.primario }: { valor: number; maximo: number; color?: string }) {
+export function Barra({ valor, maximo, color }: { valor: number; maximo: number; color?: string }) {
+  const { c } = useC2Colors();
+  const barColor = color ?? c.primary;
   const pct = maximo > 0 ? Math.min(100, Math.max(2, (valor / maximo) * 100)) : 0;
   return (
-    <View style={s.barraFondo}>
-      <View style={[s.barraRelleno, { width: `${valor > 0 ? pct : 0}%`, backgroundColor: color }]} />
+    <View style={[s.barraFondo, { backgroundColor: c.border }]}>
+      <View style={[s.barraRelleno, { width: `${valor > 0 ? pct : 0}%`, backgroundColor: barColor }]} />
     </View>
   );
 }

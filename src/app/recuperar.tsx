@@ -13,12 +13,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useColorScheme,
   useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useTheme } from "../theme/theme";
 import { fortalezaPassword } from "../components/admin/validaciones";
 import {
   confirmarEnlaceCorreo,
@@ -122,8 +122,8 @@ export default function RecuperarRuta() {
     tipo?: string | string[];
   }>();
   const router = useRouter();
-  const scheme = useColorScheme();
-  const c = scheme === "dark" ? DARK : LIGHT;
+  const theme = useTheme();
+  const c: Paleta = theme.mode === "dark" ? DARK : LIGHT;
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
 

@@ -23,7 +23,6 @@ import {
   TouchableOpacity,
   View,
   ViewStyle,
-  useColorScheme,
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -156,7 +155,7 @@ const FEATURES: { icon: IconName; title: string }[] = [
   { icon: "bar-chart-outline", title: "Reportes" },
 ];
 
-// useNativeDriver no existe en web
+import { useTheme as useAppThemeHook } from "../theme/theme";
 const ND = Platform.OS !== "web";
 
 // Cursor de mano en web (en nativo no hace nada)
@@ -1294,8 +1293,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const { login, loginConGoogle, cargando, usuario } = useAuth();
   const L = useLayout();
-  const scheme = useColorScheme();
-  const c: Theme = scheme === "dark" ? DARK : LIGHT;
+  const currentTheme = useAppThemeHook();
+  const c: Theme = currentTheme.mode === "dark" ? DARK : LIGHT;
   const styles = useMemo(() => createStyles(c, L), [c, L]);
 
   const [correo, setCorreo] = useState("");
@@ -1325,6 +1324,7 @@ export default function LoginScreen() {
   const ejecutarLoginGoogle = async (tokenGoogle: string) => {
     setErrorLogin("");
     try {
+      if (!loginConGoogle) throw new Error("Inicio de sesión con Google no disponible");
       const usuarioLogueado = await loginConGoogle(tokenGoogle);
       const rolId = usuarioLogueado.rol_id ?? usuarioLogueado.rol_id_FK;
       if (!irSegunRol(router, rolId)) {

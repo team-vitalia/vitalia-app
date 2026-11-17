@@ -1,6 +1,7 @@
+import { useTheme, type Theme } from "../../theme/theme";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useMemo,  useEffect, useState  } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -38,6 +39,8 @@ interface Paciente {
 }
 
 export default function MisConsultasScreen() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const { token } = useAuth();
   const { messages } = useNotifications();
   const {
@@ -336,62 +339,65 @@ export default function MisConsultasScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4FAF8" },
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
   content: { padding: 30, paddingBottom: 50, maxWidth: 1100, width: "100%", alignSelf: "center" },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
-  backButton: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 12, backgroundColor: "#FFFFFF", borderRadius: 10, borderWidth: 1, borderColor: "#DCEAE6" },
-  backText: { color: "#247F76", fontSize: 13, fontWeight: "800" },
-  refreshButton: { width: 40, height: 40, borderRadius: 10, backgroundColor: "#FFFFFF", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#DCEAE6" },
-  smallTitle: { fontSize: 11, fontWeight: "800", letterSpacing: 2, color: "#2A8C82", marginBottom: 5 },
-  title: { fontSize: 30, fontWeight: "900", color: "#173F3A" },
-  subtitle: { fontSize: 13, color: "#82938F", marginTop: 4, marginBottom: 20 },
-  calendarSyncCard: { backgroundColor: "#FFFFFF", borderRadius: 16, padding: 18, borderWidth: 1, borderColor: "#CCE4DD", marginBottom: 24, flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 },
+  backButton: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 12, backgroundColor: c.card, borderRadius: 10, borderWidth: 1, borderColor: c.border },
+  backText: { color: c.primary, fontSize: 13, fontWeight: "800" },
+  refreshButton: { width: 40, height: 40, borderRadius: 10, backgroundColor: c.card, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: c.border },
+  smallTitle: { fontSize: 11, fontWeight: "800", letterSpacing: 2, color: c.primary, marginBottom: 5 },
+  title: { fontSize: 30, fontWeight: "900", color: c.text },
+  subtitle: { fontSize: 13, color: c.muted, marginTop: 4, marginBottom: 20 },
+  calendarSyncCard: { backgroundColor: c.card, borderRadius: 16, padding: 18, borderWidth: 1, borderColor: c.border, marginBottom: 24, flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 },
   calendarSyncInfo: { flex: 1, minWidth: 260 },
   calendarTitleRow: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
-  calendarCardTitle: { fontSize: 15, fontWeight: "800", color: "#173F3A" },
-  calendarCardSubtitle: { fontSize: 12, color: "#607671", lineHeight: 18, marginBottom: 8 },
+  calendarCardTitle: { fontSize: 15, fontWeight: "800", color: c.text },
+  calendarCardSubtitle: { fontSize: 12, color: c.muted, lineHeight: 18, marginBottom: 8 },
   calendarStatusRow: { flexDirection: "row", alignItems: "center" },
   calendarStatusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-  calendarStatusText: { fontSize: 11, fontWeight: "700", color: "#46625D" },
+  calendarStatusText: { fontSize: 11, fontWeight: "700", color: c.muted },
   calendarActions: { flexDirection: "row", alignItems: "center" },
-  linkButton: { flexDirection: "row", alignItems: "center", backgroundColor: "#247F76", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 },
+  linkButton: { flexDirection: "row", alignItems: "center", backgroundColor: c.primary, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 },
   linkButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
   unlinkButton: { flexDirection: "row", alignItems: "center", backgroundColor: "#D65A5A", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 },
   unlinkButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
-  summaryCard: { backgroundColor: "#247F76", borderRadius: 20, padding: 22, marginBottom: 28, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  summaryCard: { backgroundColor: c.primary, borderRadius: 20, padding: 22, marginBottom: 28, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   summaryLeft: { flex: 1 },
   summaryNumber: { fontSize: 32, fontWeight: "900", color: "#FFFFFF" },
   summaryText: { fontSize: 13, color: "#DCEFEB", marginTop: 3 },
-  sectionTitle: { fontSize: 18, fontWeight: "800", color: "#173F3A", marginBottom: 14 },
+  sectionTitle: { fontSize: 18, fontWeight: "800", color: c.text, marginBottom: 14 },
   center: { alignItems: "center", paddingVertical: 50 },
-  loadingText: { marginTop: 12, color: "#82938F", fontSize: 13 },
-  errorCard: { backgroundColor: "#FFFFFF", borderRadius: 18, padding: 25, borderWidth: 1, borderColor: "#E4EEEB" },
+  loadingText: { marginTop: 12, color: c.muted, fontSize: 13 },
+  errorCard: { backgroundColor: c.card, borderRadius: 18, padding: 25, borderWidth: 1, borderColor: c.border },
   errorTitle: { fontSize: 15, fontWeight: "800", color: "#8A4B4B" },
-  errorText: { fontSize: 12, color: "#879691", marginTop: 6 },
-  retryButton: { marginTop: 18, backgroundColor: "#247F76", paddingVertical: 11, paddingHorizontal: 20, borderRadius: 12, alignSelf: "flex-start" },
+  errorText: { fontSize: 12, color: c.muted, marginTop: 6 },
+  retryButton: { marginTop: 18, backgroundColor: c.primary, paddingVertical: 11, paddingHorizontal: 20, borderRadius: 12, alignSelf: "flex-start" },
   retryText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
-  emptyCard: { backgroundColor: "#FFFFFF", borderRadius: 18, padding: 35, alignItems: "center", borderWidth: 1, borderColor: "#E4EEEB" },
-  emptyTitle: { fontSize: 16, fontWeight: "800", color: "#26443F" },
-  emptyText: { fontSize: 12, color: "#879691", marginTop: 6, textAlign: "center" },
-  citaCard: { backgroundColor: "#FFFFFF", borderRadius: 18, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: "#E4EEEB" },
+  emptyCard: { backgroundColor: c.card, borderRadius: 18, padding: 35, alignItems: "center", borderWidth: 1, borderColor: c.border },
+  emptyTitle: { fontSize: 16, fontWeight: "800", color: c.text },
+  emptyText: { fontSize: 12, color: c.muted, marginTop: 6, textAlign: "center" },
+  citaCard: { backgroundColor: c.card, borderRadius: 18, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: c.border },
   citaHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   citaTitleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
-  citaTitle: { fontSize: 15, fontWeight: "800", color: "#26443F" },
+  citaTitle: { fontSize: 15, fontWeight: "800", color: c.text },
   googleBadge: { flexDirection: "row", alignItems: "center", backgroundColor: "#E2F6F2", borderRadius: 8, paddingVertical: 2, paddingHorizontal: 7 },
-  googleBadgeText: { fontSize: 10, fontWeight: "800", color: "#17685F" },
-  localBadge: { flexDirection: "row", alignItems: "center", backgroundColor: "#F2F5F4", borderRadius: 8, paddingVertical: 2, paddingHorizontal: 7 },
-  localBadgeText: { fontSize: 10, fontWeight: "700", color: "#687F7B" },
-  citaDate: { fontSize: 12, color: "#82938F", marginTop: 4, textTransform: "capitalize" },
+  googleBadgeText: { fontSize: 10, fontWeight: "800", color: c.primary },
+  localBadge: { flexDirection: "row", alignItems: "center", backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1", borderRadius: 8, paddingVertical: 2, paddingHorizontal: 7 },
+  localBadgeText: { fontSize: 10, fontWeight: "700", color: c.muted },
+  citaDate: { fontSize: 12, color: c.muted, marginTop: 4, textTransform: "capitalize" },
   status: { borderRadius: 10, paddingVertical: 6, paddingHorizontal: 12 },
   statusText: { fontSize: 11, fontWeight: "800", textTransform: "capitalize" },
-  divider: { height: 1, backgroundColor: "#E8F0EE", marginVertical: 14 },
+  divider: { height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1", marginVertical: 14 },
   infoRow: { flexDirection: "row", marginBottom: 6, alignItems: "flex-start" },
   infoLabelContainer: { flexDirection: "row", alignItems: "center", width: 90 },
   infoIcon: { marginRight: 6 },
-  infoLabel: { fontSize: 12, fontWeight: "800", color: "#31534D" },
-  infoValue: { fontSize: 12, color: "#667874", flex: 1, flexWrap: "wrap" },
+  infoLabel: { fontSize: 12, fontWeight: "800", color: c.text },
+  infoValue: { fontSize: 12, color: c.muted, flex: 1, flexWrap: "wrap" },
   buttonRow: { flexDirection: "row", gap: 10, marginTop: 15 },
   actionBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, borderRadius: 10, gap: 6 },
   actionBtnText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
 });
+};

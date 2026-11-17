@@ -1,3 +1,4 @@
+import { useTheme, type Theme } from "../../../theme/theme";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -62,6 +63,8 @@ type FiltroTemporal = "todas" | "hoy" | "semana" | "fecha";
 
 
 export default function CitasScreen() {
+  const c = useTheme();
+  const { styles, ex2 } = useMemo(() => createStyles(c), [c]);
   const { token, usuario, cargando: cargandoAuth } = useAuth();
   const rolId = usuario?.rol_id ?? usuario?.rol_id_FK;
   const { messages } = useNotifications();
@@ -1237,8 +1240,10 @@ export default function CitasScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4FAF8" },
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
 
   content: {
     padding: 30,
@@ -1261,13 +1266,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 2,
-    color: "#2A8C82",
+    color: c.primary,
     marginBottom: 5,
   },
 
-  title: { fontSize: 30, fontWeight: "900", color: "#173F3A" },
+  title: { fontSize: 30, fontWeight: "900", color: c.text },
 
-  subtitle: { fontSize: 13, color: "#82938F", marginTop: 4 },
+  subtitle: { fontSize: 13, color: c.muted, marginTop: 4 },
 
   headerActions: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
 
@@ -1281,22 +1286,22 @@ const styles = StyleSheet.create({
   },
 
   remindersButton: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     paddingVertical: 11,
     paddingHorizontal: 15,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D3E4E0",
+    borderColor: c.border,
   },
 
   remindersButtonText: {
-    color: "#247F76",
+    color: c.primary,
     fontSize: 12,
     fontWeight: "800",
   },
 
   waitingButton: {
-    backgroundColor: "#E7F5F2",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     paddingVertical: 11,
     paddingHorizontal: 15,
     borderRadius: 12,
@@ -1305,13 +1310,13 @@ const styles = StyleSheet.create({
   },
 
   waitingButtonText: {
-    color: "#247F76",
+    color: c.primary,
     fontSize: 12,
     fontWeight: "800",
   },
 
   newAppointmentButton: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     paddingVertical: 11,
     paddingHorizontal: 18,
     borderRadius: 12,
@@ -1322,13 +1327,13 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 4,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#DCE8E4",
+    borderColor: c.border,
   },
 
   searchIcon: { marginRight: 8 },
@@ -1337,7 +1342,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 11,
     fontSize: 14,
-    color: "#173F3A",
+    color: c.text,
   },
 
   clearButton: { padding: 6 },
@@ -1355,16 +1360,16 @@ const styles = StyleSheet.create({
   filterChip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#DDE8E5",
+    borderColor: c.border,
   },
 
   filterChipActive: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderColor: "#247F76",
   },
 
@@ -1375,7 +1380,7 @@ const styles = StyleSheet.create({
   filterChipText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#56726D",
+    color: c.muted,
   },
 
   filterChipTextActive: {
@@ -1387,7 +1392,7 @@ const styles = StyleSheet.create({
   },
 
   summaryCard: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderRadius: 20,
     padding: 22,
     marginBottom: 24,
@@ -1414,7 +1419,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
   },
 
   refreshButton: {
@@ -1422,53 +1427,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: "#E7F5F2",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderRadius: 8,
   },
 
   refreshButtonText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#247F76",
+    color: c.primary,
   },
 
   center: { alignItems: "center", paddingVertical: 50 },
 
-  loadingText: { marginTop: 12, color: "#82938F", fontSize: 13 },
+  loadingText: { marginTop: 12, color: c.muted, fontSize: 13 },
 
   emptyCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 35,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
   },
 
-  emptyTitle: { fontSize: 16, fontWeight: "800", color: "#26443F" },
+  emptyTitle: { fontSize: 16, fontWeight: "800", color: c.text },
 
   emptyText: {
     fontSize: 12,
-    color: "#879691",
+    color: c.muted,
     marginTop: 6,
     textAlign: "center",
   },
 
   errorCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 25,
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
   },
 
   errorTitle: { fontSize: 15, fontWeight: "800", color: "#8A4B4B" },
 
-  errorText: { fontSize: 12, color: "#879691", marginTop: 6 },
+  errorText: { fontSize: 12, color: c.muted, marginTop: 6 },
 
   retryButton: {
     marginTop: 18,
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     paddingVertical: 11,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -1478,16 +1483,16 @@ const styles = StyleSheet.create({
   retryText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
 
   citaCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 18,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
   },
 
   citaCardAtendida: {
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
     borderColor: "#BBE4DC",
   },
 
@@ -1504,7 +1509,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  citaTitle: { fontSize: 15, fontWeight: "800", color: "#26443F" },
+  citaTitle: { fontSize: 15, fontWeight: "800", color: c.text },
 
   googleBadge: {
     flexDirection: "row",
@@ -1518,13 +1523,13 @@ const styles = StyleSheet.create({
   googleBadgeText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#17685F",
+    color: c.primary,
   },
 
   localBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F2F5F4",
+    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1",
     borderRadius: 8,
     paddingVertical: 3,
     paddingHorizontal: 8,
@@ -1533,7 +1538,7 @@ const styles = StyleSheet.create({
   localBadgeText: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#687F7B",
+    color: c.muted,
   },
 
   dateTimeRow: {
@@ -1542,7 +1547,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
 
-  citaDate: { fontSize: 12, color: "#82938F" },
+  citaDate: { fontSize: 12, color: c.muted },
 
   headerRight: {
     flexDirection: "row",
@@ -1551,30 +1556,30 @@ const styles = StyleSheet.create({
   },
 
   status: {
-    backgroundColor: "#E2F4F0",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderRadius: 10,
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
 
-  statusText: { fontSize: 11, fontWeight: "700", color: "#247F76", textTransform: "capitalize" },
+  statusText: { fontSize: 11, fontWeight: "700", color: c.primary, textTransform: "capitalize" },
 
   rescheduleButton: {
     width: 38,
     height: 38,
     borderRadius: 11,
-    backgroundColor: "#EAF6F3",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#BEE0D8",
+    borderColor: c.border,
   },
 
   deleteButton: {
     width: 38,
     height: 38,
     borderRadius: 11,
-    backgroundColor: "#FFF0EF",
+    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -1583,7 +1588,7 @@ const styles = StyleSheet.create({
 
   divider: {
     height: 1,
-    backgroundColor: "#E8F0EE",
+    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1",
     marginVertical: 14,
   },
 
@@ -1606,12 +1611,12 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#31534D",
+    color: c.text,
   },
 
   infoValue: {
     fontSize: 12,
-    color: "#566C68",
+    color: c.muted,
     flex: 1,
     flexWrap: "wrap",
   },
@@ -1622,7 +1627,7 @@ const styles = StyleSheet.create({
 
   arrivalButton: {
     flexDirection: "row",
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderRadius: 12,
     paddingVertical: 10,
     alignItems: "center",
@@ -1637,7 +1642,7 @@ const styles = StyleSheet.create({
 
   registeredBanner: {
     marginTop: 12,
-    backgroundColor: "#E7F5F2",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderRadius: 12,
     padding: 13,
     borderWidth: 1,
@@ -1656,7 +1661,7 @@ const styles = StyleSheet.create({
   registeredText: {
     fontSize: 11,
     fontWeight: "900",
-    color: "#247F76",
+    color: c.primary,
     letterSpacing: 0.5,
   },
 
@@ -1668,7 +1673,7 @@ const styles = StyleSheet.create({
   registeredEstado: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#31534D",
+    color: c.text,
   },
 
   registeredEstadoLlamado: { color: "#C77C0A" },
@@ -1682,10 +1687,10 @@ const styles = StyleSheet.create({
   registeredInfo: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#31534D",
+    color: c.text,
   },
 
-  registeredInfoLabel: { color: "#82938F", fontWeight: "700" },
+  registeredInfoLabel: { color: c.muted, fontWeight: "700" },
 
   attendedBanner: {
     marginTop: 12,
@@ -1705,19 +1710,19 @@ const styles = StyleSheet.create({
   attendedBannerTitle: {
     fontSize: 11,
     fontWeight: "900",
-    color: "#17685F",
+    color: c.primary,
     letterSpacing: 0.5,
   },
 
   attendedInfo: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#17685F",
+    color: c.primary,
   },
 
   attendedNote: {
     fontSize: 11,
-    color: "#31534D",
+    color: c.text,
     fontWeight: "600",
     marginTop: 6,
   },
@@ -1733,7 +1738,7 @@ const styles = StyleSheet.create({
   modalBox: {
     width: "100%",
     maxWidth: 420,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 24,
     padding: 24,
   },
@@ -1742,7 +1747,7 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: "#E2F4F0",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "center",
@@ -1752,13 +1757,13 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "900",
-    color: "#173F3A",
+    color: c.text,
     textAlign: "center",
   },
 
   modalSubtitle: {
     fontSize: 13,
-    color: "#82938F",
+    color: c.muted,
     textAlign: "center",
     marginTop: 4,
     marginBottom: 18,
@@ -1767,7 +1772,7 @@ const styles = StyleSheet.create({
   modalLabel: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#31534D",
+    color: c.text,
     marginBottom: 6,
   },
 
@@ -1779,9 +1784,9 @@ const styles = StyleSheet.create({
 
   modalInput: {
     height: 46,
-    backgroundColor: "#FBFDFC",
+    backgroundColor: isDark ? "#1E2631" : "#FBFEFD",
     borderWidth: 1,
-    borderColor: "#DCE8E5",
+    borderColor: c.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     fontSize: 14,
@@ -1791,7 +1796,7 @@ const styles = StyleSheet.create({
   syncHintBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#E7F5F2",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderRadius: 10,
     padding: 10,
     marginBottom: 18,
@@ -1799,7 +1804,7 @@ const styles = StyleSheet.create({
 
   syncHintText: {
     fontSize: 11,
-    color: "#247F76",
+    color: c.primary,
     fontWeight: "600",
     flex: 1,
   },
@@ -1811,26 +1816,26 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#DCE8E4",
+    borderColor: c.border,
     alignItems: "center",
   },
 
   priorityBtnActive: {
-    backgroundColor: "#E7F5F2",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderColor: "#247F76",
   },
 
   priorityBtnUrgent: {
-    backgroundColor: "#FFF0EF",
+    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
     borderColor: "#D65A5A",
   },
 
   priorityText: { fontSize: 13, fontWeight: "700", color: "#58716C" },
 
-  priorityTextActive: { color: "#173F3A" },
+  priorityTextActive: { color: c.text },
 
   confirmButton: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderRadius: 13,
     paddingVertical: 13,
     alignItems: "center",
@@ -1848,7 +1853,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#FFF0EF",
+    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "center",
@@ -1881,7 +1886,7 @@ const styles = StyleSheet.create({
   },
 
   calendarIntegrationCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
@@ -1904,7 +1909,7 @@ const styles = StyleSheet.create({
   calendarIntegrationTitle: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
   },
 
   calendarIntegrationStatus: {
@@ -1921,7 +1926,7 @@ const styles = StyleSheet.create({
   linkSmallBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     paddingVertical: 7,
     paddingHorizontal: 13,
     borderRadius: 9,
@@ -1950,7 +1955,7 @@ const styles = StyleSheet.create({
 
   deniedContainer: {
     flex: 1,
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
@@ -1959,12 +1964,12 @@ const styles = StyleSheet.create({
   deniedCard: {
     width: "100%",
     maxWidth: 480,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 24,
     padding: 32,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E2ECEA",
+    borderColor: c.border,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
@@ -1976,7 +1981,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: "#FFF0EF",
+    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
@@ -1987,7 +1992,7 @@ const styles = StyleSheet.create({
   deniedTitle: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 10,
     textAlign: "center",
   },
@@ -2003,7 +2008,7 @@ const styles = StyleSheet.create({
   deniedButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     paddingVertical: 13,
     paddingHorizontal: 22,
     borderRadius: 14,
@@ -2019,3 +2024,5 @@ const ex2 = StyleSheet.create({
   noAsistio: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#B42318", backgroundColor: "#FEE4E2", marginLeft: 10 },
   noAsistioTexto: { fontSize: 12, fontWeight: "800", color: "#B42318" },
 });
+  return { styles, ex2 };
+};

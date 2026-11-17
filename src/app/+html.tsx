@@ -29,9 +29,10 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
         <link rel="stylesheet" href="/css/all.min.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-        <style
+        <link rel="stylesheet" href="/styles.css" />
+        <script
           dangerouslySetInnerHTML={{
-            __html: `@font-face{font-family:'Ionicons';src:url('/fonts/Ionicons.ttf') format('truetype');font-display:swap;}@font-face{font-family:'FontAwesome';src:url('/fonts/FontAwesome.ttf') format('truetype');font-display:swap;}@keyframes vitaliaSpin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}@keyframes vitaliaPulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.05);opacity:0.9;}}`,
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'){document.documentElement.classList.add('dark-theme');if(document.body){document.body.classList.add('dark-theme');}else{document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('dark-theme');});}}else{document.documentElement.classList.remove('dark-theme');}}catch(e){}})();`,
           }}
         />
         <script
@@ -41,67 +42,20 @@ export default function Root({ children }: PropsWithChildren) {
         />
         <ScrollViewStyleReset />
       </head>
-      <body style={{ backgroundColor: "#0B1220" }}>
-        <div
-          id="vitalia-splash"
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "#0B1220",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 99999,
-            transition: "opacity 0.35s ease-out",
-            pointerEvents: "none",
-          }}
-        >
+      <body className="pwa-body">
+        <div id="vitalia-splash">
           <img
             src="/icons/icon-192.png"
             alt="Vitalia"
-            style={{
-              width: "96px",
-              height: "96px",
-              marginBottom: "16px",
-              animation: "vitaliaPulse 2s infinite ease-in-out",
-            }}
+            className="vitalia-splash-logo"
           />
-          <div
-            style={{
-              fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-              fontSize: "26px",
-              fontWeight: 800,
-              color: "#22D3EE",
-              letterSpacing: "1.2px",
-              marginBottom: "6px",
-            }}
-          >
+          <div className="vitalia-splash-title">
             VITALIA
           </div>
-          <div
-            style={{
-              fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-              fontSize: "13px",
-              color: "#8FA3BF",
-              marginBottom: "24px",
-            }}
-          >
+          <div className="vitalia-splash-subtitle">
             Gestión clínica inteligente
           </div>
-          <div
-            style={{
-              width: "32px",
-              height: "32px",
-              border: "3px solid rgba(34, 211, 238, 0.2)",
-              borderTop: "3px solid #22D3EE",
-              borderRadius: "50%",
-              animation: "vitaliaSpin 0.8s linear infinite",
-            }}
-          />
+          <div className="vitalia-splash-spinner" />
         </div>
         {children}
       </body>

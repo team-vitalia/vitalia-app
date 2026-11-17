@@ -1,5 +1,5 @@
 import { FontAwesome } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useAsistenteIA } from "../hooks/useAsistenteIA";
 import { MedicamentoSugerido } from "../services/asistenteIaService";
+import { useTheme, type Theme } from "../theme/theme";
 
 interface AsistenteIAModalProps {
   visible: boolean;
@@ -33,6 +34,8 @@ export const AsistenteIAModal: React.FC<AsistenteIAModalProps> = ({
   alergiasRegistradas = [],
   onSeleccionarMedicamentoParaReceta,
 }) => {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const [sintomas, setSintomas] = useState(motivoInicial);
   const [incluirNotas, setIncluirNotas] = useState(true);
   const { cargando, error, resultado, consultar, limpiar } = useAsistenteIA();
@@ -350,16 +353,18 @@ export const AsistenteIAModal: React.FC<AsistenteIAModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    backgroundColor: isDark ? "rgba(0,0,0,0.75)" : "rgba(15, 23, 42, 0.65)",
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
   },
   modalCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 20,
     width: "100%",
     maxWidth: 820,
@@ -379,7 +384,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: isDark ? "#121212" : "#F8FAFC",
   },
   headerTitleContainer: {
     flexDirection: "row",
@@ -404,7 +409,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
   },
   badgeGroq: {
     backgroundColor: "#FEF3C7",
@@ -421,17 +426,17 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 12,
-    color: "#64748B",
+    color: c.muted,
     marginTop: 2,
   },
   patientName: {
     fontWeight: "700",
-    color: "#1E293B",
+    color: c.text,
   },
   closeButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: isDark ? "#2D3748" : "#F1F5F9",
     marginLeft: 10,
   },
   body: {
@@ -459,27 +464,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inputSection: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: isDark ? "#121212" : "#F8FAFC",
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
     marginBottom: 16,
   },
   inputLabel: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#1E293B",
+    color: c.text,
     marginBottom: 8,
   },
   textInput: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: c.border,
     padding: 12,
     fontSize: 13,
-    color: "#0F172A",
+    color: c.text,
     minHeight: 70,
     textAlignVertical: "top",
   },
@@ -498,11 +503,11 @@ const styles = StyleSheet.create({
   },
   switchLabel: {
     fontSize: 12,
-    color: "#475569",
+    color: c.muted,
     fontWeight: "600",
   },
   consultarBtn: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 18,
@@ -521,19 +526,19 @@ const styles = StyleSheet.create({
   loadingContainer: {
     alignItems: "center",
     paddingVertical: 30,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: isDark ? "#121212" : "#F8FAFC",
     borderRadius: 12,
     marginBottom: 16,
   },
   loadingTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#1E293B",
+    color: c.text,
     marginTop: 12,
   },
   loadingSubtitle: {
     fontSize: 12,
-    color: "#64748B",
+    color: c.muted,
     marginTop: 4,
     textAlign: "center",
     paddingHorizontal: 20,
@@ -582,13 +587,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
   },
   diagCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
     padding: 14,
     marginBottom: 10,
   },
@@ -601,10 +606,10 @@ const styles = StyleSheet.create({
   diagName: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#1E293B",
+    color: c.text,
   },
   cieBadge: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: isDark ? "#2D3748" : "#F1F5F9",
     alignSelf: "flex-start",
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -614,7 +619,7 @@ const styles = StyleSheet.create({
   cieBadgeText: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#475569",
+    color: c.muted,
   },
   probBadge: {
     paddingHorizontal: 8,
@@ -628,12 +633,12 @@ const styles = StyleSheet.create({
   },
   diagJustificacion: {
     fontSize: 12,
-    color: "#475569",
+    color: c.muted,
     marginTop: 8,
     lineHeight: 18,
   },
   medCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 12,
     borderWidth: 1,
     marginBottom: 12,
@@ -644,7 +649,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFDFD",
   },
   medCardSafe: {
-    borderColor: "#E2E8F0",
+    borderColor: c.border,
   },
   alertaAlergiaBox: {
     backgroundColor: "#FEE2E2",
@@ -703,7 +708,7 @@ const styles = StyleSheet.create({
   medName: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#0F172A",
+    color: c.text,
     marginBottom: 6,
   },
   medDetailsGrid: {
@@ -714,15 +719,15 @@ const styles = StyleSheet.create({
   },
   medDetailItem: {
     fontSize: 12,
-    color: "#334155",
+    color: c.text,
   },
   medDetailLabel: {
     fontWeight: "700",
-    color: "#64748B",
+    color: c.muted,
   },
   medJustificacion: {
     fontSize: 12,
-    color: "#475569",
+    color: c.muted,
     lineHeight: 18,
     marginTop: 4,
   },
@@ -772,9 +777,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   disclaimerContainer: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: isDark ? "#121212" : "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: c.border,
     borderRadius: 12,
     padding: 14,
     marginTop: 10,
@@ -788,11 +793,12 @@ const styles = StyleSheet.create({
   disclaimerTitle: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#334155",
+    color: c.text,
   },
   disclaimerText: {
     fontSize: 11,
-    color: "#64748B",
+    color: c.muted,
     lineHeight: 16,
   },
 });
+};

@@ -26,7 +26,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useColorScheme,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -45,6 +44,7 @@ import {
   vTelefono,
 } from "../components/admin/validaciones";
 import { useAuth } from "../context/AuthContext";
+import { useTheme as useAppThemeHook } from "../theme/theme";
 import { registrarPaciente } from "../services/registroService";
 import { mensajeError } from "../services/util";
 import { DARK, LIGHT, type Theme } from "../theme/theme";
@@ -78,8 +78,8 @@ type ErroresServidor = { correo?: string; curp?: string };
 export default function RegistroScreen() {
   const router = useRouter();
   const { usuario, cargando } = useAuth();
-  const scheme = useColorScheme();
-  const c = scheme === "dark" ? AUTH_DARK : AUTH_LIGHT;
+  const currentTheme = useAppThemeHook();
+  const c = currentTheme.mode === "dark" ? AUTH_DARK : AUTH_LIGHT;
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const compacto = width < 640;
@@ -192,7 +192,7 @@ export default function RegistroScreen() {
 
   return (
     <LinearGradient
-      colors={scheme === "dark" ? ["#134E4A", "#0F172A"] : ["#0F766E", "#134E4A"]}
+      colors={currentTheme.mode === "dark" ? ["#134E4A", "#0F172A"] : ["#0F766E", "#134E4A"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={{ flex: 1 }}

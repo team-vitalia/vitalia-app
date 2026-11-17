@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useTheme, type Theme } from "../../theme/theme";
+import { useMemo,  useEffect, useState  } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -25,6 +26,8 @@ interface Paciente {
 }
 
 export default function MisPacientesScreen() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const { token } = useAuth();
 
   const [pacientes, setPacientes] = useState<Paciente[]>([]);
@@ -225,8 +228,10 @@ export default function MisPacientesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4FAF8" },
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
 
   content: {
     padding: 30,
@@ -245,38 +250,38 @@ const styles = StyleSheet.create({
 
   backButton: { paddingVertical: 8, paddingHorizontal: 12 },
 
-  backText: { color: "#247F76", fontSize: 14, fontWeight: "800" },
+  backText: { color: c.primary, fontSize: 14, fontWeight: "800" },
 
   refreshButton: {
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: "#DDF3EF",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     justifyContent: "center",
     alignItems: "center",
   },
 
-  refreshText: { fontSize: 22, color: "#247F76", fontWeight: "800" },
+  refreshText: { fontSize: 22, color: c.primary, fontWeight: "800" },
 
   smallTitle: {
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 2,
-    color: "#2A8C82",
+    color: c.primary,
     marginBottom: 5,
   },
 
-  title: { fontSize: 30, fontWeight: "900", color: "#173F3A" },
+  title: { fontSize: 30, fontWeight: "900", color: c.text },
 
   subtitle: {
     fontSize: 13,
-    color: "#82938F",
+    color: c.muted,
     marginTop: 5,
     marginBottom: 25,
   },
 
   summaryCard: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderRadius: 20,
     padding: 22,
     marginBottom: 28,
@@ -289,29 +294,29 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 14,
   },
 
   center: { alignItems: "center", paddingVertical: 50 },
 
-  loadingText: { marginTop: 12, color: "#82938F", fontSize: 13 },
+  loadingText: { marginTop: 12, color: c.muted, fontSize: 13 },
 
   errorCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 25,
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
   },
 
   errorTitle: { fontSize: 15, fontWeight: "800", color: "#8A4B4B" },
 
-  errorText: { fontSize: 12, color: "#879691", marginTop: 6 },
+  errorText: { fontSize: 12, color: c.muted, marginTop: 6 },
 
   retryButton: {
     marginTop: 18,
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     paddingVertical: 11,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -321,32 +326,32 @@ const styles = StyleSheet.create({
   retryText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
 
   emptyCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 35,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
   },
 
-  emptyIcon: { fontSize: 35, color: "#247F76", marginBottom: 12 },
+  emptyIcon: { fontSize: 35, color: c.primary, marginBottom: 12 },
 
-  emptyTitle: { fontSize: 16, fontWeight: "800", color: "#26443F" },
+  emptyTitle: { fontSize: 16, fontWeight: "800", color: c.text },
 
   emptyText: {
     fontSize: 12,
-    color: "#879691",
+    color: c.muted,
     marginTop: 6,
     textAlign: "center",
   },
 
   pacienteCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 18,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
   },
 
   pacienteHeader: {
@@ -359,7 +364,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#DDF3EF",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -367,23 +372,23 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#247F76",
+    color: c.primary,
   },
 
   pacienteNombre: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
   },
 
   pacienteId: {
     fontSize: 11,
-    color: "#82938F",
+    color: c.muted,
     marginTop: 3,
   },
 
   estadoBadge: {
-    backgroundColor: "#E7F5F2",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderRadius: 10,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -392,13 +397,13 @@ const styles = StyleSheet.create({
   estadoText: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#247F76",
+    color: c.primary,
     textTransform: "capitalize",
   },
 
   divider: {
     height: 1,
-    backgroundColor: "#E8F0EE",
+    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1",
     marginVertical: 14,
   },
 
@@ -411,15 +416,16 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#31534D",
+    color: c.text,
     marginRight: 6,
     minWidth: 100,
   },
 
   infoValue: {
     fontSize: 12,
-    color: "#667874",
+    color: c.muted,
     flex: 1,
     flexWrap: "wrap",
   },
 });
+};

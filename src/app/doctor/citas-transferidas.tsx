@@ -1,6 +1,7 @@
+import { useTheme, type Theme } from "../../theme/theme";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useMemo,  useEffect, useState  } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -26,6 +27,8 @@ interface CitaTransferida {
 }
 
 export default function CitasTransferidasScreen() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const { token } = useAuth();
   const [citas, setCitas] = useState<CitaTransferida[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -157,38 +160,41 @@ export default function CitasTransferidasScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4FAF8" },
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
   content: { padding: 30, paddingBottom: 50, maxWidth: 1100, width: "100%", alignSelf: "center" },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
-  backButton: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 12, backgroundColor: "#FFFFFF", borderRadius: 10, borderWidth: 1, borderColor: "#DCEAE6" },
-  backText: { color: "#247F76", fontSize: 13, fontWeight: "800" },
-  refreshButton: { width: 40, height: 40, borderRadius: 10, backgroundColor: "#FFFFFF", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#DCEAE6" },
-  smallTitle: { fontSize: 11, fontWeight: "800", letterSpacing: 2, color: "#2A8C82", marginBottom: 5 },
-  title: { fontSize: 30, fontWeight: "900", color: "#173F3A" },
-  subtitle: { fontSize: 13, color: "#82938F", marginTop: 4, marginBottom: 20 },
+  backButton: { flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 12, backgroundColor: c.card, borderRadius: 10, borderWidth: 1, borderColor: c.border },
+  backText: { color: c.primary, fontSize: 13, fontWeight: "800" },
+  refreshButton: { width: 40, height: 40, borderRadius: 10, backgroundColor: c.card, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: c.border },
+  smallTitle: { fontSize: 11, fontWeight: "800", letterSpacing: 2, color: c.primary, marginBottom: 5 },
+  title: { fontSize: 30, fontWeight: "900", color: c.text },
+  subtitle: { fontSize: 13, color: c.muted, marginTop: 4, marginBottom: 20 },
   center: { alignItems: "center", paddingVertical: 50 },
-  loadingText: { marginTop: 12, color: "#82938F", fontSize: 13 },
-  errorCard: { backgroundColor: "#FFFFFF", borderRadius: 18, padding: 25, borderWidth: 1, borderColor: "#E4EEEB" },
+  loadingText: { marginTop: 12, color: c.muted, fontSize: 13 },
+  errorCard: { backgroundColor: c.card, borderRadius: 18, padding: 25, borderWidth: 1, borderColor: c.border },
   errorTitle: { fontSize: 15, fontWeight: "800", color: "#8A4B4B" },
-  errorText: { fontSize: 12, color: "#879691", marginTop: 6 },
-  retryButton: { marginTop: 18, backgroundColor: "#247F76", paddingVertical: 11, paddingHorizontal: 20, borderRadius: 12, alignSelf: "flex-start" },
+  errorText: { fontSize: 12, color: c.muted, marginTop: 6 },
+  retryButton: { marginTop: 18, backgroundColor: c.primary, paddingVertical: 11, paddingHorizontal: 20, borderRadius: 12, alignSelf: "flex-start" },
   retryText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
-  emptyCard: { backgroundColor: "#FFFFFF", borderRadius: 18, padding: 35, alignItems: "center", borderWidth: 1, borderColor: "#E4EEEB" },
-  emptyTitle: { fontSize: 16, fontWeight: "800", color: "#26443F" },
-  emptyText: { fontSize: 12, color: "#879691", marginTop: 6, textAlign: "center" },
-  citaCard: { backgroundColor: "#FFFFFF", borderRadius: 18, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: "#E4EEEB" },
+  emptyCard: { backgroundColor: c.card, borderRadius: 18, padding: 35, alignItems: "center", borderWidth: 1, borderColor: c.border },
+  emptyTitle: { fontSize: 16, fontWeight: "800", color: c.text },
+  emptyText: { fontSize: 12, color: c.muted, marginTop: 6, textAlign: "center" },
+  citaCard: { backgroundColor: c.card, borderRadius: 18, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: c.border },
   citaHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  citaTitle: { fontSize: 16, fontWeight: "800", color: "#26443F" },
-  citaDate: { fontSize: 12, color: "#82938F", marginTop: 4, textTransform: "capitalize" },
-  statusBadge: { backgroundColor: "#E7F5F2", borderRadius: 10, paddingVertical: 6, paddingHorizontal: 12 },
-  statusText: { fontSize: 11, fontWeight: "800", color: "#247F76", textTransform: "capitalize" },
-  divider: { height: 1, backgroundColor: "#E8F0EE", marginVertical: 14 },
+  citaTitle: { fontSize: 16, fontWeight: "800", color: c.text },
+  citaDate: { fontSize: 12, color: c.muted, marginTop: 4, textTransform: "capitalize" },
+  statusBadge: { backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0", borderRadius: 10, paddingVertical: 6, paddingHorizontal: 12 },
+  statusText: { fontSize: 11, fontWeight: "800", color: c.primary, textTransform: "capitalize" },
+  divider: { height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1", marginVertical: 14 },
   infoRow: { flexDirection: "row", marginBottom: 12, alignItems: "flex-start" },
-  infoLabel: { fontSize: 11, fontWeight: "800", color: "#82938F", textTransform: "uppercase" },
-  infoValue: { fontSize: 13, color: "#31534D", fontWeight: "700", marginTop: 2 },
-  infoSubValue: { fontSize: 12, color: "#667874", marginTop: 2 },
+  infoLabel: { fontSize: 11, fontWeight: "800", color: c.muted, textTransform: "uppercase" },
+  infoValue: { fontSize: 13, color: c.text, fontWeight: "700", marginTop: 2 },
+  infoSubValue: { fontSize: 12, color: c.muted, marginTop: 2 },
   notesContainer: { marginTop: 10, backgroundColor: "#F8FAFA", padding: 15, borderRadius: 12 },
-  notesLabel: { fontSize: 12, fontWeight: "800", color: "#31534D", marginBottom: 5 },
+  notesLabel: { fontSize: 12, fontWeight: "800", color: c.text, marginBottom: 5 },
   notesText: { fontSize: 13, color: "#5C706C", lineHeight: 20 },
 });
+};

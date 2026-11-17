@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthProvider, useAuth, type PlanActual } from "../context/AuthContext";
 import { CalendarProvider } from "../context/CalendarContext";
 import { NotificationsProvider } from "../context/NotificationsContext";
+import { ThemeProvider, useAppTheme } from "../context/ThemeContext";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { InstallPrompt } from "../components/InstallPrompt";
 import { ModalPlanSuscripcion } from "../components/ModalPlanSuscripcion";
@@ -28,39 +29,8 @@ import { UpgradeModal, CrownSvg } from "../components/UpgradeModal";
 import {
   BP_DESKTOP,
   BP_MOBILE,
-  useTheme as useThemeBase,
   type Theme,
 } from "../theme/theme";
-
-function useDarkTheme(): Theme {
-  const base = useThemeBase();
-  return {
-    ...base,
-    mode: "dark",
-    bg: "#0B1220",
-    card: "#111A2C",
-    border: "#1F2A44",
-    text: "#E6EDF7",
-    muted: "#8FA3BF",
-    primary: "#22D3EE",
-    onPrimary: "#04222B",
-    activeBg: "rgba(34,211,238,0.14)",
-    activeFg: "#22D3EE",
-    hoverBg: "rgba(255,255,255,0.04)",
-    tileBg: "rgba(255,255,255,0.06)",
-    errorBg: "rgba(248,113,113,0.14)",
-    error: "#F87171",
-    info: "#60A5FA",
-    success: "#34D399",
-    warning: "#FBBF24",
-    glass: "rgba(17,26,44,0.72)",
-    glassBorder: "rgba(255,255,255,0.08)",
-    glassShadow: "#000000",
-    glow: "#22D3EE",
-    gradFrom: "#0EA5E9",
-    gradTo: "#22D3EE",
-  } as Theme;
-}
 
 const ND = Platform.OS !== "web";
 
@@ -278,6 +248,8 @@ function Sidebar({
   pathname,
   compact,
   planActual,
+  isDark,
+  onToggleTheme,
   onSelect,
   onHome,
   onLogout,
@@ -291,6 +263,8 @@ function Sidebar({
   pathname: string;
   compact: boolean;
   planActual?: PlanActual;
+  isDark?: boolean;
+  onToggleTheme?: () => void;
   onSelect: (item: NavItem) => void;
   onHome: () => void;
   onLogout: () => void;
@@ -462,6 +436,39 @@ function Sidebar({
       </ScrollView>
 
       <View style={{ paddingTop: 10 }}>
+        {onToggleTheme && (
+          <Pressable
+            onPress={onToggleTheme}
+            accessibilityRole="button"
+            accessibilityLabel={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+            style={(s: PState) => ({
+              height: 44,
+              borderRadius: 13,
+              backgroundColor: c.tileBg,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: compact ? "center" : "flex-start",
+              paddingHorizontal: compact ? 0 : 14,
+              marginBottom: 8,
+              opacity: s.pressed ? 0.7 : 1,
+              borderWidth: 1,
+              borderColor: c.border,
+            })}
+          >
+            <Ionicons
+              name={isDark ? "sunny-outline" : "moon-outline"}
+              size={18}
+              color={isDark ? "#FBBF24" : c.primary}
+              style={{ marginRight: compact ? 0 : 10 }}
+            />
+            {!compact && (
+              <Text style={{ fontSize: 12.5, fontWeight: "700", color: c.text }}>
+                {isDark ? "Modo Claro" : "Modo Oscuro"}
+              </Text>
+            )}
+          </Pressable>
+        )}
+
         <Pressable
           onPress={onLogout}
           accessibilityRole="button"
@@ -504,6 +511,8 @@ function MobileHeader({
   rolId,
   notifActiva,
   planActual,
+  isDark,
+  onToggleTheme,
   onHome,
   onNotif,
   onAbrirPlan,
@@ -513,6 +522,8 @@ function MobileHeader({
   rolId?: number;
   notifActiva: boolean;
   planActual?: PlanActual;
+  isDark?: boolean;
+  onToggleTheme?: () => void;
   onHome: () => void;
   onNotif: () => void;
   onAbrirPlan?: () => void;
@@ -575,6 +586,29 @@ function MobileHeader({
               <Text style={{ fontSize: 11, fontWeight: "800", color: c.primary }}>
                 {planActual?.nombre_plan || "Básico"}
               </Text>
+            </Pressable>
+          )}
+
+          {onToggleTheme && (
+            <Pressable
+              onPress={onToggleTheme}
+              accessibilityRole="button"
+              accessibilityLabel={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+              style={(s: PState) => ({
+                width: 42,
+                height: 42,
+                borderRadius: 13,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: s.pressed ? c.hoverBg : "transparent",
+                marginRight: 4,
+              })}
+            >
+              <Ionicons
+                name={isDark ? "sunny-outline" : "moon-outline"}
+                size={21}
+                color={isDark ? "#FBBF24" : c.muted}
+              />
             </Pressable>
           )}
 
@@ -720,6 +754,8 @@ function MoreSheet({
   items,
   pathname,
   planActual,
+  isDark,
+  onToggleTheme,
   onClose,
   onSelect,
   onLogout,
@@ -734,6 +770,8 @@ function MoreSheet({
   items: NavItem[];
   pathname: string;
   planActual?: PlanActual;
+  isDark?: boolean;
+  onToggleTheme?: () => void;
   onClose: () => void;
   onSelect: (item: NavItem) => void;
   onLogout: () => void;
@@ -889,6 +927,36 @@ function MoreSheet({
               </View>
             )}
 
+            {onToggleTheme && (
+              <Pressable
+                onPress={onToggleTheme}
+                accessibilityRole="button"
+                accessibilityLabel={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                style={(s: PState) => ({
+                  height: 50,
+                  borderRadius: 14,
+                  backgroundColor: c.tileBg,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 16,
+                  marginTop: 6,
+                  borderWidth: 1,
+                  borderColor: c.border,
+                  opacity: s.pressed ? 0.7 : 1,
+                })}
+              >
+                <Ionicons
+                  name={isDark ? "sunny-outline" : "moon-outline"}
+                  size={20}
+                  color={isDark ? "#FBBF24" : c.primary}
+                  style={{ marginRight: 12 }}
+                />
+                <Text style={{ fontSize: 14, fontWeight: "700", color: c.text, flex: 1 }}>
+                  {isDark ? "Modo Claro" : "Modo Oscuro"}
+                </Text>
+              </Pressable>
+            )}
+
             <Pressable
               onPress={onLogout}
               accessibilityRole="button"
@@ -921,7 +989,7 @@ function AppLayout() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
-  const c = useDarkTheme();
+  const { theme: c, isDark, toggleTheme } = useAppTheme();
 
   const [masAbierto, setMasAbierto] = useState(false);
   const [modalPlanVisible, setModalPlanVisible] = useState(false);
@@ -1000,7 +1068,7 @@ function AppLayout() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
-      <StatusBar barStyle="light-content" backgroundColor={c.bg} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={c.bg} />
 
       {mostrarMenu && !isMobile && (
         <Sidebar
@@ -1012,6 +1080,8 @@ function AppLayout() {
           pathname={pathname}
           compact={isCompactRail}
           planActual={planActual}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
           onSelect={seleccionar}
           onHome={irInicio}
           onLogout={cerrarSesion}
@@ -1027,6 +1097,8 @@ function AppLayout() {
             rolId={rolId}
             notifActiva={notifActiva}
             planActual={planActual}
+            isDark={isDark}
+            onToggleTheme={toggleTheme}
             onHome={irInicio}
             onNotif={() => router.push("/notificaciones" as any)}
             onAbrirPlan={() => setModalPlanVisible(true)}
@@ -1063,6 +1135,8 @@ function AppLayout() {
           items={masItems}
           pathname={pathname}
           planActual={planActual}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
           onClose={() => setMasAbierto(false)}
           onSelect={seleccionar}
           onLogout={cerrarSesion}
@@ -1115,14 +1189,15 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <AuthProvider>
-      <NotificationsProvider>
-        <CalendarProvider>
-          <StatusBar barStyle="light-content" backgroundColor="#0B1220" />
-          <AppLayout />
-        </CalendarProvider>
-      </NotificationsProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <NotificationsProvider>
+          <CalendarProvider>
+            <AppLayout />
+          </CalendarProvider>
+        </NotificationsProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

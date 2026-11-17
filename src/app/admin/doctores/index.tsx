@@ -1,5 +1,6 @@
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useTheme, type Theme } from "../../../theme/theme";
 import {
   ActivityIndicator,
   FlatList,
@@ -67,6 +68,8 @@ const TIPOS_CONTRATO = [
 ];
 
 export default function ContratosScreen() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const { token, planActual } = useAuth();
   const [modalUpgradeVisible, setModalUpgradeVisible] = useState(false);
 
@@ -368,12 +371,19 @@ export default function ContratosScreen() {
     }
   };
 
-  const nombreDoctor = (id: number) => {
+  const nombreDoctor = (id: number): string => {
     const doctor = doctores.find(
       (item) => item.id_PK === id
     );
+    return (
+      doctor?.nombre_completo ??
+      doctor?.nombre ??
+      doctor?.usuario?.nombre ??
+      `Médico #${id}`
+    );
+  };
 
-    if (!tieneAccesoContratos) {
+  if (!tieneAccesoContratos) {
     return (
       <View style={styles.contenedor}>
         <View style={styles.encabezado}>
@@ -426,14 +436,6 @@ export default function ContratosScreen() {
       </View>
     );
   }
-
-  return (
-      doctor?.nombre_completo ??
-      doctor?.nombre ??
-      doctor?.usuario?.nombre ??
-      `Médico #${id}`
-    );
-  };
 
   const renderContrato = ({
     item,
@@ -890,10 +892,12 @@ export default function ContratosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
   contenedor: {
     flex: 1,
-    backgroundColor: "#F4F8F7",
+    backgroundColor: c.bg,
   },
   encabezado: {
     paddingHorizontal: 22,
@@ -903,16 +907,16 @@ const styles = StyleSheet.create({
   titulo: {
     fontSize: 26,
     fontWeight: "800",
-    color: "#245D57",
+    color: c.text,
   },
   subtitulo: {
     fontSize: 14,
-    color: "#718582",
+    color: c.muted,
     marginTop: 7,
     lineHeight: 21,
   },
   botonNuevo: {
-    backgroundColor: "#2A8C82",
+    backgroundColor: c.primary,
     paddingVertical: 14,
     paddingHorizontal: 18,
     borderRadius: 12,
@@ -920,7 +924,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   botonNuevoTexto: {
-    color: "#FFFFFF",
+    color: isDark ? "#121212" : "#FFFFFF",
     fontSize: 15,
     fontWeight: "700",
   },
@@ -930,12 +934,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   tarjeta: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 17,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#E2ECE9",
+    borderColor: c.border,
   },
   tarjetaEncabezado: {
     flexDirection: "row",
@@ -948,10 +952,10 @@ const styles = StyleSheet.create({
   nombreDoctor: {
     fontSize: 17,
     fontWeight: "800",
-    color: "#285B55",
+    color: c.text,
   },
   idContrato: {
-    color: "#879894",
+    color: c.muted,
     fontSize: 12,
     marginTop: 4,
   },
@@ -961,28 +965,28 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   estadoActivo: {
-    backgroundColor: "#DDF5E9",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#DDF5E9",
   },
   estadoOtro: {
-    backgroundColor: "#F1EBDD",
+    backgroundColor: isDark ? "rgba(251,191,36,0.18)" : "#F1EBDD",
   },
   estadoTexto: {
-    color: "#426B60",
+    color: isDark ? "#2DD4BF" : "#426B60",
     fontSize: 11,
     fontWeight: "700",
   },
   divisor: {
     height: 1,
-    backgroundColor: "#E9EFED",
+    backgroundColor: c.border,
     marginVertical: 13,
   },
   detalle: {
-    color: "#637773",
+    color: c.muted,
     fontSize: 14,
     marginBottom: 7,
   },
   salario: {
-    color: "#247F76",
+    color: c.primary,
     fontSize: 16,
     fontWeight: "800",
     marginTop: 5,
@@ -990,14 +994,14 @@ const styles = StyleSheet.create({
   botonEditar: {
     alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: "#2A8C82",
+    borderColor: c.primary,
     borderRadius: 9,
     paddingHorizontal: 15,
     paddingVertical: 9,
     marginTop: 15,
   },
   botonEditarTexto: {
-    color: "#247F76",
+    color: c.primary,
     fontSize: 13,
     fontWeight: "700",
   },
@@ -1010,39 +1014,41 @@ const styles = StyleSheet.create({
     paddingTop: 55,
   },
   vacioTitulo: {
-    color: "#315F58",
+    color: c.text,
     fontSize: 17,
     fontWeight: "700",
   },
   vacioTexto: {
-    color: "#81928E",
+    color: c.muted,
     fontSize: 14,
     marginTop: 8,
     textAlign: "center",
   },
   fondoModal: {
     flex: 1,
-    backgroundColor: "rgba(16, 39, 35, 0.48)",
+    backgroundColor: isDark ? "rgba(0, 0, 0, 0.75)" : "rgba(16, 39, 35, 0.48)",
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
   },
   modal: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 20,
     padding: 22,
     width: "100%",
     maxWidth: 560,
     maxHeight: "90%",
+    borderWidth: 1,
+    borderColor: c.border,
   },
   modalTitulo: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#245D57",
+    color: c.text,
     marginBottom: 20,
   },
   etiqueta: {
-    color: "#456660",
+    color: c.muted,
     fontSize: 13,
     fontWeight: "700",
     marginBottom: 7,
@@ -1050,49 +1056,50 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#DCE8E5",
+    borderColor: c.border,
     borderRadius: 10,
     paddingHorizontal: 13,
     paddingVertical: 12,
-    color: "#294F49",
-    backgroundColor: "#FBFDFC",
+    color: c.text,
+    backgroundColor: isDark ? "#1E2631" : "#FBFDFC",
     fontSize: 14,
   },
   listaDoctores: {
     borderWidth: 1,
-    borderColor: "#DCE8E5",
+    borderColor: c.border,
     borderRadius: 10,
     overflow: "hidden",
+    backgroundColor: c.card,
   },
   opcionDoctor: {
     paddingHorizontal: 13,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#EDF2F0",
+    borderBottomColor: c.border,
   },
   opcionDoctorActiva: {
-    backgroundColor: "#E0F3EF",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E0F3EF",
   },
   opcionDoctorTexto: {
-    color: "#46635E",
+    color: c.muted,
     fontSize: 14,
   },
   opcionDoctorTextoActivo: {
-    color: "#247F76",
+    color: c.primary,
     fontWeight: "800",
   },
   doctorSeleccionado: {
     padding: 13,
     borderRadius: 10,
-    backgroundColor: "#E0F3EF",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E0F3EF",
   },
   doctorSeleccionadoTexto: {
-    color: "#247F76",
+    color: c.primary,
     fontWeight: "700",
   },
   aviso: {
     padding: 12,
-    color: "#8A6450",
+    color: c.warning,
     fontSize: 13,
   },
   opcionesEstado: {
@@ -1104,30 +1111,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: "#DCE8E5",
+    borderColor: c.border,
     borderRadius: 9,
+    backgroundColor: c.card,
   },
   opcionEstadoActiva: {
-    backgroundColor: "#DDF3EE",
-    borderColor: "#2A8C82",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#DDF3EE",
+    borderColor: c.primary,
   },
   opcionEstadoTexto: {
-    color: "#627772",
+    color: c.muted,
     fontSize: 12,
   },
   opcionEstadoTextoActivo: {
-    color: "#247F76",
+    color: c.primary,
     fontWeight: "800",
   },
   botonGuardar: {
-    backgroundColor: "#2A8C82",
+    backgroundColor: c.primary,
     paddingVertical: 14,
     borderRadius: 11,
     alignItems: "center",
     marginTop: 24,
   },
   botonGuardarTexto: {
-    color: "#FFFFFF",
+    color: isDark ? "#121212" : "#FFFFFF",
     fontSize: 15,
     fontWeight: "800",
   },
@@ -1140,17 +1148,19 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   botonCancelarTexto: {
-    color: "#718580",
+    color: c.muted,
     fontSize: 14,
     fontWeight: "700",
   },
   modalAlerta: {
     width: "100%",
     maxWidth: 390,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 22,
     padding: 25,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: c.border,
   },
   iconoAlerta: {
     width: 54,
@@ -1161,47 +1171,47 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   iconoExito: {
-    backgroundColor: "#DDF5E9",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#DDF5E9",
   },
   iconoError: {
-    backgroundColor: "#FCE8E6",
+    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FCE8E6",
   },
   iconoAlertaTexto: {
     fontSize: 29,
     fontWeight: "800",
-    color: "#287C70",
+    color: c.primary,
   },
   alertaTitulo: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#285B55",
+    color: c.text,
     textAlign: "center",
   },
   alertaMensaje: {
     fontSize: 14,
     lineHeight: 21,
-    color: "#71827E",
+    color: c.muted,
     textAlign: "center",
     marginTop: 10,
   },
   botonDocumento: {
     alignSelf: "flex-start",
-    backgroundColor: "#E0F3EF",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E0F3EF",
     borderWidth: 1,
-    borderColor: "#B9E3DA",
+    borderColor: c.primary,
     borderRadius: 9,
     paddingHorizontal: 15,
     paddingVertical: 10,
     marginTop: 12,
   },
   botonDocumentoTexto: {
-    color: "#247F76",
+    color: c.primary,
     fontSize: 13,
     fontWeight: "700",
   },
   contenedorDocumento: {
     flex: 1,
-    backgroundColor: "#F4F8F7",
+    backgroundColor: c.bg,
   },
   encabezadoDocumento: {
     flexDirection: "row",
@@ -1209,28 +1219,28 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 18,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderBottomWidth: 1,
-    borderBottomColor: "#E2ECE9",
+    borderBottomColor: c.border,
   },
   tituloDocumento: {
-    color: "#245D57",
+    color: c.text,
     fontSize: 18,
     fontWeight: "800",
   },
   subtituloDocumento: {
-    color: "#718582",
+    color: c.muted,
     fontSize: 12,
     marginTop: 5,
   },
   botonCerrarDocumento: {
-    backgroundColor: "#2A8C82",
+    backgroundColor: c.primary,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 9,
   },
   botonCerrarDocumentoTexto: {
-    color: "#FFFFFF",
+    color: isDark ? "#121212" : "#FFFFFF",
     fontSize: 13,
     fontWeight: "700",
   },
@@ -1242,25 +1252,13 @@ const styles = StyleSheet.create({
   premiumCard: {
     width: "100%",
     maxWidth: 580,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E2ECE9",
+    borderColor: c.border,
     paddingVertical: 36,
     paddingHorizontal: 26,
     alignItems: "center",
-    ...(Platform.OS === "web"
-      ? ({
-          boxShadow:
-            "0 14px 34px rgba(15, 76, 69, 0.08), 0 0 0 1px rgba(15, 76, 69, 0.04)",
-        } as any)
-      : {
-          shadowColor: "#0F4C45",
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.1,
-          shadowRadius: 16,
-          elevation: 4,
-        }),
   },
   premiumIconContainer: {
     width: 72,
@@ -1291,20 +1289,20 @@ const styles = StyleSheet.create({
   premiumTitulo: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#1E293B",
+    color: c.text,
     textAlign: "center",
     marginBottom: 10,
   },
   premiumDescripcion: {
     fontSize: 14,
     lineHeight: 22,
-    color: "#64748B",
+    color: c.muted,
     textAlign: "center",
     marginBottom: 24,
     paddingHorizontal: 12,
   },
   botonDesbloquear: {
-    backgroundColor: "#0EA5E9",
+    backgroundColor: c.primary,
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 12,
@@ -1312,9 +1310,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   botonDesbloquearTexto: {
-    color: "#FFFFFF",
+    color: isDark ? "#121212" : "#FFFFFF",
     fontSize: 14.5,
     fontWeight: "700",
     letterSpacing: 0.2,
   },
 });
+};

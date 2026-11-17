@@ -1,3 +1,5 @@
+import { useTheme, type Theme } from "../theme/theme";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 export type CitaPaciente = {
@@ -35,6 +37,8 @@ export function esProxima(c: CitaPaciente): boolean {
 }
 
 export default function CitasPaciente({ citas }: { citas: CitaPaciente[] }) {
+  const c = useTheme();
+  const s = useMemo(() => createStyles(c), [c]);
   if (citas.length === 0) {
     return <Text style={s.vacio}>No tienes citas registradas.</Text>;
   }
@@ -63,11 +67,11 @@ export default function CitasPaciente({ citas }: { citas: CitaPaciente[] }) {
   );
 }
 
-const s = StyleSheet.create({
-  vacio: { fontSize: 13, color: "#879691" },
-  tarjeta: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#E4EEEB", marginBottom: 10 },
-  fecha: { fontSize: 14, fontWeight: "800", color: "#26443F" },
-  detalle: { fontSize: 11, color: "#879691", marginTop: 3 },
+const createStyles = (c: Theme) => StyleSheet.create({
+  vacio: { fontSize: 13, color: c.muted },
+  tarjeta: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 10 },
+  fecha: { fontSize: 14, fontWeight: "800", color: c.text },
+  detalle: { fontSize: 11, color: c.muted, marginTop: 3 },
   badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   badgeTexto: { fontSize: 11, fontWeight: "800" },
 });

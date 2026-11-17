@@ -1,6 +1,7 @@
+import { useTheme, type Theme } from "../theme/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { ReactNode } from "react";
+import { ReactNode, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { Expediente } from "../services/clinicoService";
@@ -32,6 +33,9 @@ export default function ExpedienteVista({
   accionesNotas?: ReactNode;
   onQuitarAlergia?: (alergiaPacienteId: number) => void;
 }) {
+  const c = useTheme();
+  const isDark = c.mode === "dark";
+  const s = useMemo(() => createStyles(c), [c]);
   const p = exp.paciente;
   const d = exp.datos_clinicos;
 
@@ -330,13 +334,15 @@ function Seccion({
   acciones?: ReactNode;
   children: ReactNode;
 }) {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   return (
     <Tarjeta style={{ gap: 6, borderTopWidth: 3, borderTopColor: color }}>
-      <View style={s.fila}>
-        <View style={[s.sectionIcon, { backgroundColor: bg }]}>
+      <View style={styles.fila}>
+        <View style={[styles.sectionIcon, { backgroundColor: bg }]}>
           <Ionicons name={icono} size={16} color={color} />
         </View>
-        <Text style={[s.titulo, { flex: 1, color }]}>{titulo}</Text>
+        <Text style={[styles.titulo, { flex: 1, color }]}>{titulo}</Text>
         {acciones}
       </View>
       {children}
@@ -344,13 +350,15 @@ function Seccion({
   );
 }
 
-const s = StyleSheet.create({
-  nombre: { fontSize: 18, fontWeight: "800", color: C.titulo },
-  titulo: { fontSize: 15, fontWeight: "800", color: C.titulo },
-  item: { fontSize: 14, fontWeight: "700", color: C.texto },
-  sub: { fontSize: 13, color: C.texto2 },
-  meta: { fontSize: 11.5, color: C.muted, marginTop: 2 },
-  vacio: { fontSize: 13, color: C.muted },
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
+  nombre: { fontSize: 18, fontWeight: "800", color: c.text },
+  titulo: { fontSize: 15, fontWeight: "800", color: c.text },
+  item: { fontSize: 14, fontWeight: "700", color: c.text },
+  sub: { fontSize: 13, color: c.muted },
+  meta: { fontSize: 11.5, color: c.muted, marginTop: 2 },
+  vacio: { fontSize: 13, color: c.muted },
   fila: {
     flexDirection: "row",
     alignItems: "center",
@@ -369,7 +377,7 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#E7F5F2",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E7F5F2",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -382,7 +390,7 @@ const s = StyleSheet.create({
   },
   // 👇 NUEVOS ESTILOS PARA LOS MEDICAMENTOS 👇
   medItem: {
-    backgroundColor: "#F9FBFA",
+    backgroundColor: isDark ? "#1E2631" : "#F9FBFA",
     borderRadius: 8,
     padding: 10,
     marginTop: 6,
@@ -392,17 +400,17 @@ const s = StyleSheet.create({
   medItemTitle: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 4,
   },
   medItemDetail: {
     fontSize: 12,
-    color: "#4A5D59",
+    color: c.muted,
     marginTop: 2,
   },
   medItemLabel: {
     fontWeight: "800",
-    color: "#31534D",
+    color: c.text,
   },
   // 👇 ESTILOS DEL BOTÓN PDF 👇
   pdfButton: {
@@ -410,7 +418,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 10,
@@ -423,3 +431,4 @@ const s = StyleSheet.create({
     fontWeight: "800",
   },
 });
+};

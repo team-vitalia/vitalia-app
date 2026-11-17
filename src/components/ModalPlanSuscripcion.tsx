@@ -1,5 +1,6 @@
+import { useTheme, type Theme } from "../theme/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Linking,
   Modal,
@@ -109,7 +110,13 @@ interface ModalPlanSuscripcionProps {
   onClose: () => void;
 }
 
-export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionProps) {
+export function ModalPlanSuscripcion({
+  visible,
+  onClose,
+}: ModalPlanSuscripcionProps) {
+  const c = useTheme();
+  const isDark = c.mode === "dark";
+  const styles = useMemo(() => createStyles(c), [c]);
   const { usuario, clinica, planActual, recargarSesion } = useAuth();
   const [actualizando, setActualizando] = useState(false);
   const [vinculandoManual, setVinculandoManual] = useState(false);
@@ -331,7 +338,7 @@ export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionP
             {siguientePlan ? (
               <View style={styles.seccionMejora}>
                 <View style={styles.seccionMejoraHeader}>
-                  <Ionicons name="arrow-up-circle" size={20} color="#22D3EE" style={{ marginRight: 8 }} />
+                  <Ionicons name="arrow-up-circle" size={20} color={isDark ? "#22D3EE" : c.primary} style={{ marginRight: 8 }} />
                   <Text style={styles.tituloMejora}>Actualizar al Siguiente Plan</Text>
                 </View>
 
@@ -371,7 +378,7 @@ export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionP
                       <View style={{ marginBottom: 12 }}>
                         {planItem.caracteristicas.map((caract, cIdx) => (
                           <View key={cIdx} style={styles.filaCaractSuperior}>
-                            <Ionicons name="add-circle-outline" size={15} color="#22D3EE" style={{ marginRight: 6 }} />
+                            <Ionicons name="add-circle-outline" size={15} color={isDark ? "#22D3EE" : c.primary} style={{ marginRight: 6 }} />
                             <Text style={styles.textoCaractSuperior}>{caract}</Text>
                           </View>
                         ))}
@@ -383,7 +390,7 @@ export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionP
                         accessibilityRole="button"
                         accessibilityLabel={`Actualizar a ${planItem.nombre} y pagar`}
                       >
-                        <Ionicons name="card" size={17} color="#04222B" style={{ marginRight: 8 }} />
+                        <Ionicons name="card" size={17} color={isDark ? "#04222B" : "#FFFFFF"} style={{ marginRight: 8 }} />
                         <Text style={styles.btnPagarPlanTexto}>
                           Actualizar a Plan {planItem.nombre} y Pagar
                         </Text>
@@ -404,7 +411,7 @@ export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionP
 
             <View style={styles.seccionManual}>
               <View style={styles.filaManualHeader}>
-                <Ionicons name="link-outline" size={16} color="#22D3EE" style={{ marginRight: 6 }} />
+                <Ionicons name="link-outline" size={16} color={isDark ? "#22D3EE" : c.primary} style={{ marginRight: 6 }} />
                 <Text style={styles.subtituloManual}>Vincular Pago de PayPal Directamente</Text>
               </View>
               <Text style={styles.descripcionManual}>
@@ -415,7 +422,7 @@ export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionP
                   value={subscriptionIdInput}
                   onChangeText={setSubscriptionIdInput}
                   placeholder="ID de Suscripción (ej. I-KPCG02C8AMXP)"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={c.muted}
                   style={styles.inputManual}
                   autoCapitalize="characters"
                   testID="input-subscription-id"
@@ -459,7 +466,9 @@ export function ModalPlanSuscripcion({ visible, onClose }: ModalPlanSuscripcionP
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: "center",
@@ -474,10 +483,10 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 620,
     maxHeight: "90%",
-    backgroundColor: "#111A2C",
+    backgroundColor: c.card,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#1F2A44",
+    borderColor: c.border,
     padding: 24,
     overflow: "hidden",
   },
@@ -502,13 +511,13 @@ const styles = StyleSheet.create({
   titulo: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#E6EDF7",
+    color: c.text,
   },
   btnCerrar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -528,14 +537,14 @@ const styles = StyleSheet.create({
   alertaTexto: {
     flex: 1,
     fontSize: 12,
-    color: "#E6EDF7",
+    color: c.text,
     fontWeight: "600",
   },
   seccionActual: {
-    backgroundColor: "#0B1220",
+    backgroundColor: isDark ? "#121212" : "#F8FAFC",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#1F2A44",
+    borderColor: c.border,
     padding: 18,
     marginBottom: 20,
   },
@@ -548,13 +557,13 @@ const styles = StyleSheet.create({
   kickerActual: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#8FA3BF",
+    color: c.muted,
     letterSpacing: 0.8,
   },
   nombrePlanActual: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#E6EDF7",
+    color: c.text,
     marginTop: 2,
   },
   tagActivo: {
@@ -580,22 +589,22 @@ const styles = StyleSheet.create({
   precioPeriodo: {
     fontSize: 12,
     fontWeight: "500",
-    color: "#8FA3BF",
+    color: c.muted,
   },
   divisor: {
     height: 1,
-    backgroundColor: "#1F2A44",
+    backgroundColor: c.border,
     marginVertical: 12,
   },
   divisorSutil: {
     height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)",
     marginVertical: 10,
   },
   subtituloBloque: {
     fontSize: 11.5,
     fontWeight: "700",
-    color: "#8FA3BF",
+    color: c.muted,
     marginBottom: 10,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -607,14 +616,14 @@ const styles = StyleSheet.create({
   },
   featureTexto: {
     fontSize: 13,
-    color: "#E6EDF7",
+    color: c.text,
   },
   featureBold: {
     fontWeight: "700",
     color: "#22D3EE",
   },
   featureTextoInactivo: {
-    color: "#8FA3BF",
+    color: c.muted,
   },
   seccionMejora: {
     marginBottom: 16,
@@ -627,25 +636,26 @@ const styles = StyleSheet.create({
   tituloMejora: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#E6EDF7",
+    color: c.text,
   },
   descripcionMejora: {
     fontSize: 12,
-    color: "#8FA3BF",
+    color: c.muted,
     marginBottom: 14,
     lineHeight: 17,
   },
   tarjetaPlanSuperior: {
-    backgroundColor: "#0B1220",
+    backgroundColor: isDark ? "#121212" : "#F8FAFC",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#1F2A44",
+    borderColor: c.border,
     padding: 16,
     marginBottom: 12,
   },
   tarjetaPlanSiguiente: {
-    borderColor: "rgba(34, 211, 238, 0.4)",
-    backgroundColor: "rgba(17, 26, 44, 0.9)",
+    borderColor: isDark ? "rgba(34, 211, 238, 0.5)" : "#08BFA4",
+    backgroundColor: isDark ? "rgba(17, 26, 44, 0.9)" : "rgba(8, 191, 164, 0.08)",
+    borderWidth: 1.5,
   },
   filaPlanSuperiorHeader: {
     flexDirection: "row",
@@ -653,7 +663,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   badgeSiguienteInmediato: {
-    backgroundColor: "rgba(34, 211, 238, 0.15)",
+    backgroundColor: isDark ? "rgba(34, 211, 238, 0.15)" : "rgba(8, 191, 164, 0.15)",
     borderRadius: 6,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -663,23 +673,23 @@ const styles = StyleSheet.create({
   badgeSiguienteTexto: {
     fontSize: 9,
     fontWeight: "800",
-    color: "#22D3EE",
+    color: isDark ? "#22D3EE" : "#0F4C45",
     letterSpacing: 0.5,
   },
   nombrePlanSuperior: {
     fontSize: 17,
     fontWeight: "800",
-    color: "#E6EDF7",
+    color: c.text,
   },
   precioPlanSuperior: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#E6EDF7",
+    color: c.text,
   },
   precioPeriodoSuperior: {
     fontSize: 11,
     fontWeight: "500",
-    color: "#8FA3BF",
+    color: c.muted,
   },
   filaCaractSuperior: {
     flexDirection: "row",
@@ -688,13 +698,13 @@ const styles = StyleSheet.create({
   },
   textoCaractSuperior: {
     fontSize: 12,
-    color: "#8FA3BF",
+    color: c.muted,
   },
   btnPagarPlan: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#22D3EE",
+    backgroundColor: isDark ? "#22D3EE" : c.primary,
     borderRadius: 12,
     paddingVertical: 11,
     paddingHorizontal: 16,
@@ -703,14 +713,14 @@ const styles = StyleSheet.create({
   btnPagarPlanTexto: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#04222B",
+    color: isDark ? "#04222B" : "#FFFFFF",
   },
   seccionMaximo: {
     alignItems: "center",
-    backgroundColor: "#0B1220",
+    backgroundColor: isDark ? "#121212" : "#F8FAFC",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#1F2A44",
+    borderColor: c.border,
     padding: 24,
     marginBottom: 16,
     textAlign: "center",
@@ -718,12 +728,12 @@ const styles = StyleSheet.create({
   tituloMaximo: {
     fontSize: 17,
     fontWeight: "800",
-    color: "#E6EDF7",
+    color: c.text,
     marginBottom: 6,
   },
   descripcionMaximo: {
     fontSize: 12,
-    color: "#8FA3BF",
+    color: c.muted,
     textAlign: "center",
     lineHeight: 18,
   },
@@ -737,14 +747,14 @@ const styles = StyleSheet.create({
   },
   btnSincronizarTexto: {
     fontSize: 12,
-    color: "#8FA3BF",
+    color: c.muted,
     fontWeight: "600",
   },
   seccionManual: {
-    backgroundColor: "#0B1220",
+    backgroundColor: isDark ? "#121212" : "#F8FAFC",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#1F2A44",
+    borderColor: c.border,
     padding: 16,
     marginTop: 8,
     marginBottom: 8,
@@ -757,11 +767,11 @@ const styles = StyleSheet.create({
   subtituloManual: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#E2E8F0",
+    color: c.text,
   },
   descripcionManual: {
     fontSize: 11,
-    color: "#8FA3BF",
+    color: c.muted,
     lineHeight: 16,
     marginBottom: 10,
   },
@@ -771,25 +781,26 @@ const styles = StyleSheet.create({
   },
   inputManual: {
     flex: 1,
-    backgroundColor: "#111A2C",
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: "#1F2A44",
+    borderColor: c.border,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    color: "#FFFFFF",
+    color: c.text,
     fontSize: 12,
   },
   btnVincularManual: {
-    backgroundColor: "#0EA5E9",
+    backgroundColor: isDark ? "#0EA5E9" : c.primary,
     borderRadius: 12,
     paddingHorizontal: 16,
     justifyContent: "center",
     alignItems: "center",
   },
   btnVincularManualTexto: {
-    color: "#04222B",
+    color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "800",
   },
 });
+};

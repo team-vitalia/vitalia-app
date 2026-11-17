@@ -1,5 +1,6 @@
+import { useTheme, type Theme } from "../../../theme/theme";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useMemo,  useEffect, useState  } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -42,6 +43,8 @@ interface Doctor {
 }
 
 export default function CrearCita() {
+  const c = useTheme();
+  const { styles, ex } = useMemo(() => createStyles(c), [c]);
   const { token, usuario, cargando: cargandoAuth } = useAuth();
   const rolId = usuario?.rol_id ?? usuario?.rol_id_FK;
 
@@ -675,10 +678,12 @@ export default function CrearCita() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
   },
 
   contenido: {
@@ -693,7 +698,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
   },
 
   textoCargando: {
@@ -713,18 +718,18 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
     borderWidth: 1,
-    borderColor: "#DCE8E5",
+    borderColor: c.border,
   },
 
   titulo: {
     fontSize: 26,
     fontWeight: "900",
-    color: "#173F3A",
+    color: c.text,
   },
 
   subtitulo: {
@@ -735,7 +740,7 @@ const styles = StyleSheet.create({
 
   syncCard: {
     flexDirection: "row",
-    backgroundColor: "#E7F5F2",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
@@ -756,7 +761,7 @@ const styles = StyleSheet.create({
   syncTitle: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#17685F",
+    color: c.primary,
     marginBottom: 4,
   },
 
@@ -788,7 +793,7 @@ const styles = StyleSheet.create({
 
   selector: {
     minHeight: 48,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderWidth: 1,
     borderColor: "#D8E5E2",
     borderRadius: 12,
@@ -825,7 +830,7 @@ const styles = StyleSheet.create({
 
   lista: {
     marginTop: 6,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderWidth: 1,
     borderColor: "#D8E5E2",
     borderRadius: 12,
@@ -859,7 +864,7 @@ const styles = StyleSheet.create({
 
   input: {
     minHeight: 48,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderWidth: 1,
     borderColor: "#D8E5E2",
     borderRadius: 12,
@@ -892,7 +897,7 @@ const styles = StyleSheet.create({
   botonCrear: {
     height: 50,
     borderRadius: 13,
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 10,
@@ -932,7 +937,7 @@ const styles = StyleSheet.create({
 
   deniedContainer: {
     flex: 1,
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
@@ -941,12 +946,12 @@ const styles = StyleSheet.create({
   deniedCard: {
     width: "100%",
     maxWidth: 480,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 24,
     padding: 32,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E2ECEA",
+    borderColor: c.border,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
@@ -958,7 +963,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: "#FFF0EF",
+    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
@@ -969,7 +974,7 @@ const styles = StyleSheet.create({
   deniedTitle: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#173F3A",
+    color: c.text,
   },
 
   deniedSubtitle: {
@@ -983,7 +988,7 @@ const styles = StyleSheet.create({
   deniedButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     paddingVertical: 13,
     paddingHorizontal: 22,
     borderRadius: 14,
@@ -997,13 +1002,15 @@ const styles = StyleSheet.create({
 });
 const ex = StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: "#247F76", backgroundColor: "#FFFFFF" },
-  chipActivo: { backgroundColor: "#247F76" },
-  chipTexto: { fontSize: 12, fontWeight: "700", color: "#247F76" },
+  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: "#247F76", backgroundColor: c.card },
+  chipActivo: { backgroundColor: c.primary },
+  chipTexto: { fontSize: 12, fontWeight: "700", color: c.primary },
   chipTextoActivo: { color: "#FFFFFF" },
   ayuda: { fontSize: 12, color: "#6F8581", marginTop: 6 },
   toggle: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 },
   check: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: "#247F76", alignItems: "center", justifyContent: "center" },
-  checkActivo: { backgroundColor: "#247F76" },
+  checkActivo: { backgroundColor: c.primary },
   checkMark: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
 });
+  return { styles, ex };
+};

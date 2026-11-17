@@ -6,8 +6,8 @@ export interface DatosRegistroPaciente {
   apellido_paterno: string;
   apellido_materno?: string | null;
   curp: string;
-  fecha_nacimiento: string; // YYYY-MM-DD
-  genero: string; // Femenino | Masculino | Otro
+  fecha_nacimiento?: string | null; // YYYY-MM-DD
+  genero?: string | null; // Femenino | Masculino | Otro
   correo_electronico: string;
   password: string;
   telefono?: string | null;

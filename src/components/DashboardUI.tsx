@@ -364,11 +364,11 @@ export function HeroSaludo({
 }) {
   const isLight = c.mode !== "dark";
 
-  // Azul rey oscuro en modo claro (parecido al bg del layout pero más vivo)
-  const azulReyClaro: [string, string] = ["#0F172A", "#0F4C45"];
+  // Gradiente institucional Vitalia en modo claro y modo oscuro
+  const gradienteClaro: [string, string] = gradColors ?? ["#0F4C45", "#08BFA4"];
   const gradienteOscuro: [string, string] = gradColors ?? [c.gradFrom, c.gradTo];
 
-  const colores = isLight ? azulReyClaro : gradienteOscuro;
+  const colores = isLight ? gradienteClaro : gradienteOscuro;
 
   const textoTitulo = "#FFFFFF";
   const textoSuave = "rgba(255,255,255,0.85)";
@@ -376,7 +376,7 @@ export function HeroSaludo({
   const avatarBg = "rgba(255,255,255,0.18)";
   const avatarBorder = "rgba(255,255,255,0.35)";
   const circuloDecor = "rgba(255,255,255,0.08)";
-  const shadowColor = isLight ? "#1E2A78" : gradienteOscuro[0];
+  const shadowColor = isLight ? "rgba(15, 76, 69, 0.25)" : gradienteOscuro[0];
 
   return (
     <LinearGradient

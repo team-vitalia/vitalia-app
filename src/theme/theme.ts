@@ -1,4 +1,4 @@
-import { useColorScheme } from "react-native";
+import React, { createContext, useContext } from "react";
 
 /* ============================================================
    TEMA VITALIA (verde institucional + glassmorphism claro)
@@ -10,19 +10,19 @@ export const LIGHT = {
 
   // Principales
   primary: "#0F4C45", // verde institucional
-  secondary: "#2DD4BF",
+  secondary: "#08BFA4", // verde azulado vibrante
   dark: "#0A3732",
   bg: "#F8FAFC",
-  bgSoft: "#CCFBF1",
+  bgSoft: "#E6FBF7",
 
   // Interfaz
   card: "#FFFFFF", // superficies sólidas (menú, barra inferior, hojas)
-  text: "#0F4C45", // tipografía principal
-  muted: "#64748B",
+  text: "#242D35", // tipografía principal (gris carbón suave)
+  muted: "#566573",
   border: "#E2E8F0",
 
   // Glassmorphism claro (tarjetas del panel)
-  glass: "rgba(255,255,255,0.72)",
+  glass: "rgba(255,255,255,0.85)",
   glassBorder: "rgba(148,163,184,0.35)",
   glassShadow: "#0F172A",
 
@@ -40,8 +40,8 @@ export const LIGHT = {
   activeFg: "#0F4C45",
   hoverBg: "rgba(15,76,69,0.06)",
   gradFrom: "#0F4C45",
-  gradTo: "#0A3732",
-  glow: "#2DD4BF", // luces
+  gradTo: "#08BFA4",
+  glow: "#08BFA4", // luces
 };
 
 export type Theme = typeof LIGHT;
@@ -49,16 +49,16 @@ export type Theme = typeof LIGHT;
 export const DARK: Theme = {
   mode: "dark",
 
-  primary: "#2DD4BF",
+  primary: "#08BFA4",
   secondary: "#2DD4BF",
-  dark: "#134E4A",
-  bg: "#0F172A",
-  bgSoft: "#134E4A",
+  dark: "#069882",
+  bg: "#121212",
+  bgSoft: "#1E2D2A",
 
-  card: "#1E293B",
-  text: "#F8FAFC",
-  muted: "#94A3B8",
-  border: "#334155",
+  card: "#1E1E1E",
+  text: "#E0E0E0",
+  muted: "#A0AEC0",
+  border: "#2D3748",
 
   glass: "rgba(30,41,59,0.72)",
   glassBorder: "rgba(148,163,184,0.22)",
@@ -68,20 +68,39 @@ export const DARK: Theme = {
   warning: "#FBBF24",
   error: "#F87171",
   info: "#38BDF8",
-  errorBg: "#3B1D22",
+  errorBg: "#3B1B1B",
 
-  onPrimary: "#0F172A",
-  tileBg: "rgba(45,212,191,0.14)",
-  activeBg: "rgba(45,212,191,0.14)",
-  activeFg: "#2DD4BF",
+  onPrimary: "#121212",
+  tileBg: "rgba(8,191,164,0.14)",
+  activeBg: "rgba(8,191,164,0.16)",
+  activeFg: "#08BFA4",
   hoverBg: "rgba(255,255,255,0.05)",
-  gradFrom: "#0F766E",
-  gradTo: "#134E4A",
-  glow: "#2DD4BF",
+  gradFrom: "#069882",
+  gradTo: "#08BFA4",
+  glow: "#08BFA4",
 };
 
+export type ThemeMode = "light" | "dark";
+
+export interface ThemeContextType {
+  mode: ThemeMode;
+  theme: Theme;
+  isDark: boolean;
+  toggleTheme: () => void;
+  setTheme: (mode: ThemeMode) => void;
+}
+
+export const ThemeContext = createContext<ThemeContextType>({
+  mode: "light",
+  theme: LIGHT,
+  isDark: false,
+  toggleTheme: () => {},
+  setTheme: () => {},
+});
+
 export function useTheme(): Theme {
-  return useColorScheme() === "dark" ? DARK : LIGHT;
+  const ctx = useContext(ThemeContext);
+  return ctx?.theme ?? LIGHT;
 }
 
 // Breakpoints de navegación

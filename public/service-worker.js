@@ -18,6 +18,7 @@ const STATIC_ASSETS = [
   '/fonts/MaterialIcons.ttf',
   '/fonts/MaterialCommunityIcons.ttf',
   '/css/all.min.css',
+  '/styles.css',
   '/webfonts/fa-solid-900.woff2',
   '/webfonts/fa-solid-900.ttf',
   '/webfonts/fa-regular-400.woff2',

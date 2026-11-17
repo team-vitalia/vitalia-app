@@ -1,6 +1,7 @@
+import { useTheme, type Theme } from "../../theme/theme";
 import { FontAwesome } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useMemo,  useEffect, useState  } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -42,6 +43,8 @@ interface DoctorDisponible {
 }
 
 export default function DetalleCitaScreen() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const { id } = useLocalSearchParams();
   const { token } = useAuth();
   const [cita, setCita] = useState<CitaDetalle | null>(null);
@@ -619,11 +622,12 @@ export default function DetalleCitaScreen() {
                   style={[
                     styles.searchInput,
                     {
-                      backgroundColor: "#F4FAF8",
+                      backgroundColor: c.mode === "dark" ? "#1E2631" : "#FBFEFD",
+                      color: c.text,
                       marginBottom: 15,
                       padding: 10,
                       borderWidth: 1,
-                      borderColor: "#DCEAE6",
+                      borderColor: c.border,
                       borderRadius: 10,
                     },
                   ]}
@@ -698,8 +702,10 @@ export default function DetalleCitaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4FAF8" },
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
   content: {
     padding: 30,
     paddingBottom: 50,
@@ -713,31 +719,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#DCEAE6",
+    borderColor: c.border,
   },
-  backText: { color: "#247F76", fontSize: 13, fontWeight: "800" },
+  backText: { color: c.primary, fontSize: 13, fontWeight: "800" },
   smallTitle: {
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 2,
-    color: "#2A8C82",
+    color: c.primary,
     marginBottom: 5,
   },
   title: {
     fontSize: 30,
     fontWeight: "900",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 20,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: "#CCE4DD",
+    borderColor: c.border,
     marginBottom: 20,
   },
   cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 15 },
@@ -745,16 +751,16 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#E7F5F2",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
   },
-  cardTitle: { fontSize: 16, fontWeight: "800", color: "#173F3A" },
-  cardSubtitle: { fontSize: 12, color: "#82938F", marginTop: 2 },
-  divider: { height: 1, backgroundColor: "#E8F0EE", marginBottom: 15 },
+  cardTitle: { fontSize: 16, fontWeight: "800", color: c.text },
+  cardSubtitle: { fontSize: 12, color: c.muted, marginTop: 2 },
+  divider: { height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1", marginBottom: 15 },
   infoRow: { flexDirection: "row", marginBottom: 10, alignItems: "flex-start" },
-  infoLabel: { width: 130, fontSize: 13, fontWeight: "800", color: "#31534D" },
+  infoLabel: { width: 130, fontSize: 13, fontWeight: "800", color: c.text },
   infoValue: { flex: 1, fontSize: 13, color: "#4A5D59" },
   alergiasContainer: {
     marginTop: 10,
@@ -793,24 +799,24 @@ const styles = StyleSheet.create({
   notesLabel: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#31534D",
+    color: c.text,
     marginBottom: 5,
   },
   notesText: { fontSize: 13, color: "#5C706C", lineHeight: 20 },
   center: { alignItems: "center", paddingVertical: 50 },
-  loadingText: { marginTop: 12, color: "#82938F", fontSize: 13 },
+  loadingText: { marginTop: 12, color: c.muted, fontSize: 13 },
   errorCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 18,
     padding: 25,
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
   },
   errorTitle: { fontSize: 15, fontWeight: "800", color: "#8A4B4B" },
-  errorText: { fontSize: 12, color: "#879691", marginTop: 6 },
+  errorText: { fontSize: 12, color: c.muted, marginTop: 6 },
   retryButton: {
     marginTop: 18,
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     paddingVertical: 11,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -831,12 +837,12 @@ const styles = StyleSheet.create({
   buttonFinish: { backgroundColor: "#D65A5A" },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: isDark ? "rgba(0,0,0,0.75)" : "rgba(15, 40, 36, 0.48)",
     justifyContent: "center",
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "#FFF",
+    backgroundColor: c.card,
     borderRadius: 20,
     padding: 20,
     maxHeight: "80%",
@@ -850,19 +856,19 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 15,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 45,
     marginBottom: 15,
   },
-  searchInput: { flex: 1, fontSize: 14, color: "#173F3A" },
+  searchInput: { flex: 1, fontSize: 14, color: c.text },
   doctorItem: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -871,12 +877,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E8F0EE",
   },
-  doctorName: { fontSize: 14, fontWeight: "700", color: "#173F3A" },
-  doctorSpecialty: { fontSize: 12, color: "#82938F", marginTop: 2 },
+  doctorName: { fontSize: 14, fontWeight: "700", color: c.text },
+  doctorSpecialty: { fontSize: 12, color: c.muted, marginTop: 2 },
   emptyText: {
     textAlign: "center",
-    color: "#82938F",
+    color: c.muted,
     marginTop: 20,
     fontSize: 13,
   },
 });
+};

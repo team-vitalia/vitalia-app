@@ -1,0 +1,750 @@
+/* ==========================================================================
+   VITALIA PWA — HOJA DE ESTILOS GLOBAL UNIFICADA
+   Sistema centralizado de diseño y variables CSS para Modo Claro / Modo Oscuro.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. VARIABLES DE TEMA (:root - MODO CLARO POR DEFECTO)
+   -------------------------------------------------------------------------- */
+:root {
+  /* --- Superficies y Fondos (Blancos y grises muy claros) --- */
+  --color-bg-page: #F8FAFC;
+  --color-bg-app: #FFFFFF;
+  --color-bg-soft: #E6FBF7;
+  --color-surface: #FFFFFF;
+  --color-surface-hover: #F1F5F9;
+  --color-footer-bg: #F1F5F9;
+
+  /* --- Textos (Gris carbón suave, no negro puro para no cansar la vista) --- */
+  --color-text-main: #242D35;
+  --color-text-head: #0F4C45;
+  --color-text-muted: #566573;
+  --color-text-light: #64748B;
+  --color-text-white: #FFFFFF;
+  --color-footer-text: #475569;
+  --color-pwa-muted: #566573;
+
+  /* --- Marca y Acentos (Verde azulado vibrante #08BFA4) --- */
+  --color-primary: #0F4C45;
+  --color-primary-dark: #0A3732;
+  --color-secondary: #08BFA4;
+  --color-accent: #08BFA4;
+  --color-on-primary: #FFFFFF;
+
+  /* --- Bordes y Separadores --- */
+  --color-border: #E2E8F0;
+  --color-border-light: #EEF2F6;
+  --color-footer-border: #E2E8F0;
+
+  /* --- Botones y Controles --- */
+  --color-btn-bg: var(--color-primary);
+  --color-btn-hover: var(--color-primary-dark);
+  --color-btn-text: #FFFFFF;
+  --color-focus-ring: #08BFA4;
+  --color-input-bg: #FFFFFF;
+  --color-input-border: #CBD5E1;
+  --color-input-text: var(--color-text-main);
+
+  /* --- Badges e Indicadores --- */
+  --color-badge-bg: rgba(8, 191, 164, 0.12);
+  --color-badge-text: #0B7364;
+  --color-badge-border: rgba(8, 191, 164, 0.35);
+
+  /* --- Estados y Alertas --- */
+  --color-success: #15803D;
+  --color-success-bg: #DCFCE7;
+  --color-warning: #B45309;
+  --color-warning-bg: #FEF3C7;
+  --color-warning-text: #78350F;
+  --color-error: #B91C1C;
+  --color-error-bg: #FEE2E2;
+  --color-info: #0284C7;
+  --color-info-bg: #E0F2FE;
+  --color-info-text: #075985;
+
+  /* --- PWA App Shell / Splash Screen (Modo Claro) --- */
+  --color-splash-bg: #F8FAFC;
+  --color-splash-title: #0F4C45;
+  --color-splash-subtitle: #566573;
+  --color-splash-spinner-track: rgba(8, 191, 164, 0.2);
+  --color-splash-spinner-head: #08BFA4;
+
+  /* --- Botón Toggle de Tema --- */
+  --color-toggle-bg: #FFFFFF;
+  --color-toggle-hover: #F1F5F9;
+  --color-toggle-text: #242D35;
+  --color-toggle-border: #CBD5E1;
+
+  /* --- Sombras y Efectos --- */
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-card: 0 4px 14px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 6px 20px rgba(15, 23, 42, 0.08);
+
+  /* --- Tipografías del Sistema --- */
+  --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
+  --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
+
+  /* --- Alias de Compatibilidad Previa (--v-*) --- */
+  --v-primary: var(--color-primary);
+  --v-primary-dark: var(--color-primary-dark);
+  --v-secondary: var(--color-secondary);
+  --v-bg: var(--color-bg-page);
+  --v-bg-soft: var(--color-bg-soft);
+  --v-card: var(--color-surface);
+  --v-text-main: var(--color-text-main);
+  --v-text-head: var(--color-text-head);
+  --v-text-muted: var(--color-text-muted);
+  --v-border: var(--color-border);
+  --v-border-light: var(--color-border-light);
+  --v-success: var(--color-success);
+  --v-success-bg: var(--color-success-bg);
+  --v-warning: var(--color-warning);
+  --v-warning-bg: var(--color-warning-bg);
+  --v-error: var(--color-error);
+  --v-error-bg: var(--color-error-bg);
+}
+
+/* --------------------------------------------------------------------------
+   2. VARIABLES DE TEMA (body.dark-theme - MODO OSCURO)
+   -------------------------------------------------------------------------- */
+body.dark-theme,
+html.dark-theme body {
+  /* --- Superficies y Fondos Oscuros (#121212, #1E1E1E) --- */
+  --color-bg-page: #121212;
+  --color-bg-app: #121212;
+  --color-bg-soft: #1E2D2A;
+  --color-surface: #1E1E1E;
+  --color-surface-hover: #2A2A2A;
+  --color-footer-bg: #161616;
+
+  /* --- Textos Claros (#E0E0E0) --- */
+  --color-text-main: #E0E0E0;
+  --color-text-head: #F3F4F6;
+  --color-text-muted: #A0AEC0;
+  --color-text-light: #CBD5E1;
+  --color-text-white: #FFFFFF;
+  --color-footer-text: #94A3B8;
+  --color-pwa-muted: #94A3B8;
+
+  /* --- Marca y Acento Vibrante para Fondo Oscuro (#08BFA4 / #2DD4BF) --- */
+  --color-primary: #08BFA4;
+  --color-primary-dark: #069882;
+  --color-secondary: #2DD4BF;
+  --color-accent: #2DD4BF;
+  --color-on-primary: #121212;
+
+  /* --- Bordes Oscuros --- */
+  --color-border: #2D3748;
+  --color-border-light: #262626;
+  --color-footer-border: #262626;
+
+  /* --- Botones y Controles --- */
+  --color-btn-bg: #08BFA4;
+  --color-btn-hover: #2DD4BF;
+  --color-btn-text: #121212;
+  --color-focus-ring: #2DD4BF;
+  --color-input-bg: #262626;
+  --color-input-border: #3D4852;
+  --color-input-text: #E0E0E0;
+
+  /* --- Badges e Indicadores --- */
+  --color-badge-bg: rgba(8, 191, 164, 0.2);
+  --color-badge-text: #5EEAD4;
+  --color-badge-border: rgba(8, 191, 164, 0.4);
+
+  /* --- Estados y Alertas --- */
+  --color-success: #4ADE80;
+  --color-success-bg: #143522;
+  --color-warning: #FBBF24;
+  --color-warning-bg: #382B14;
+  --color-warning-text: #FDE68A;
+  --color-error: #F87171;
+  --color-error-bg: #3B1B1B;
+  --color-info: #38BDF8;
+  --color-info-bg: #112F45;
+  --color-info-text: #BAE6FD;
+
+  /* --- PWA App Shell / Splash Screen (Modo Oscuro) --- */
+  --color-splash-bg: #121212;
+  --color-splash-title: #08BFA4;
+  --color-splash-subtitle: #A0AEC0;
+  --color-splash-spinner-track: rgba(8, 191, 164, 0.2);
+  --color-splash-spinner-head: #08BFA4;
+
+  /* --- Botón Toggle de Tema --- */
+  --color-toggle-bg: #2A2A2A;
+  --color-toggle-hover: #383838;
+  --color-toggle-text: #F3F4F6;
+  --color-toggle-border: #3D4852;
+
+  /* --- Sombras Oscuras --- */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* --------------------------------------------------------------------------
+   3. TRANSICIONES GLOBALES SUAVES
+   -------------------------------------------------------------------------- */
+body,
+header,
+main,
+footer,
+section,
+article,
+.stat-card,
+.content-card,
+.header-site,
+.footer-site,
+.form-control,
+.btn-submit,
+.theme-toggle-btn,
+.callout,
+.alert-box,
+.retention-table,
+.retention-table th,
+.retention-table td,
+#vitalia-splash {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* --------------------------------------------------------------------------
+   4. REGLAS @font-face Y ANIMACIONES GLOBALES
+   -------------------------------------------------------------------------- */
+@font-face {
+  font-family: 'Ionicons';
+  src: url('/fonts/Ionicons.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FontAwesome';
+  src: url('/fonts/FontAwesome.ttf') format('truetype');
+  font-display: swap;
+}
+
+@keyframes vitaliaSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes vitaliaPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   5. ESTILOS BASE Y RESET
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-family-base);
+  scroll-behavior: smooth;
+  background-color: var(--color-bg-page);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family-base);
+  background-color: var(--color-bg-page);
+  color: var(--color-text-main);
+  line-height: 1.6;
+}
+
+/* --------------------------------------------------------------------------
+   6. INTERRUPTOR DE TEMA (THEME TOGGLE)
+   -------------------------------------------------------------------------- */
+.header-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--color-toggle-bg);
+  color: var(--color-toggle-text);
+  border: 1px solid var(--color-toggle-border);
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: var(--shadow-sm);
+  outline: none;
+}
+
+.theme-toggle-btn:hover {
+  background-color: var(--color-toggle-hover);
+  transform: translateY(-1px);
+}
+
+.theme-toggle-btn:active {
+  transform: translateY(0);
+}
+
+.theme-toggle-btn:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.theme-toggle-icon {
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-block;
+}
+
+/* En Modo Claro: se muestra el sol, se oculta la luna */
+.theme-icon-sun {
+  display: inline-block;
+}
+.theme-icon-moon {
+  display: none;
+}
+
+/* En Modo Oscuro: se muestra la luna, se oculta el sol */
+body.dark-theme .theme-icon-sun,
+html.dark-theme .theme-icon-sun {
+  display: none;
+}
+body.dark-theme .theme-icon-moon,
+html.dark-theme .theme-icon-moon {
+  display: inline-block;
+}
+
+/* --------------------------------------------------------------------------
+   7. APP SHELL Y SPLASH SCREEN PWA (Vitalia App)
+   -------------------------------------------------------------------------- */
+.pwa-body {
+  background-color: var(--color-bg-page);
+}
+
+#vitalia-splash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-splash-bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+  transition: opacity 0.35s ease-out, background-color 0.3s ease;
+  pointer-events: none;
+}
+
+.vitalia-splash-logo {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 16px;
+  animation: vitaliaPulse 2s infinite ease-in-out;
+}
+
+.vitalia-splash-title {
+  font-family: var(--font-family-base);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--color-splash-title);
+  letter-spacing: 1.2px;
+  margin-bottom: 6px;
+}
+
+.vitalia-splash-subtitle {
+  font-family: var(--font-family-base);
+  font-size: 13px;
+  color: var(--color-splash-subtitle);
+  margin-bottom: 24px;
+}
+
+.vitalia-splash-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-splash-spinner-track);
+  border-top: 3px solid var(--color-splash-spinner-head);
+  border-radius: 50%;
+  animation: vitaliaSpin 0.8s linear infinite;
+}
+
+/* --------------------------------------------------------------------------
+   8. COMPONENTES Y UTILIDADES
+   -------------------------------------------------------------------------- */
+.expoLogoBackground {
+  background-image: linear-gradient(180deg, #3c9ffe, #0274df);
+  border-radius: 40px;
+  width: 128px;
+  height: 128px;
+}
+
+/* --------------------------------------------------------------------------
+   9. VISTAS INSTITUCIONALES (Eliminación de Cuenta / Legal)
+   -------------------------------------------------------------------------- */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 16px;
+  background: var(--color-primary);
+  color: var(--color-text-white);
+  padding: 8px 16px;
+  z-index: 100;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: top 0.2s, background-color 0.3s;
+}
+
+.skip-link:focus {
+  top: 16px;
+  outline: 3px solid var(--color-focus-ring);
+}
+
+.header-site {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: var(--color-text-white);
+  padding: 36px 20px 40px;
+  border-bottom: 4px solid var(--color-secondary);
+}
+
+body.dark-theme .header-site {
+  background: linear-gradient(135deg, #182A28 0%, #0F172A 100%);
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.kicker-badge {
+  display: inline-block;
+  background-color: var(--color-badge-bg);
+  color: var(--color-badge-text);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-badge-border);
+}
+
+.header-site h1 {
+  font-size: 1.875rem;
+  font-weight: 800;
+  line-height: 1.25;
+  margin: 0 0 16px 0;
+  color: var(--color-text-white);
+}
+
+.header-meta {
+  font-size: 1rem;
+  color: var(--color-text-light);
+  max-width: 720px;
+  margin: 0;
+}
+
+.meta-tag {
+  font-weight: 700;
+  color: var(--color-text-white);
+}
+
+.main-content {
+  padding: 32px 0 64px 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-secondary);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-text-head);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.stat-desc {
+  font-size: 0.875rem;
+  color: var(--color-text-main);
+  margin: 0;
+}
+
+.content-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.content-card h2 {
+  color: var(--color-text-head);
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 16px;
+  border-bottom: 2px solid var(--color-bg-soft);
+  padding-bottom: 8px;
+}
+
+.content-card h3 {
+  color: var(--color-text-head);
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.steps-list {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.steps-list li {
+  margin-bottom: 16px;
+  padding-left: 8px;
+  color: var(--color-text-main);
+}
+
+.step-title {
+  font-weight: 700;
+  color: var(--color-text-head);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.data-list {
+  padding-left: 20px;
+  margin: 12px 0;
+}
+
+.data-list li {
+  margin-bottom: 8px;
+  color: var(--color-text-main);
+}
+
+.callout {
+  padding: 16px;
+  border-radius: 6px;
+  margin: 16px 0;
+}
+
+.callout-warning {
+  background-color: var(--color-warning-bg);
+  border-left: 4px solid var(--color-warning);
+  color: var(--color-warning-text);
+}
+
+.callout-info {
+  background-color: var(--color-info-bg);
+  border-left: 4px solid var(--color-info);
+  color: var(--color-info-text);
+}
+
+.callout-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.retention-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9375rem;
+}
+
+.retention-table th,
+.retention-table td {
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+}
+
+.retention-table th {
+  background-color: var(--color-primary);
+  color: var(--color-text-white);
+  font-weight: 700;
+}
+
+body.dark-theme .retention-table th {
+  color: var(--color-on-primary);
+}
+
+.retention-table td {
+  color: var(--color-text-main);
+}
+
+.retention-table tr:nth-child(even) {
+  background-color: var(--color-surface-hover);
+}
+
+.web-form {
+  margin-top: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-weight: 700;
+  color: var(--color-text-head);
+  margin-bottom: 6px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--color-input-border);
+  border-radius: 6px;
+  font-size: 1rem;
+  color: var(--color-input-text);
+  background-color: var(--color-input-bg);
+  font-family: inherit;
+}
+
+.form-control:focus {
+  outline: 3px solid var(--color-focus-ring);
+  border-color: var(--color-primary);
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--color-text-main);
+}
+
+.checkbox-container input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-top: 3px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.btn-submit {
+  background-color: var(--color-btn-bg);
+  color: var(--color-btn-text);
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 12px 24px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 48px;
+}
+
+.btn-submit:hover {
+  background-color: var(--color-btn-hover);
+}
+
+.btn-submit:focus {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.alert-box {
+  display: none;
+  padding: 16px;
+  border-radius: 6px;
+  margin-top: 20px;
+  font-weight: 600;
+}
+
+.alert-success {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+}
+
+.alert-error {
+  background-color: var(--color-error-bg);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+.footer-site {
+  background-color: var(--color-footer-bg);
+  color: var(--color-footer-text);
+  padding: 32px 20px;
+  font-size: 0.875rem;
+  border-top: 1px solid var(--color-footer-border);
+}
+
+/* --------------------------------------------------------------------------
+   10. MEDIA QUERIES RESPONSIVAS
+   -------------------------------------------------------------------------- */
+@media (min-width: 640px) {
+  .header-site h1 {
+    font-size: 2.25rem;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .content-card {
+    padding: 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

@@ -1,8 +1,9 @@
+import { useTheme, type Theme } from "../../theme/theme";
 import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
-import { useEffect, useState } from "react";
+import { useMemo,  useEffect, useState  } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -38,6 +39,8 @@ interface RecetaDetalle {
 }
 
 export default function RecetaQRScreen() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const params = useLocalSearchParams<{
     recetaId: string;
     paciente: string;
@@ -410,8 +413,10 @@ export default function RecetaQRScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4FAF8" },
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
   content: {
     padding: 24,
     maxWidth: 800,
@@ -426,44 +431,44 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: "#FFF",
+    backgroundColor: c.card,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#DCEAE6",
+    borderColor: c.border,
     gap: 6,
   },
-  backText: { color: "#247F76", fontSize: 13, fontWeight: "800" },
+  backText: { color: c.primary, fontSize: 13, fontWeight: "800" },
   smallTitle: {
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 2,
-    color: "#2A8C82",
+    color: c.primary,
     marginBottom: 5,
   },
   title: {
     fontSize: 28,
     fontWeight: "900",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 20,
   },
   card: {
-    backgroundColor: "#FFF",
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: "#CCE4DD",
+    borderColor: c.border,
     marginBottom: 16,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 10,
   },
-  divider: { height: 1, backgroundColor: "#E8F0EE", marginBottom: 12 },
-  label: { fontSize: 12, fontWeight: "800", color: "#31534D", marginTop: 6 },
-  value: { fontSize: 14, color: "#173F3A", marginBottom: 2 },
-  vacio: { fontSize: 13, color: "#82938F", fontStyle: "italic" },
+  divider: { height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1", marginBottom: 12 },
+  label: { fontSize: 12, fontWeight: "800", color: c.text, marginTop: 6 },
+  value: { fontSize: 14, color: c.text, marginBottom: 2 },
+  vacio: { fontSize: 13, color: c.muted, fontStyle: "italic" },
   medBlock: {
     backgroundColor: "#F9FBFA",
     borderRadius: 10,
@@ -475,21 +480,21 @@ const styles = StyleSheet.create({
   medTitle: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 6,
   },
   medDetail: { fontSize: 13, color: "#4A5D59", marginTop: 2 },
-  medLabel: { fontWeight: "800", color: "#31534D" },
+  medLabel: { fontWeight: "800", color: c.text },
   qrHelp: {
     fontSize: 11,
-    color: "#173F3A",
+    color: c.text,
     fontWeight: "700",
     marginTop: 16,
     textAlign: "center",
   },
   qrSubtext: {
     fontSize: 11,
-    color: "#82938F",
+    color: c.muted,
     marginTop: 6,
     textAlign: "center",
     maxWidth: 280,
@@ -504,7 +509,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
@@ -515,7 +520,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderWidth: 2,
     borderColor: "#247F76",
     paddingVertical: 14,
@@ -523,7 +528,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 10,
   },
-  secondaryButtonQRText: { color: "#247F76", fontSize: 14, fontWeight: "800" },
+  secondaryButtonQRText: { color: c.primary, fontSize: 14, fontWeight: "800" },
   secondaryButton: { paddingVertical: 12, alignItems: "center", marginTop: 8 },
-  secondaryButtonText: { color: "#82938F", fontSize: 13, fontWeight: "700" },
+  secondaryButtonText: { color: c.muted, fontSize: 13, fontWeight: "700" },
 });
+};

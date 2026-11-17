@@ -1,6 +1,7 @@
 
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useTheme, type Theme } from "../../../theme/theme";
 import {
     ActivityIndicator,
     Modal,
@@ -22,6 +23,8 @@ interface Rol {
 }
 
 export default function RolesScreen() {
+    const c = useTheme();
+    const styles = useMemo(() => createStyles(c), [c]);
     const router = useRouter();
     const { token } = useAuth();
 
@@ -561,10 +564,12 @@ export default function RolesScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: Theme) => {
+    const isDark = c.mode === "dark";
+    return StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F3F7F6",
+        backgroundColor: c.bg,
     },
     content: {
         padding: 24,
@@ -578,44 +583,44 @@ const styles = StyleSheet.create({
         paddingTop: 18,
         paddingBottom: 10,
         alignSelf: "flex-start",
-        color: "#247F76",
+        color: c.primary,
         fontWeight: "700",
         marginBottom: 20,
     },
     eyebrow: {
-        color: "#247F76",
+        color: c.primary,
         fontSize: 11,
         fontWeight: "800",
         letterSpacing: 1.5,
     },
     title: {
-        color: "#173F3A",
+        color: c.text,
         fontSize: 30,
         fontWeight: "800",
         marginTop: 6,
     },
     subtitle: {
-        color: "#71817D",
+        color: c.muted,
         fontSize: 14,
         marginTop: 8,
         marginBottom: 24,
     },
     form: {
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderRadius: 18,
         padding: 20,
         borderWidth: 1,
-        borderColor: "#E4EEEB",
+        borderColor: c.border,
         marginBottom: 28,
     },
     formTitle: {
-        color: "#173F3A",
+        color: c.text,
         fontSize: 18,
         fontWeight: "800",
         marginBottom: 16,
     },
     label: {
-        color: "#52645F",
+        color: c.text,
         fontSize: 12,
         fontWeight: "700",
         marginBottom: 7,
@@ -623,25 +628,25 @@ const styles = StyleSheet.create({
     },
     input: {
         borderWidth: 1,
-        borderColor: "#D8E5E1",
+        borderColor: c.border,
         borderRadius: 10,
-        backgroundColor: "#FBFDFC",
+        backgroundColor: isDark ? "#1E2631" : "#FBFDFC",
         padding: 12,
-        color: "#173F3A",
+        color: c.text,
     },
     textarea: {
         minHeight: 80,
         textAlignVertical: "top",
     },
     primary: {
-        backgroundColor: "#247F76",
+        backgroundColor: c.primary,
         padding: 13,
         borderRadius: 10,
         alignItems: "center",
         marginTop: 16,
     },
     primaryText: {
-        color: "#FFFFFF",
+        color: isDark ? "#121212" : "#FFFFFF",
         fontWeight: "800",
     },
     disabled: {
@@ -656,17 +661,17 @@ const styles = StyleSheet.create({
         fontWeight: "700",
     },
     listTitle: {
-        color: "#173F3A",
+        color: c.text,
         fontSize: 19,
         fontWeight: "800",
         marginBottom: 12,
     },
     card: {
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderRadius: 15,
         padding: 16,
         borderWidth: 1,
-        borderColor: "#E4EEEB",
+        borderColor: c.border,
         marginBottom: 12,
     },
     cardTop: {
@@ -683,7 +688,7 @@ const styles = StyleSheet.create({
         marginRight: 12,
     },
     roleIconText: {
-        color: "#247F76",
+        color: c.primary,
         fontSize: 18,
         fontWeight: "800",
     },
@@ -725,12 +730,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 13,
     },
     secondaryText: {
-        color: "#247F76",
+        color: c.primary,
         fontSize: 12,
         fontWeight: "800",
     },
     note: {
-        color: "#71817D",
+        color: c.muted,
         fontSize: 12,
         lineHeight: 18,
         marginTop: 8,
@@ -742,12 +747,12 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         padding: 20,
-        backgroundColor: "rgba(15, 40, 36, 0.48)",
+        backgroundColor: isDark ? "rgba(0,0,0,0.75)" : "rgba(15, 40, 36, 0.48)",
     },
     modalCard: {
         width: "100%",
         maxWidth: 500,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderRadius: 24,
         padding: 26,
         borderWidth: 1,
@@ -779,7 +784,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     },
     modalTitle: {
-    color: "#173F3A",
+    color: c.text,
     fontSize: 22,
     fontWeight: "800",
     textAlign: "center",
@@ -793,29 +798,29 @@ const styles = StyleSheet.create({
     },
     modalInfo: {
     width: "100%",
-    backgroundColor: "#F4F8F7",
+    backgroundColor: c.bg,
     borderRadius: 12,
     padding: 14,
     marginTop: 20,
     borderWidth: 1,
-    borderColor: "#E4EEEB",
+    borderColor: c.border,
     },
     modalInfoText: {
-    color: "#52645F",
+    color: c.text,
     fontSize: 12,
     lineHeight: 19,
     textAlign: "center",
     },
     modalButton: {
     width: "100%",
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 22,
     },
     modalButtonText: {
-    color: "#FFFFFF",
+    color: isDark ? "#121212" : "#FFFFFF",
     fontSize: 14,
     fontWeight: "800",
     },
@@ -831,7 +836,7 @@ const styles = StyleSheet.create({
     editModalCard: {
         width: "100%",
         maxWidth: 540,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderRadius: 24,
         padding: 26,
         borderWidth: 1,
@@ -859,7 +864,7 @@ const styles = StyleSheet.create({
     },
 
     editModalIconText: {
-        color: "#247F76",
+        color: c.primary,
         fontSize: 25,
         fontWeight: "800",
     },
@@ -876,14 +881,14 @@ const styles = StyleSheet.create({
     },
 
     editModalTitle: {
-        color: "#173F3A",
+        color: c.text,
         fontSize: 23,
         fontWeight: "900",
         marginTop: 3,
     },
 
     editModalSubtitle: {
-        color: "#82938F",
+        color: c.muted,
         fontSize: 12,
         lineHeight: 18,
         marginTop: 4,
@@ -907,7 +912,7 @@ const styles = StyleSheet.create({
 
     editModalDivider: {
         height: 1,
-        backgroundColor: "#EDF3F1",
+        backgroundColor: isDark ? "#2D3748" : "#EDF3F1",
         marginVertical: 23,
     },
 
@@ -919,8 +924,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 12,
         fontSize: 14,
-        color: "#173F3A",
-        backgroundColor: "#FBFDFC",
+        color: c.text,
+        backgroundColor: isDark ? "#1E2631" : "#FBFDFC",
         marginBottom: 12,
     },
 
@@ -953,14 +958,15 @@ const styles = StyleSheet.create({
         minWidth: 145,
         paddingHorizontal: 18,
         borderRadius: 12,
-        backgroundColor: "#247F76",
+        backgroundColor: c.primary,
         alignItems: "center",
         justifyContent: "center",
     },
 
     editModalSaveText: {
-        color: "#FFFFFF",
+        color: isDark ? "#121212" : "#FFFFFF",
         fontSize: 12,
         fontWeight: "800",
     },
 });
+};

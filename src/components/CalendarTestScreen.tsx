@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useTheme, type Theme } from "../theme/theme";
+import React, { useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -15,6 +16,8 @@ import { FontAwesome } from "@expo/vector-icons";
 import { useGoogleCalendar } from "../context/CalendarContext";
 
 export default function CalendarTestScreen() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const {
     isCalendarConnected,
     cargando,
@@ -211,10 +214,12 @@ export default function CalendarTestScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
     flexGrow: 1,
   },
   header: {
@@ -230,7 +235,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#247F76",
+    color: c.primary,
   },
   subtitle: {
     fontSize: 13,
@@ -239,17 +244,17 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#E2ECEA",
+    borderColor: c.border,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 12,
   },
   statusRow: {
@@ -259,7 +264,7 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     fontSize: 14,
-    color: "#48605B",
+    color: c.muted,
     fontWeight: "600",
   },
   button: {
@@ -282,7 +287,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#4285F4",
   },
   primaryButton: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
   },
   secondaryButton: {
     backgroundColor: "#E67E22",
@@ -301,7 +306,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 8,
-    color: "#48605B",
+    color: c.muted,
     fontSize: 13,
   },
   messageCard: {
@@ -313,11 +318,11 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
   },
   successCard: {
-    backgroundColor: "#F1F8F6",
+    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
     borderLeftColor: "#247F76",
   },
   errorCard: {
-    backgroundColor: "#FFF5F5",
+    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
     borderLeftColor: "#D65A5A",
   },
   messageText: {
@@ -325,28 +330,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   successText: {
-    color: "#173F3A",
+    color: c.text,
   },
   errorText: {
     color: "#D65A5A",
   },
   eventDetailCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 12,
     padding: 16,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "#E2ECEA",
+    borderColor: c.border,
   },
   eventDetailTitle: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#247F76",
+    color: c.primary,
     marginBottom: 8,
   },
   eventDetailText: {
     fontSize: 13,
-    color: "#48605B",
+    color: c.muted,
     marginBottom: 4,
   },
   bold: {
@@ -359,7 +364,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   linkText: {
-    color: "#247F76",
+    color: c.primary,
     fontWeight: "700",
     fontSize: 13,
     textDecorationLine: "underline",
@@ -368,3 +373,4 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
 });
+};

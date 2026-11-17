@@ -1,5 +1,6 @@
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTheme, type Theme } from "../../../theme/theme";
 import {
     ActivityIndicator,
     Alert,
@@ -38,6 +39,8 @@ const FORMULARIO_VACIO: FormularioEspecialidad = {
 
 
 export default function EspecialidadesScreen() {
+    const c = useTheme();
+    const styles = useMemo(() => createStyles(c), [c]);
     const router = useRouter();
     const { token } = useAuth();
 
@@ -696,11 +699,13 @@ export default function EspecialidadesScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: Theme) => {
+    const isDark = c.mode === "dark";
+    return StyleSheet.create({
     
     pantalla: {
         flex: 1,
-        backgroundColor: "#F3F7F6",
+        backgroundColor: c.bg,
     },
 
     contenido: {
@@ -726,13 +731,13 @@ const styles = StyleSheet.create({
     titulo: {
         fontSize: 32,
         fontWeight: "900",
-        color: "#173F3A",
+        color: c.text,
         letterSpacing: -0.7,
     },
 
     subtitulo: {
         marginTop: 7,
-        color: "#718780",
+        color: c.muted,
         fontSize: 14,
         lineHeight: 21,
     },
@@ -741,13 +746,13 @@ const styles = StyleSheet.create({
         minHeight: 48,
         paddingHorizontal: 18,
         borderRadius: 14,
-        backgroundColor: "#247F76",
+        backgroundColor: c.primary,
         alignItems: "center",
         justifyContent: "center",
     },
 
     botonPrincipalTexto: {
-        color: "#FFFFFF",
+        color: isDark ? "#121212" : "#FFFFFF",
         fontSize: 13,
         fontWeight: "800",
     },
@@ -758,12 +763,12 @@ const styles = StyleSheet.create({
     },
 
     tarjeta: {
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderRadius: 18,
         padding: 20,
         marginBottom: 0,
         borderWidth: 1,
-        borderColor: "#E3ECE8",
+        borderColor: c.border,
         shadowColor: "#173F3A",
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.04,
@@ -776,16 +781,16 @@ const styles = StyleSheet.create({
         gap: 5,
     },
     nombre: {
-        color: "#173F3A",
+        color: c.text,
         fontSize: 16,
         fontWeight: "800",
     },
     metadato: {
-        color: "#2A8C82",
+        color: c.primary,
         fontSize: 13,
     },
     descripcion: {
-        color: "#36564E",
+        color: c.text,
         fontSize: 13,
         lineHeight: 20,
         marginBottom: 16,
@@ -802,13 +807,13 @@ const styles = StyleSheet.create({
         minHeight: 42,
         paddingHorizontal: 15,
         borderRadius: 11,
-        backgroundColor: "#E5F4F0",
+        backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E5F4F0",
         alignItems: "center",
         justifyContent: "center",
     },
 
     botonEditarTexto: {
-        color: "#247F76",
+        color: c.primary,
         fontSize: 12,
         fontWeight: "800",
     },
@@ -833,10 +838,10 @@ const styles = StyleSheet.create({
         marginTop: 50,
     },
     estado: {
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: "#E2EEEB",
+        borderColor: c.border,
         padding: 30,
         alignItems: "center",
         justifyContent: "center",
@@ -847,12 +852,12 @@ const styles = StyleSheet.create({
     estadoTitulo: {
         fontSize: 17,
         fontWeight: "800",
-        color: "#31534D",
+        color: c.text,
         textAlign: "center",
     },
 
     estadoTexto: {
-        color: "#8A9B98",
+        color: c.muted,
         fontSize: 12,
         lineHeight: 18,
         textAlign: "center",
@@ -867,20 +872,20 @@ const styles = StyleSheet.create({
 
     botonSecundario: {
         borderWidth: 1,
-        borderColor: "#D3E2DE",
+        borderColor: c.border,
         borderRadius: 12,
         paddingHorizontal: 16,
         paddingVertical: 11,
     },
 
     botonSecundarioTexto: {
-        color: "#247F76",
+        color: c.primary,
         fontWeight: "800",
     },
     
     fondoModal: {
         flex: 1,
-        backgroundColor: "rgba(15, 40, 36, 0.48)",
+        backgroundColor: isDark ? "rgba(0,0,0,0.75)" : "rgba(15, 40, 36, 0.48)",
         justifyContent: "center",
         alignItems: "center",
         padding: 20,
@@ -889,22 +894,22 @@ const styles = StyleSheet.create({
     modal: {
         width: "100%",
         maxWidth: 500,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderRadius: 24,
         padding: 26,
         borderWidth: 1,
-        borderColor: "#E1ECE8",
+        borderColor: c.border,
     },
 
     modalTitulo: {
         fontSize: 24,
         fontWeight: "900",
-        color: "#173F3A",
+        color: c.text,
         marginBottom: 14,
     },
 
     etiqueta: {
-        color: "#36564E",
+        color: c.text,
         fontSize: 12,
         fontWeight: "800",
         marginTop: 12,
@@ -914,12 +919,12 @@ const styles = StyleSheet.create({
     input: {
         minHeight: 48,
         borderWidth: 1,
-        borderColor: "#DCE9E5",
+        borderColor: c.border,
         borderRadius: 12,
         paddingHorizontal: 14,
         paddingVertical: 12,
-        color: "#173F3A",
-        backgroundColor: "#FAFCFB",
+        color: c.text,
+        backgroundColor: isDark ? "#1E2631" : "#FAFCFB",
         fontSize: 14,
     },
 
@@ -942,8 +947,8 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: "#D3E2DE",
-        backgroundColor: "#EDF3F1",
+        borderColor: c.border,
+        backgroundColor: isDark ? "#2D3748" : "#EDF3F1",
         alignItems: "center",
         justifyContent: "center",
     },
@@ -977,7 +982,7 @@ const styles = StyleSheet.create({
     },
 
     textoVolver: {
-        color: "#247F76",
+        color: c.primary,
         fontWeight: "700",
         marginBottom: 20,
     },
@@ -986,7 +991,7 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: "800",
         letterSpacing: 1.8,
-        color: "#2A8C82",
+        color: c.primary,
         marginBottom: 5,
     },
 
@@ -1007,7 +1012,7 @@ const styles = StyleSheet.create({
     },
 
     iconoEspecialidadTexto: {
-        color: "#247F76",
+        color: c.primary,
         fontSize: 25,
         fontWeight: "800",
     },
@@ -1022,7 +1027,7 @@ const styles = StyleSheet.create({
     },
 
     badgeCodigoTexto: {
-        color: "#247F76",
+        color: c.primary,
         fontSize: 10,
         fontWeight: "800",
     },
@@ -1046,16 +1051,16 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         padding: 20,
-        backgroundColor: "rgba(15, 40, 36, 0.48)",
+        backgroundColor: isDark ? "rgba(0,0,0,0.75)" : "rgba(15, 40, 36, 0.48)",
     },
     modalCard: {
         width: "100%",
         maxWidth: 500,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderRadius: 24,
         padding: 26,
         borderWidth: 1,
-        borderColor: "#E1ECE8",
+        borderColor: c.border,
         alignItems: "center",
         shadowColor: "#173F3A",
         shadowOffset: {
@@ -1086,7 +1091,7 @@ const styles = StyleSheet.create({
     },
 
     modalTitle: {
-        color: "#173F3A",
+        color: c.text,
         fontSize: 22,
         fontWeight: "800",
         textAlign: "center",
@@ -1102,7 +1107,7 @@ const styles = StyleSheet.create({
 
     modalInfo: {
         width: "100%",
-        backgroundColor: "#F4F8F7",
+        backgroundColor: c.bg,
         borderRadius: 12,
         padding: 14,
         marginTop: 20,
@@ -1119,7 +1124,7 @@ const styles = StyleSheet.create({
 
     modalButton: {
         width: "100%",
-        backgroundColor: "#247F76",
+        backgroundColor: c.primary,
         borderRadius: 12,
         paddingVertical: 14,
         alignItems: "center",
@@ -1127,7 +1132,7 @@ const styles = StyleSheet.create({
     },
 
     modalButtonText: {
-        color: "#FFFFFF",
+        color: isDark ? "#121212" : "#FFFFFF",
         fontSize: 14,
         fontWeight: "800",
     },
@@ -1162,7 +1167,7 @@ const styles = StyleSheet.create({
     },
 
     nombreEspecialidadModal: {
-        color: "#247F76",
+        color: c.primary,
         fontSize: 16,
         fontWeight: "800",
         textAlign: "center",
@@ -1177,9 +1182,9 @@ const styles = StyleSheet.create({
 
     modalCancelar: {
         flex: 1,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: c.card,
         borderWidth: 1,
-        borderColor: "#D3E2DE",
+        borderColor: c.border,
         borderRadius: 12,
         paddingVertical: 14,
         alignItems: "center",
@@ -1202,8 +1207,9 @@ const styles = StyleSheet.create({
     },
 
     modalEliminarTexto: {
-        color: "#FFFFFF",
+        color: isDark ? "#121212" : "#FFFFFF",
         fontSize: 13,
         fontWeight: "800",
     },
 });
+};

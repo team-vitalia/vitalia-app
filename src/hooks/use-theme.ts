@@ -1,14 +1,13 @@
 /**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
+ * Theme hook connected to Vitalia ThemeContext
  */
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme as useVitaliaTheme } from '@/theme/theme';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
+  const vitaliaTheme = useVitaliaTheme();
+  const theme = vitaliaTheme.dark ? 'dark' : 'light';
 
   return Colors[theme];
 }

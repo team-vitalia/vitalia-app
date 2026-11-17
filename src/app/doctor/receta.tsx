@@ -1,6 +1,7 @@
+import { useTheme, type Theme } from "../../theme/theme";
 import { FontAwesome } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useMemo,  useEffect, useState  } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -38,6 +39,8 @@ interface ItemReceta {
 }
 
 export default function RecetaScreen() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const {
     pacienteId,
     citaId,
@@ -476,8 +479,10 @@ export default function RecetaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F4FAF8" },
+const createStyles = (c: Theme) => {
+  const isDark = c.mode === "dark";
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
   content: {
     padding: 30,
     maxWidth: 800,
@@ -492,48 +497,48 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#DCEAE6",
+    borderColor: c.border,
   },
-  backText: { color: "#247F76", fontSize: 13, fontWeight: "800" },
+  backText: { color: c.primary, fontSize: 13, fontWeight: "800" },
   smallTitle: {
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 2,
-    color: "#2A8C82",
+    color: c.primary,
     marginBottom: 5,
   },
   title: {
     fontSize: 30,
     fontWeight: "900",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 20,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: "#CCE4DD",
+    borderColor: c.border,
     marginBottom: 20,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#173F3A",
+    color: c.text,
     marginBottom: 15,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F4FAF8",
+    backgroundColor: c.bg,
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 45,
   },
-  searchInput: { flex: 1, fontSize: 14, color: "#173F3A" },
+  searchInput: { flex: 1, fontSize: 14, color: c.text },
   resultsContainer: {
     marginTop: 10,
     borderTopWidth: 1,
@@ -545,30 +550,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E8F0EE",
   },
-  resultText: { fontSize: 14, color: "#31534D", fontWeight: "600" },
+  resultText: { fontSize: 14, color: c.text, fontWeight: "600" },
   label: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#31534D",
+    color: c.text,
     marginBottom: 5,
     marginTop: 10,
   },
   input: {
     backgroundColor: "#F8FAFA",
     borderWidth: 1,
-    borderColor: "#DCEAE6",
+    borderColor: c.border,
     borderRadius: 10,
     padding: 12,
     fontSize: 14,
-    color: "#173F3A",
+    color: c.text,
   },
   formActions: { flexDirection: "row", gap: 10, marginTop: 20 },
   btn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-  btnCancel: { backgroundColor: "#FFF0EF" },
-  btnSave: { backgroundColor: "#247F76" },
+  btnCancel: { backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5" },
+  btnSave: { backgroundColor: c.primary },
   btnTextCancel: { color: "#D65A5A", fontWeight: "800", fontSize: 13 },
   btnTextSave: { color: "#FFF", fontWeight: "800", fontSize: 13 },
-  emptyText: { fontSize: 13, color: "#82938F", fontStyle: "italic" },
+  emptyText: { fontSize: 13, color: c.muted, fontStyle: "italic" },
   itemRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -576,10 +581,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E8F0EE",
   },
-  itemName: { fontSize: 14, fontWeight: "800", color: "#173F3A" },
-  itemDetail: { fontSize: 12, color: "#667874", marginTop: 2 },
+  itemName: { fontSize: 14, fontWeight: "800", color: c.text },
+  itemDetail: { fontSize: 12, color: c.muted, marginTop: 2 },
   mainButton: {
-    backgroundColor: "#247F76",
+    backgroundColor: c.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
@@ -587,3 +592,4 @@ const styles = StyleSheet.create({
   },
   mainButtonText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
 });
+};

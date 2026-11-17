@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
+import { useTheme, type Theme } from "../theme/theme";
 
 export function InstallPrompt() {
+  const c = useTheme();
+  const styles = useMemo(() => createStyles(c), [c]);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPrompt, setShowPrompt] = useState(false);
 
@@ -56,7 +59,7 @@ export function InstallPrompt() {
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <FontAwesome name="mobile-phone" size={26} color="#22D3EE" />
+          <FontAwesome name="mobile-phone" size={26} color={c.primary} />
         </View>
         <View style={styles.textContainer}>
           <Text style={styles.title}>Instalar Vitalia</Text>
@@ -73,7 +76,7 @@ export function InstallPrompt() {
           <FontAwesome
             name="download"
             size={13}
-            color="#04222B"
+            color="#FFFFFF"
             style={styles.buttonIcon}
           />
           <Text style={styles.installButtonText}>Instalar</Text>
@@ -82,74 +85,76 @@ export function InstallPrompt() {
           style={styles.dismissButton}
           onPress={handleDismiss}
         >
-          <FontAwesome name="times" size={14} color="#8FA3BF" />
+          <FontAwesome name="times" size={14} color={c.muted} />
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "#111A2C",
-    borderBottomWidth: 1,
-    borderBottomColor: "#1F2A44",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  content: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(34,211,238,0.14)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  textContainer: {
-    flex: 1,
-  },
-  title: {
-    color: "#E6EDF7",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  description: {
-    color: "#8FA3BF",
-    fontSize: 11,
-    marginTop: 2,
-  },
-  actions: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: 12,
-  },
-  installButton: {
-    backgroundColor: "#22D3EE",
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 8,
-  },
-  buttonIcon: {
-    marginRight: 6,
-  },
-  installButtonText: {
-    color: "#04222B",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  dismissButton: {
-    padding: 6,
-  },
-});
+function createStyles(c: Theme) {
+  return StyleSheet.create({
+    container: {
+      backgroundColor: c.card,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    content: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+    },
+    iconContainer: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: c.tileBg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+    },
+    textContainer: {
+      flex: 1,
+    },
+    title: {
+      color: c.text,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+    description: {
+      color: c.muted,
+      fontSize: 11,
+      marginTop: 2,
+    },
+    actions: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginLeft: 12,
+    },
+    installButton: {
+      backgroundColor: c.primary,
+      borderRadius: 8,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      marginRight: 8,
+    },
+    buttonIcon: {
+      marginRight: 6,
+    },
+    installButtonText: {
+      color: "#FFFFFF",
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    dismissButton: {
+      padding: 6,
+    },
+  });
+}

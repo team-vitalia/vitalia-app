@@ -1,3 +1,5 @@
+import { useTheme, type Theme } from "../theme/theme";
+import { useMemo } from "react";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
@@ -6,6 +8,8 @@ import { AsignacionSala, hhmm, mensajeError, misSalas, nombreDia } from "../serv
 
 /** Salas asignadas al doctor autenticado con su horario de uso. */
 export default function SalasDoctor() {
+  const c = useTheme();
+  const s = useMemo(() => createStyles(c), [c]);
   const { token } = useAuth();
   const [salas, setSalas] = useState<AsignacionSala[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -55,13 +59,13 @@ export default function SalasDoctor() {
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: Theme) => StyleSheet.create({
   contenedor: { marginBottom: 20 },
-  titulo: { fontSize: 18, fontWeight: "800", color: "#173F3A", marginVertical: 14 },
-  tarjeta: { backgroundColor: "#FFFFFF", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#E4EEEB", marginBottom: 10 },
-  sala: { fontSize: 15, fontWeight: "800", color: "#26443F" },
-  detalle: { fontSize: 11, color: "#879691", marginTop: 2, marginBottom: 6 },
-  horario: { fontSize: 13, color: "#247F76", fontWeight: "600", marginTop: 2 },
-  vacio: { fontSize: 13, color: "#879691" },
+  titulo: { fontSize: 18, fontWeight: "800", color: c.text, marginVertical: 14 },
+  tarjeta: { backgroundColor: c.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 10 },
+  sala: { fontSize: 15, fontWeight: "800", color: c.text },
+  detalle: { fontSize: 11, color: c.muted, marginTop: 2, marginBottom: 6 },
+  horario: { fontSize: 13, color: c.primary, fontWeight: "600", marginTop: 2 },
+  vacio: { fontSize: 13, color: c.muted },
   error: { fontSize: 13, color: "#B42318" },
 });
