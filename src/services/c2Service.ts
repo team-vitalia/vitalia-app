@@ -346,3 +346,120 @@ export async function descargarReporte(
   a.remove();
   window.URL.revokeObjectURL(url);
 }
+
+/* ============================================================
+   Reportes Empresariales con IA
+============================================================ */
+export type AlertaIA = {
+  titulo: string;
+  descripcion: string;
+  prioridad: "critico" | "oportunidad" | "optimo";
+  metrica: string;
+};
+
+export type RecomendacionIA = {
+  titulo: string;
+  accion: string;
+  impacto_esperado: string;
+  area: string;
+};
+
+export type InsightsIA = {
+  resumen_ejecutivo: string;
+  score_eficiencia: number;
+  alertas_anomalias: AlertaIA[];
+  recomendaciones: RecomendacionIA[];
+  origen?: string;
+  modelo?: string;
+};
+
+export type MetricaComparativa = {
+  indicador: string;
+  clave: string;
+  unidad: string;
+  valor_actual: number;
+  valor_anterior: number;
+  variacion_pct: number;
+  tendencia: "up" | "down" | "neutral";
+  favorable: boolean;
+};
+
+export type ReporteEmpresarialDatos = {
+  tipo: string;
+  desde: string | null;
+  hasta: string | null;
+  anterior_desde: string | null;
+  anterior_hasta: string | null;
+  resumen_general: {
+    total_citas: number;
+    citas_atendidas: number;
+    citas_canceladas: number;
+    total_salas: number;
+    horas_ocupadas_totales: number;
+    espera_promedio_minutos: number;
+    total_atenciones_espera: number;
+    total_medicamentos_stock_bajo: number;
+    total_recetas: number;
+    detalle_salas: any[];
+    detalle_doctores: any[];
+    detalle_espera: any[];
+    detalle_inventario: any[];
+    detalle_recetas: any[];
+  };
+  datos_especificos: any;
+  comparativa: MetricaComparativa[];
+  insights_ia: InsightsIA;
+};
+
+export async function reporteEmpresarialDatos(
+  token: string,
+  tipo: string = "general",
+  desde?: string,
+  hasta?: string,
+  umbral: number = 10
+): Promise<ReporteEmpresarialDatos> {
+  const r = await api.get<ReporteEmpresarialDatos>("/api/reportes/empresarial/datos", {
+    ...auth(token),
+    params: limpiar({ tipo, desde, hasta, umbral }),
+  });
+  return r.data;
+}
+
+export async function consultarIAReporte(
+  token: string,
+  pregunta: string,
+  tipo: string = "general",
+  desde?: string,
+  hasta?: string
+): Promise<{ respuesta: string }> {
+  const r = await api.post<{ respuesta: string }>(
+    "/api/reportes/empresarial/consultor-ia",
+    limpiar({ pregunta, tipo, desde, hasta }),
+    auth(token)
+  );
+  return r.data;
+}
+
+export async function descargarReporteEmpresarial(
+  token: string,
+  tipo: string,
+  formato: "pdf" | "excel",
+  params: { desde?: string; hasta?: string; umbral?: number } = {}
+): Promise<void> {
+  const res = await api.get(`/api/reportes/empresarial/${tipo}/exportar`, {
+    ...auth(token),
+    params: limpiar({ formato, ...params }),
+    responseType: "blob",
+  });
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    throw new Error("La descarga de reportes está disponible en la versión web.");
+  }
+  const url = window.URL.createObjectURL(new Blob([res.data]));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `reporte_empresarial_${tipo}.${formato === "pdf" ? "pdf" : "xlsx"}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}

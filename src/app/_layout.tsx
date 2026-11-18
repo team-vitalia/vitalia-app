@@ -1,7 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Stack, usePathname, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { ComponentProps, useEffect, useRef, useState } from "react";
+
+WebBrowser.maybeCompleteAuthSession();
 import {
   Animated,
   Easing,
@@ -1013,7 +1016,9 @@ function AppLayout() {
     pathname === "/registro" ||
     pathname === "/politica-privacidad" ||
     pathname === "/condiciones-servicio" ||
-    pathname === "/eliminacion-cuenta";
+    pathname === "/eliminacion-cuenta" ||
+    pathname === "/oauthredirect" ||
+    pathname.startsWith("/oauthredirect");
   const rolId: number | undefined = usuario?.rol_id ?? usuario?.rol_id_FK;
   const mostrarMenu = !isAuthPage && !!usuario;
 
