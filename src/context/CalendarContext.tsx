@@ -44,18 +44,20 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   const [cargando, setCargando] = useState<boolean>(false);
   const [ultimoEventoCreado, setUltimoEventoCreado] = useState<any>(null);
 
-  /*
-  ===================================================================================
-  CONFIGURACIÓN DE CREDENCIALES DE GOOGLE OAUTH 2.0
-  ===================================================================================
-  <TU_CLIENT_ID_AQUI>
-  ===================================================================================
-  */
-  const cleanWebClientId = "393671162434-3e031lvkhq3107bfaa2to2hndsvu57tp.apps.googleusercontent.com".replace(/<|>/g, "").trim();
+  const webClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
+    "393671162434-3e031lvkhq3107bfaa2to2hndsvu57tp.apps.googleusercontent.com";
+  const androidClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
+    "393671162434-aace18jib3tf2njd80d0kfkn7rmjlnk7.apps.googleusercontent.com";
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: cleanWebClientId,
-    webClientId: cleanWebClientId,
+    clientId: Platform.select({
+      android: androidClientId,
+      default: webClientId,
+    }),
+    webClientId,
+    androidClientId,
     redirectUri: Platform.select({
       web: typeof window !== "undefined" ? window.location.origin : "http://localhost:8081",
       default: undefined,
@@ -69,7 +71,6 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       "https://www.googleapis.com/auth/calendar",
       "https://www.googleapis.com/auth/calendar.events",
     ],
-    // Solicitar acceso offline con code para que Google proporcione un refresh_token al backend
     extraParams: {
       access_type: "offline",
       prompt: "consent select_account",

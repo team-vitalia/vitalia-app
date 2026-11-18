@@ -5,7 +5,7 @@
     "version": "1.1.4",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
-    "scheme": "vitaliaapp",
+    "scheme": "com.vitalia.vitaliaapp",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"

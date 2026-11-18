@@ -1308,12 +1308,19 @@ export default function LoginScreen() {
   const [modo, setModo] = useState<"login" | "registro">("login");
   const reg = useRegistroPaciente();
 
-  const cleanWebClientId =
+  const webClientId =
     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ||
     "393671162434-3e031lvkhq3107bfaa2to2hndsvu57tp.apps.googleusercontent.com";
+  const androidClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
+    "393671162434-aace18jib3tf2njd80d0kfkn7rmjlnk7.apps.googleusercontent.com";
   const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    clientId: cleanWebClientId,
-    webClientId: cleanWebClientId,
+    clientId: Platform.select({
+      android: androidClientId,
+      default: webClientId,
+    }),
+    webClientId,
+    androidClientId,
     redirectUri: Platform.select({
       web: typeof window !== "undefined" ? window.location.origin : "http://localhost:8081",
       default: undefined,

@@ -17,7 +17,8 @@
         "EXPO_PUBLIC_API_URL": "https://api.vitalia.software",
         "API_URL": "https://api.vitalia.software",
         "EXPO_PUBLIC_LANDING_URL": "https://vitalia.software",
-        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "393671162434-3e031lvkhq3107bfaa2to2hndsvu57tp.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "393671162434-3e031lvkhq3107bfaa2to2hndsvu57tp.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "393671162434-aace18jib3tf2njd80d0kfkn7rmjlnk7.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -26,7 +27,8 @@
         "EXPO_PUBLIC_API_URL": "https://api.vitalia.software",
         "API_URL": "https://api.vitalia.software",
         "EXPO_PUBLIC_LANDING_URL": "https://vitalia.software",
-        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "393671162434-3e031lvkhq3107bfaa2to2hndsvu57tp.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "393671162434-3e031lvkhq3107bfaa2to2hndsvu57tp.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "393671162434-aace18jib3tf2njd80d0kfkn7rmjlnk7.apps.googleusercontent.com"
       }
     }
   },
