@@ -101,6 +101,7 @@ const NAV: NavItem[] = [
   { key: "citas", label: "Citas médicas", short: "Citas", icon: "calendar-outline", iconActive: "calendar", ruta: "/recepcion/citas", roles: [4], activo: (p) => p.includes("/recepcion/citas") },
   { key: "cola", label: "Lista de espera", short: "Espera", icon: "list-outline", iconActive: "list", ruta: "/recepcion/cola", roles: [4], activo: (p) => p.includes("/recepcion/cola") },
   { key: "espera-citas", label: "Espera de citas", short: "Pendientes", icon: "hourglass-outline", iconActive: "hourglass", ruta: "/recepcion/espera", roles: [4], activo: (p) => p.includes("/recepcion/espera") },
+  { key: "recetas-firma", label: "Recetas y firma", short: "Firmas", icon: "ribbon-outline", iconActive: "ribbon", ruta: "/doctor/recetas-firma", roles: [2], activo: (p) => p.includes("/doctor/recetas-firma") },
   { key: "consultas", label: "Mis consultas", short: "Consultas", icon: "clipboard-outline", iconActive: "clipboard", ruta: "/doctor/consultas", roles: [2], activo: (p) => p.includes("/doctor/consultas") },
   { key: "pacientes", label: "Mis pacientes", short: "Pacientes", icon: "people-outline", iconActive: "people", ruta: "/doctor/pacientes", roles: [2], activo: (p) => p.includes("/doctor/pacientes") },
   { key: "mis-recetas", label: "Mis recetas", short: "Recetas", icon: "medkit-outline", iconActive: "medkit", ruta: "/paciente/recetas", roles: [3], activo: (p) => p.includes("/paciente/recetas") },

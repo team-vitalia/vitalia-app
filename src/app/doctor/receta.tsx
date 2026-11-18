@@ -17,6 +17,7 @@ import { evaluarInteracciones } from "../../services/almacenService";
 import { mensajeError } from "../../services/c2Service";
 import { crearReceta, RecetaCreada } from "../../services/clinicoService";
 import { AsistenteIAModal } from "../../components/AsistenteIAModal";
+import FirmaRecetaPanel from "../../components/FirmaRecetaPanel";
 
 interface Medicamento {
   id_PK: number;
@@ -452,6 +453,8 @@ export default function RecetaScreen() {
           {!resultado.hay_faltantes && (
             <Text style={{ fontSize: 13, color: "#247F76" }}>Medicamentos disponibles en almacén (si la clínica usa inventario).</Text>
           )}
+          {/* Firma electrónica SIMULADA (uso académico): confirmar, firmar, PDF y QR */}
+          <FirmaRecetaPanel recetaId={resultado.id_PK} firma={null} />
           <Pressable style={styles.mainButton} onPress={() => router.replace("/doctor/consultas")}>
             <Text style={styles.mainButtonText}>Terminar</Text>
           </Pressable>
