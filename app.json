@@ -7,10 +7,12 @@
     "icon": "./assets/images/icon.png",
     "scheme": "com.vitalia.vitaliaapp",
     "userInterfaceStyle": "automatic",
+    "jsEngine": "hermes",
     "ios": {
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "jsEngine": "hermes",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -37,7 +39,17 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-sharing",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ],
+      "./plugins/withPortraitFeature"
     ],
     "experiments": {
       "typedRoutes": true,
