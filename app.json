@@ -2,17 +2,15 @@
   "expo": {
     "name": "Vitalia",
     "slug": "vitalia-app",
-    "version": "1.1.4",
+    "version": "1.1.5",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "com.vitalia.vitaliaapp",
     "userInterfaceStyle": "automatic",
-    "jsEngine": "hermes",
     "ios": {
       "icon": "./assets/expo.icon"
     },
     "android": {
-      "jsEngine": "hermes",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
