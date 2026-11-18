@@ -51,6 +51,10 @@ export type Sala = {
   capacidad: number | null;
   piso: string | null;
   lista_equipamiento: string | null;
+  // calculados por la API para las tarjetas
+  total_equipos?: number;
+  equipos_con_problema?: number;
+  citas_proximas?: number;
 };
 
 export type SalaPayload = {
@@ -67,6 +71,7 @@ export type FiltrosSalas = {
   estado?: string;
   piso?: string;
   tipo?: string;
+  buscar?: string;
   page?: number;
   page_size?: number;
 };
@@ -105,15 +110,19 @@ export type Equipo = {
   id_PK: number;
   sala_id_FK: number | null;
   nombre_equipo: string | null;
+  tipo_equipo: string | null;
   numero_serie: string | null;
   estado: string | null;
   fecha_compra: string | null;
   ultimo_mantenimiento: string | null;
   proximo_mantenimiento: string | null;
+  /** al_dia | proximo | vencido | sin_programar */
+  mantenimiento_estado?: string | null;
 };
 
 export type EquipoPayload = {
   nombre_equipo?: string | null;
+  tipo_equipo?: string | null;
   numero_serie?: string | null;
   estado?: string | null;
   fecha_compra?: string | null;
@@ -154,12 +163,27 @@ export type RegistroAuditoria = {
   valores_antiguos: Record<string, any> | null;
   valores_nuevos: Record<string, any> | null;
   direccion_ip: string | null;
+  // explicación en lenguaje sencillo (la genera la API)
+  usuario_nombre?: string | null;
+  usuario_rol?: string | null;
+  area?: string | null;
+  area_texto?: string | null;
+  tipo_accion?: string | null;
+  accion_texto?: string | null;
+  resumen?: string | null;
+  tono?: "ok" | "warn" | "danger" | "info" | "neutral" | null;
+  icono?: string | null;
+  modo_cambios?: "alta" | "baja" | "cambio" | null;
+  cambios?: { campo: string; etiqueta: string; antes: string; despues: string }[];
 };
 
 export type FiltrosAuditoria = {
   usuario_id?: number | string;
   nombre_tabla?: string;
   accion?: string;
+  area?: string;
+  tipo_accion?: string;
+  buscar?: string;
   desde?: string; // ISO datetime
   hasta?: string; // ISO datetime
   page?: number;
@@ -173,6 +197,32 @@ export async function listarAuditoria(
   const r = await api.get<Pagina<RegistroAuditoria>>("/api/auditoria", {
     ...auth(token),
     params: limpiar(filtros),
+  });
+  return r.data;
+}
+
+export type CatalogoAuditoria = {
+  areas: { valor: string; etiqueta: string; icono: string }[];
+  acciones: { valor: string; etiqueta: string; tono?: string; icono?: string }[];
+};
+
+export type ResumenAuditoria = {
+  desde: string;
+  hasta: string;
+  total: number;
+  por_area: Record<string, number>;
+  por_tipo: Record<string, number>;
+};
+
+export async function catalogoAuditoria(token: string): Promise<CatalogoAuditoria> {
+  const r = await api.get<CatalogoAuditoria>("/api/auditoria/catalogo", auth(token));
+  return r.data;
+}
+
+export async function resumenAuditoria(token: string, desde?: string, hasta?: string): Promise<ResumenAuditoria> {
+  const r = await api.get<ResumenAuditoria>("/api/auditoria/resumen", {
+    ...auth(token),
+    params: limpiar({ desde, hasta }),
   });
   return r.data;
 }
