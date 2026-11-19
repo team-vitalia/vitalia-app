@@ -1,211 +1,219 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useAuth } from "../../../context/AuthContext";
-import { UpgradeModal, CrownSvg } from "../../../components/UpgradeModal";
+import { Ionicons } from "@expo/vector-icons";
 
+import { useAuth } from "../../../context/AuthContext";
 import {
   Aviso,
   Boton,
   Campo,
   Cargando,
-  Etiqueta,
-  Opciones,
   PantallaC2,
   Paginador,
   Tarjeta,
-  Tono,
-  C,
   Vacio,
-  fechaHora,
-  fechaValida,
   useAccesoC2,
 } from "../../../components/c2/ui";
+import { BloqueoPlan, CirculoIcono, IconName, RangoFechas, hoyLocal, useEstilosC2, type Paleta } from "../../../components/c2/extra";
 import {
+  CatalogoAuditoria,
   PageMeta,
   RegistroAuditoria,
+  ResumenAuditoria,
+  catalogoAuditoria,
   listarAuditoria,
   mensajeError,
+  resumenAuditoria,
 } from "../../../services/c2Service";
 
-const ACCIONES = ["", "CREATE", "UPDATE", "UPDATE_ESTADO", "DELETE"];
-const TABLAS = ["", "salas", "equipamiento_sala"];
-
-const TONO_ACCION: Record<string, Tono> = {
-  CREATE: "ok",
-  UPDATE: "info",
-  UPDATE_ESTADO: "info",
-  DELETE: "danger",
+const COLOR_TONO: Record<string, string> = {
+  ok: "#16A34A",
+  info: "#2563EB",
+  warn: "#D97706",
+  danger: "#DC2626",
+  neutral: "#64748B",
 };
 
-function valorTexto(v: unknown): string {
-  if (v === null || v === undefined || v === "") return "—";
-  if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
+const AREAS_FALLBACK: CatalogoAuditoria = {
+  areas: [
+    { valor: "", etiqueta: "Todas las áreas", icono: "apps-outline" },
+    { valor: "salas", etiqueta: "Salas y equipos", icono: "business-outline" },
+    { valor: "inventario", etiqueta: "Inventario", icono: "cube-outline" },
+    { valor: "citas", etiqueta: "Citas", icono: "calendar-outline" },
+    { valor: "clinico", etiqueta: "Pacientes y consultas", icono: "medkit-outline" },
+    { valor: "ia", etiqueta: "Inteligencia artificial", icono: "sparkles-outline" },
+  ],
+  acciones: [
+    { valor: "", etiqueta: "Todo tipo de acciones" },
+    { valor: "crear", etiqueta: "Creó / registró", tono: "ok" },
+    { valor: "modificar", etiqueta: "Modificó", tono: "info" },
+    { valor: "estado", etiqueta: "Cambió un estado", tono: "info" },
+    { valor: "eliminar", etiqueta: "Eliminó", tono: "danger" },
+    { valor: "consultar", etiqueta: "Consultó", tono: "neutral" },
+    { valor: "sala", etiqueta: "Reservó / cambió sala", tono: "ok" },
+    { valor: "ia", etiqueta: "Usó el asistente IA", tono: "info" },
+  ],
+};
+
+/** "Hoy, 10:32" · "Ayer, 18:05" · "12 nov 2026, 09:10" */
+function cuando(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const hora = d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  const hoy = new Date();
+  const ayer = new Date();
+  ayer.setDate(hoy.getDate() - 1);
+  const mismo = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+  if (mismo(d, hoy)) return `Hoy, ${hora}`;
+  if (mismo(d, ayer)) return `Ayer, ${hora}`;
+  return `${d.toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}, ${hora}`;
 }
 
-function DetalleCambios({ reg }: { reg: RegistroAuditoria }) {
-  const antes = reg.valores_antiguos ?? {};
-  const despues = reg.valores_nuevos ?? {};
-  const campos = Array.from(new Set([...Object.keys(antes), ...Object.keys(despues)]));
-
-  if (campos.length === 0) {
-    return <Text style={s.detalleVacio}>Este registro no guardó valores.</Text>;
-  }
-
+function Cambios({ reg }: { reg: RegistroAuditoria }) {
+  const { s } = useEstilosC2(crearEstilos);
+  const cambios = reg.cambios ?? [];
+  if (cambios.length === 0) return <Text style={s.nota}>Este movimiento no guardó más datos.</Text>;
+  const modo = reg.modo_cambios;
   return (
-    <View style={s.diff}>
-      <View style={s.diffFila}>
-        <Text style={[s.diffCelda, s.diffCampo, s.diffCabecera]}>Campo</Text>
-        <Text style={[s.diffCelda, s.diffCabecera]}>Antes</Text>
-        <Text style={[s.diffCelda, s.diffCabecera]}>Después</Text>
+    <View style={s.tabla}>
+      <View style={s.tablaFila}>
+        <Text style={[s.celda, s.celdaCampo, s.cab]}>Dato</Text>
+        {modo === "cambio" && <Text style={[s.celda, s.cab]}>Antes</Text>}
+        <Text style={[s.celda, s.cab]}>{modo === "baja" ? "Valor que tenía" : modo === "alta" ? "Valor registrado" : "Ahora"}</Text>
       </View>
-      {campos.map((campo) => {
-        const a = antes[campo];
-        const d = despues[campo];
-        const cambio = valorTexto(a) !== valorTexto(d) && reg.accion !== "CREATE" && reg.accion !== "DELETE";
-        return (
-          <View key={campo} style={[s.diffFila, cambio && s.diffFilaCambio]}>
-            <Text style={[s.diffCelda, s.diffCampo]}>{campo}</Text>
-            <Text style={s.diffCelda}>{valorTexto(a)}</Text>
-            <Text style={[s.diffCelda, cambio && s.diffNuevo]}>{valorTexto(d)}</Text>
-          </View>
-        );
-      })}
+      {cambios.map((c) => (
+        <View key={c.campo} style={[s.tablaFila, modo === "cambio" && s.filaCambio]}>
+          <Text style={[s.celda, s.celdaCampo]}>{c.etiqueta}</Text>
+          {modo === "cambio" && <Text style={[s.celda, s.antes]}>{c.antes}</Text>}
+          <Text style={[s.celda, modo === "cambio" && s.ahora]}>{modo === "baja" ? c.antes : c.despues}</Text>
+        </View>
+      ))}
     </View>
   );
 }
 
 export default function AuditoriaScreen() {
+  const { C, s } = useEstilosC2(crearEstilos);
   const { token } = useAccesoC2();
   const { planActual } = useAuth();
-  const [modalUpgradeVisible, setModalUpgradeVisible] = useState(false);
 
-  const planNormalizado = (planActual?.nombre_plan || "basico")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-  const tieneAccesoAuditoria = planNormalizado === "empresarial";
+  const plan = (planActual?.nombre_plan || "basico").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const tieneAcceso = plan === "empresarial";
 
+  const [catalogo, setCatalogo] = useState<CatalogoAuditoria>(AREAS_FALLBACK);
+  const [resumen, setResumen] = useState<ResumenAuditoria | null>(null);
   const [registros, setRegistros] = useState<RegistroAuditoria[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [abierto, setAbierto] = useState<number | null>(null);
+  const [tecnico, setTecnico] = useState<number | null>(null);
 
-  // Valores en edición vs. filtros aplicados
-  const [tabla, setTabla] = useState("");
-  const [accion, setAccion] = useState("");
-  const [usuarioInput, setUsuarioInput] = useState("");
-  const [desdeInput, setDesdeInput] = useState("");
-  const [hastaInput, setHastaInput] = useState("");
-  const [errorFiltro, setErrorFiltro] = useState("");
-  const [aplicados, setAplicados] = useState({ tabla: "", accion: "", usuario: "", desde: "", hasta: "" });
+  const [area, setArea] = useState("");
+  const [tipoAccion, setTipoAccion] = useState("");
+  const [buscarInput, setBuscarInput] = useState("");
+  const [buscar, setBuscar] = useState("");
+  const [desde, setDesde] = useState(hoyLocal(-7));
+  const [hasta, setHasta] = useState(hoyLocal());
   const [pagina, setPagina] = useState(1);
 
+  useEffect(() => {
+    if (!token || !tieneAcceso) return;
+    catalogoAuditoria(token).then(setCatalogo).catch(() => setCatalogo(AREAS_FALLBACK));
+  }, [token, tieneAcceso]);
+
   const cargar = useCallback(async () => {
-    if (!token) return;
-    if (!tieneAccesoAuditoria) {
+    if (!token || !tieneAcceso) {
       setCargando(false);
-      setModalUpgradeVisible(true);
       return;
     }
     try {
       setCargando(true);
       setError("");
-      const r = await listarAuditoria(token, {
-        nombre_tabla: aplicados.tabla,
-        accion: aplicados.accion,
-        usuario_id: aplicados.usuario,
-        desde: aplicados.desde ? `${aplicados.desde}T00:00:00` : undefined,
-        hasta: aplicados.hasta ? `${aplicados.hasta}T23:59:59` : undefined,
-        page: pagina,
-        page_size: 15,
-      });
-      setRegistros(r.data);
-      setMeta(r.meta);
+      const d = desde ? `${desde}T00:00:00` : undefined;
+      const h = hasta ? `${hasta}T23:59:59` : undefined;
+      const [lista, res] = await Promise.all([
+        listarAuditoria(token, { area, tipo_accion: tipoAccion, buscar, desde: d, hasta: h, page: pagina, page_size: 15 }),
+        resumenAuditoria(token, d, h),
+      ]);
+      setRegistros(lista.data);
+      setMeta(lista.meta);
+      setResumen(res);
     } catch (e) {
-      setError(mensajeError(e, "No se pudo cargar la auditoría."));
+      setError(mensajeError(e, "No se pudo cargar el historial de actividad."));
     } finally {
       setCargando(false);
     }
-  }, [token, aplicados, pagina]);
+  }, [token, tieneAcceso, area, tipoAccion, buscar, desde, hasta, pagina]);
 
   useEffect(() => {
     cargar();
   }, [cargar]);
 
-  const aplicar = () => {
-    if (usuarioInput.trim() && !/^\d+$/.test(usuarioInput.trim())) {
-      setErrorFiltro("El usuario debe ser un número (ID).");
-      return;
-    }
-    if (desdeInput.trim() && !fechaValida(desdeInput.trim())) {
-      setErrorFiltro("«Desde» debe tener el formato AAAA-MM-DD.");
-      return;
-    }
-    if (hastaInput.trim() && !fechaValida(hastaInput.trim())) {
-      setErrorFiltro("«Hasta» debe tener el formato AAAA-MM-DD.");
-      return;
-    }
-    if (desdeInput.trim() && hastaInput.trim() && desdeInput.trim() > hastaInput.trim()) {
-      setErrorFiltro("«Desde» no puede ser posterior a «Hasta».");
-      return;
-    }
-    setErrorFiltro("");
+  const limpiar = () => {
+    setArea("");
+    setTipoAccion("");
+    setBuscarInput("");
+    setBuscar("");
+    setDesde(hoyLocal(-7));
+    setHasta(hoyLocal());
     setPagina(1);
-    setAplicados({
-      tabla,
-      accion,
-      usuario: usuarioInput.trim(),
-      desde: desdeInput.trim(),
-      hasta: hastaInput.trim(),
-    });
   };
 
-  const limpiar = () => {
-    setTabla("");
-    setAccion("");
-    setUsuarioInput("");
-    setDesdeInput("");
-    setHastaInput("");
-    setErrorFiltro("");
-    setPagina(1);
-    setAplicados({ tabla: "", accion: "", usuario: "", desde: "", hasta: "" });
-  };
+  if (!tieneAcceso) {
+    return (
+      <PantallaC2 titulo="Historial de actividad" subtitulo="Quién hizo qué y cuándo dentro de la clínica.">
+        <BloqueoPlan
+          etiqueta="FUNCIÓN EXCLUSIVA PLAN EMPRESARIAL"
+          titulo="Auditoría y trazabilidad"
+          descripcion="Consulta quién entregó medicamentos, quién cambió el estado de una sala o quién modificó un equipo, con explicaciones claras para cualquier persona del equipo."
+          planRequerido="Empresarial"
+          modulo="Auditoría"
+        />
+      </PantallaC2>
+    );
+  }
+
+  const conteoArea = (valor: string) => (valor === "" ? resumen?.total : resumen?.por_area?.[valor]);
 
   return (
-    <PantallaC2
-      titulo="Auditoría"
-      subtitulo="Historial de cambios realizados en el sistema: quién, cuándo y qué se modificó."
-    >
+    <PantallaC2 titulo="Historial de actividad" subtitulo="Quién hizo qué y cuándo dentro de la clínica: inventario, salas, citas y más.">
+      {/* Resumen por área: tocar para filtrar */}
+      <View style={s.areas}>
+        {catalogo.areas.map((a) => {
+          const activo = area === a.valor;
+          const n = conteoArea(a.valor);
+          return (
+            <Pressable key={a.valor} onPress={() => { setPagina(1); setArea(a.valor); }} style={[s.area, activo && s.areaActiva]}>
+              <Ionicons name={a.icono as IconName} size={20} color={activo ? "#FFFFFF" : C.primario} />
+              <Text style={[s.areaTexto, activo && { color: "#FFFFFF" }]} numberOfLines={2}>{a.etiqueta}</Text>
+              {n !== undefined && <Text style={[s.areaNum, activo && { color: "#FFFFFF" }]}>{n}</Text>}
+            </Pressable>
+          );
+        })}
+      </View>
+
       <Tarjeta>
-        <Text style={s.etiquetaFiltro}>TABLA</Text>
-        <Opciones
-          valor={tabla}
-          onChange={setTabla}
-          opciones={TABLAS.map((t) => ({ valor: t, etiqueta: t === "" ? "Todas" : t }))}
-        />
-        <Text style={s.etiquetaFiltro}>ACCIÓN</Text>
-        <Opciones
-          valor={accion}
-          onChange={setAccion}
-          opciones={ACCIONES.map((a) => ({ valor: a, etiqueta: a === "" ? "Todas" : a }))}
-        />
-        <View style={s.fila}>
-          <Campo
-            etiqueta="ID de usuario"
-            value={usuarioInput}
-            onChangeText={(t) => setUsuarioInput(t.replace(/[^0-9]/g, ""))}
-            keyboardType="numeric"
-          />
-          <Campo etiqueta="Desde" value={desdeInput} onChangeText={setDesdeInput} placeholder="AAAA-MM-DD" />
-          <Campo etiqueta="Hasta" value={hastaInput} onChangeText={setHastaInput} placeholder="AAAA-MM-DD" />
+        <Text style={s.filtroTitulo}>¿QUÉ TIPO DE ACCIÓN?</Text>
+        <View style={s.chips}>
+          {catalogo.acciones.map((a) => {
+            const color = COLOR_TONO[a.tono ?? "neutral"];
+            const activo = tipoAccion === a.valor;
+            return (
+              <Pressable key={a.valor} onPress={() => { setPagina(1); setTipoAccion(a.valor); }} style={[s.chip, { borderColor: color, backgroundColor: activo ? color : `${color}14` }]}>
+                <Text style={[s.chipTexto, { color: activo ? "#FFFFFF" : color }]}>{a.etiqueta}</Text>
+              </Pressable>
+            );
+          })}
         </View>
-        {!!errorFiltro && <Aviso tipo="error" texto={errorFiltro} />}
-        <View style={s.fila}>
-          <Boton texto="Aplicar filtros" onPress={aplicar} pequeno />
-          <Boton texto="Limpiar" variante="secundario" onPress={limpiar} pequeno />
+
+        <Text style={s.filtroTitulo}>¿CUÁNDO?</Text>
+        <RangoFechas desde={desde} hasta={hasta} onChange={(d, h) => { setPagina(1); setDesde(d); setHasta(h); }} />
+
+        <View style={s.filaBuscar}>
+          <Campo etiqueta="Buscar (persona, artículo, sala…)" value={buscarInput} onChangeText={setBuscarInput} placeholder="Ej. Paracetamol, Quirófano, Laura" />
+          <Boton texto="Buscar" pequeno onPress={() => { setPagina(1); setBuscar(buscarInput.trim()); }} />
+          <Boton texto="Quitar filtros" variante="secundario" pequeno onPress={limpiar} />
         </View>
       </Tarjeta>
 
@@ -214,33 +222,48 @@ export default function AuditoriaScreen() {
       {cargando ? (
         <Cargando />
       ) : registros.length === 0 ? (
-        <Vacio texto="No hay registros de auditoría con esos filtros." />
+        <Vacio texto="No hay actividad con estos filtros. Prueba ampliando las fechas." />
       ) : (
         registros.map((reg) => {
+          const color = COLOR_TONO[reg.tono ?? "neutral"];
           const expandido = abierto === reg.id_PK;
+          const verTecnico = tecnico === reg.id_PK;
           return (
-            <Pressable key={reg.id_PK} onPress={() => setAbierto(expandido ? null : reg.id_PK)}>
-              <Tarjeta>
+            <Tarjeta key={reg.id_PK} style={{ borderLeftWidth: 5, borderLeftColor: color }}>
+              <Pressable onPress={() => setAbierto(expandido ? null : reg.id_PK)}>
                 <View style={s.cabecera}>
-                  <Etiqueta
-                    texto={reg.accion ?? "—"}
-                    tono={TONO_ACCION[reg.accion ?? ""] ?? "neutral"}
-                  />
-                  <Text style={s.tabla}>
-                    {reg.nombre_tabla ?? "—"}
-                    {reg.id_registro != null ? ` #${reg.id_registro}` : ""}
-                  </Text>
-                  <View style={{ flex: 1 }} />
-                  <Text style={s.fecha}>{fechaHora(reg.marca_tiempo)}</Text>
+                  <CirculoIcono name={(reg.icono ?? "document-text-outline") as IconName} color={color} size={40} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.resumen}>{reg.resumen ?? reg.descripcion ?? "Movimiento registrado"}</Text>
+                    <Text style={s.meta}>
+                      <Text style={s.quien}>{reg.usuario_nombre ?? "El sistema"}</Text>
+                      {reg.usuario_rol ? ` (${reg.usuario_rol})` : ""} · {cuando(reg.marca_tiempo)}
+                    </Text>
+                    <View style={s.etiquetas}>
+                      {!!reg.area_texto && <View style={s.etiqueta}><Text style={s.etiquetaTexto}>{reg.area_texto}</Text></View>}
+                      {!!reg.accion_texto && <View style={[s.etiqueta, { backgroundColor: `${color}1A` }]}><Text style={[s.etiquetaTexto, { color }]}>{reg.accion_texto}</Text></View>}
+                    </View>
+                  </View>
+                  <Ionicons name={expandido ? "chevron-up" : "chevron-down"} size={18} color={C.muted} />
                 </View>
-                {!!reg.descripcion && <Text style={s.descripcion}>{reg.descripcion}</Text>}
-                <Text style={s.meta}>
-                  Usuario: {reg.usuario_id_FK != null ? `#${reg.usuario_id_FK}` : "—"} · IP: {reg.direccion_ip ?? "—"}
-                </Text>
-                <Text style={s.toggle}>{expandido ? "▲ Ocultar cambios" : "▼ Ver cambios"}</Text>
-                {expandido && <DetalleCambios reg={reg} />}
-              </Tarjeta>
-            </Pressable>
+              </Pressable>
+
+              {expandido && (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={s.subtitulo}>{reg.modo_cambios === "cambio" ? "Qué cambió" : reg.modo_cambios === "baja" ? "Datos que se eliminaron" : "Datos registrados"}</Text>
+                  <Cambios reg={reg} />
+                  <Pressable onPress={() => setTecnico(verTecnico ? null : reg.id_PK)}>
+                    <Text style={s.toggle}>{verTecnico ? "▲ Ocultar detalles técnicos" : "▼ Detalles técnicos (para soporte)"}</Text>
+                  </Pressable>
+                  {verTecnico && (
+                    <Text style={s.tecnico}>
+                      Registro n.º {reg.id_PK} · Código de acción: {reg.accion ?? "—"} · Tabla: {reg.nombre_tabla ?? "—"}
+                      {reg.id_registro != null ? ` #${reg.id_registro}` : ""} · Dirección IP: {reg.direccion_ip ?? "—"}
+                    </Text>
+                  )}
+                </View>
+              )}
+            </Tarjeta>
           );
         })
       )}
@@ -250,92 +273,35 @@ export default function AuditoriaScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  etiquetaFiltro: { fontSize: 11, fontWeight: "800", color: C.texto2, marginBottom: 6, letterSpacing: 0.5 },
-  fila: { flexDirection: "row", flexWrap: "wrap", gap: 10, alignItems: "flex-end" },
-  cabecera: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
-  tabla: { fontSize: 13, fontWeight: "800", color: C.texto },
-  fecha: { fontSize: 11, color: C.muted, fontWeight: "600" },
-  descripcion: { fontSize: 13, color: C.texto, marginTop: 8 },
-  meta: { fontSize: 11, color: C.muted, marginTop: 4 },
-  toggle: { fontSize: 11, color: C.primario, fontWeight: "800", marginTop: 8 },
-  detalleVacio: { fontSize: 12, color: C.muted, marginTop: 8 },
-  diff: { marginTop: 10, borderWidth: 1, borderColor: C.borde, borderRadius: 12, overflow: "hidden" },
-  diffFila: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#EEF4F2" },
-  diffFilaCambio: { backgroundColor: "#FFFBEF" },
-  diffCelda: { flex: 1, fontSize: 11, color: C.texto, padding: 8 },
-  diffCampo: { fontWeight: "800", color: C.texto2, flex: 0.9 },
-  diffCabecera: { fontWeight: "800", backgroundColor: "#F1F8F6", color: C.texto2 },
-  diffNuevo: { fontWeight: "800", color: C.primario },
-  premiumBannerWrapper: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    alignItems: "center",
-  },
-  premiumCard: {
-    width: "100%",
-    maxWidth: 580,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2ECE9",
-    paddingVertical: 36,
-    paddingHorizontal: 26,
-    alignItems: "center",
-  },
-  premiumIconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "rgba(251, 191, 36, 0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.35)",
-  },
-  badgePremium: {
-    backgroundColor: "rgba(251, 191, 36, 0.15)",
-    borderColor: "rgba(251, 191, 36, 0.35)",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 12,
-  },
-  badgePremiumTexto: {
-    color: "#B45309",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-  },
-  premiumTitulo: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#1E293B",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  premiumDescripcion: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#64748B",
-    textAlign: "center",
-    marginBottom: 24,
-    paddingHorizontal: 12,
-  },
-  botonDesbloquear: {
-    backgroundColor: "#0EA5E9",
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  botonDesbloquearTexto: {
-    color: "#FFFFFF",
-    fontSize: 14.5,
-    fontWeight: "700",
-    letterSpacing: 0.2,
-  },
+const crearEstilos = (C: Paleta) =>
+  StyleSheet.create({
+  areas: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 12 },
+  area: { flexGrow: 1, flexBasis: 130, flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 14, borderWidth: 1.5, borderColor: C.borde, backgroundColor: C.tarjeta },
+  areaActiva: { backgroundColor: C.primario, borderColor: C.primario },
+  areaTexto: { flex: 1, fontSize: 12, fontWeight: "800", color: C.texto },
+  areaNum: { fontSize: 14, fontWeight: "900", color: C.primario },
+  filtroTitulo: { fontSize: 11, fontWeight: "800", color: C.texto2, marginBottom: 6, letterSpacing: 0.5 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1.5 },
+  chipTexto: { fontSize: 12, fontWeight: "800" },
+  filaBuscar: { flexDirection: "row", flexWrap: "wrap", gap: 10, alignItems: "flex-end" },
+  cabecera: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  resumen: { fontSize: 14, fontWeight: "700", color: C.texto, lineHeight: 20 },
+  meta: { fontSize: 12, color: C.muted, marginTop: 4 },
+  quien: { fontWeight: "800", color: C.texto2 },
+  etiquetas: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
+  etiqueta: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, backgroundColor: C.fondo },
+  etiquetaTexto: { fontSize: 10.5, fontWeight: "800", color: C.texto2 },
+  subtitulo: { fontSize: 12, fontWeight: "800", color: C.titulo, marginBottom: 6 },
+  nota: { fontSize: 12, color: C.muted },
+  tabla: { borderWidth: 1, borderColor: C.borde, borderRadius: 12, overflow: "hidden" },
+  tablaFila: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#EEF4F2" },
+  filaCambio: { backgroundColor: C.avisoSuave },
+  celda: { flex: 1, fontSize: 12, color: C.texto, padding: 8 },
+  celdaCampo: { fontWeight: "800", color: C.texto2, flex: 0.9 },
+  cab: { fontWeight: "800", backgroundColor: C.primarioSuave, color: C.texto2 },
+  antes: { color: "#B45309", textDecorationLine: "line-through" },
+  ahora: { fontWeight: "800", color: C.primario },
+  toggle: { fontSize: 11, color: C.primario, fontWeight: "800", marginTop: 10 },
+  tecnico: { fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 16 },
 });

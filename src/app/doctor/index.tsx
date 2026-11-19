@@ -567,28 +567,43 @@ export default function DoctorScreen() {
         <View style={{ flex: 1, backgroundColor: c.bg }}>
           <View
             style={{
-              flexDirection: "row",
-              alignItems: "center",
+              flexDirection: width < 400 ? "column" : "row",
+              alignItems: width < 400 ? "stretch" : "center",
               justifyContent: "space-between",
-              paddingHorizontal: 20,
+              gap: 12,
+              paddingHorizontal: width < 400 ? 16 : 20,
               paddingVertical: 16,
               backgroundColor: c.card,
               borderBottomWidth: 1,
               borderBottomColor: c.border,
             }}
           >
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
               <Text
-                style={{ fontSize: 20, fontWeight: "700", color: c.primary }}
+                style={{
+                  fontSize: width < 400 ? 18 : 20,
+                  fontWeight: "700",
+                  color: c.primary,
+                  flexShrink: 1,
+                }}
               >
                 {contratoSeleccionado
                   ? `Contrato CT-${String(contratoSeleccionado.id_PK).padStart(4, "0")}`
                   : "Mis contratos"}
               </Text>
-              <Text style={{ fontSize: 12, color: c.muted, marginTop: 3 }}>
+
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: c.muted,
+                  marginTop: 4,
+                  flexShrink: 1,
+                }}
+              >
                 VITALIA · Documento contractual
               </Text>
             </View>
+
             <Pressable
               onPress={() => {
                 setModalContrato(false);
@@ -599,10 +614,15 @@ export default function DoctorScreen() {
                 paddingHorizontal: 14,
                 paddingVertical: 9,
                 borderRadius: 10,
+                alignSelf: width < 400 ? "flex-start" : "center",
               }}
             >
               <Text
-                style={{ color: c.primary, fontWeight: "600", fontSize: 14 }}
+                style={{
+                  color: c.primary,
+                  fontWeight: "600",
+                  fontSize: 14,
+                }}
               >
                 Cerrar ✕
               </Text>
