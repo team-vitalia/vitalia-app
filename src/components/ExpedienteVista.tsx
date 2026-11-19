@@ -24,12 +24,14 @@ export default function ExpedienteVista({
   exp,
   accionesAlergias,
   accionesAntecedentes,
+  accionesConsultas,
   accionesNotas,
   onQuitarAlergia,
 }: {
   exp: Expediente;
   accionesAlergias?: ReactNode;
   accionesAntecedentes?: ReactNode;
+  accionesConsultas?: ReactNode;
   accionesNotas?: ReactNode;
   onQuitarAlergia?: (alergiaPacienteId: number) => void;
 }) {
@@ -137,8 +139,13 @@ export default function ExpedienteVista({
         )}
       </Seccion>
 
-      {/* CONSULTAS - azul */}
-      <Seccion titulo="Consultas" icono="medkit" color="#1E3A8A" bg="#EFF6FF">
+      <Seccion
+        titulo="Consultas"
+        icono="medkit"
+        color="#1E3A8A"
+        bg="#EFF6FF"
+        acciones={accionesConsultas}
+      >
         {exp.consultas.length === 0 ? (
           <Text style={s.vacio}>Aún no hay consultas registradas.</Text>
         ) : (

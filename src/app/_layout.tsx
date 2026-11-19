@@ -79,7 +79,7 @@ const NAV: NavItem[] = [
   { key: "mis-recetas", label: "Mis recetas", short: "Recetas", icon: "medkit-outline", iconActive: "medkit", ruta: "/paciente/recetas", roles: [3], activo: (p) => p.includes("/paciente/recetas") },
   { key: "mi-expediente", label: "Mi expediente", short: "Expediente", icon: "folder-open-outline", iconActive: "folder-open", ruta: "/paciente/expediente", roles: [3], activo: (p) => p.includes("/paciente/expediente") },
   { key: "usuarios", label: "Gestionar usuarios", short: "Usuarios", icon: "people-outline", iconActive: "people", ruta: "/admin/usuarios", roles: [1, 5], activo: (p) => p.includes("/admin/usuarios") },
-  { key: "plan-suscripcion", label: "Plan y suscripción", short: "Suscripción", icon: "card-outline", iconActive: "card", ruta: "plan-modal", roles: [1], activo: () => false },
+  { key: "plan-suscripcion", label: "Plan y suscripción", short: "Suscripción", icon: "card-outline", iconActive: "card", ruta: "/admin/suscripcion", roles: [1], activo: (p) => p.includes("/admin/suscripcion") },
   { key: "contratos", label: "Contratos médicos", short: "Contratos", icon: "document-text-outline", iconActive: "document-text", ruta: "/admin/doctores", roles: [1], activo: (p) => p === "/admin/doctores" },
   { key: "inventario", label: "Almacén e inventario", short: "Inventario", icon: "cube-outline", iconActive: "cube", ruta: "/admin/inventario", roles: [1, 6], activo: (p) => p.includes("/admin/inventario") },
   { key: "alm-dispensacion", label: "Dispensación de recetas", short: "Dispensar", icon: "medkit-outline", iconActive: "medkit", ruta: "/almacen/dispensacion", roles: [6], activo: (p) => p.includes("/almacen/dispensacion") },
@@ -136,6 +136,28 @@ function obtenerRestriccionPlan(
       .replace(/[\u0300-\u036f]/g, "")
       .trim();
   const plan = normalizar(planActual?.nombre_plan);
+
+  if (plan === "gratuito") {
+    if (itemKey === "usuarios") {
+      return { bloqueado: true, planRequerido: "Básico" };
+    }
+    if (itemKey === "salas") {
+      return { bloqueado: true, planRequerido: "Clínica" };
+    }
+    if (itemKey === "inventario" || itemKey.startsWith("alm-")) {
+      return { bloqueado: true, planRequerido: "Profesional" };
+    }
+    if (itemKey === "reportes") {
+      return { bloqueado: true, planRequerido: "Profesional" };
+    }
+    if (itemKey === "auditoria") {
+      return { bloqueado: true, planRequerido: "Empresarial" };
+    }
+    if (itemKey === "contratos") {
+      return { bloqueado: true, planRequerido: "Empresarial" };
+    }
+    return { bloqueado: false, planRequerido: "" };
+  }
 
   if (itemKey === "inventario" || itemKey.startsWith("alm-")) {
     const permitido = plan === "profesional" || plan === "empresarial";
@@ -247,6 +269,7 @@ function Sidebar({
   nombre,
   correo,
   rolId,
+  esTitular,
   items,
   pathname,
   compact,
@@ -262,6 +285,7 @@ function Sidebar({
   nombre?: string;
   correo?: string;
   rolId?: number;
+  esTitular?: boolean;
   items: NavItem[];
   pathname: string;
   compact: boolean;
@@ -365,7 +389,7 @@ function Sidebar({
         </LinearGradient>
       )}
 
-      {!compact && rolId === 1 && onAbrirPlan && (
+      {!compact && (rolId === 1 || esTitular) && onAbrirPlan && (
         <Pressable
           onPress={onAbrirPlan}
           accessibilityRole="button"
@@ -396,7 +420,7 @@ function Sidebar({
         </Pressable>
       )}
 
-      {compact && rolId === 1 && onAbrirPlan && (
+      {compact && (rolId === 1 || esTitular) && onAbrirPlan && (
         <Pressable
           onPress={onAbrirPlan}
           accessibilityRole="button"
@@ -512,6 +536,7 @@ function MobileHeader({
   c,
   topInset,
   rolId,
+  esTitular,
   notifActiva,
   planActual,
   isDark,
@@ -523,6 +548,7 @@ function MobileHeader({
   c: Theme;
   topInset: number;
   rolId?: number;
+  esTitular?: boolean;
   notifActiva: boolean;
   planActual?: PlanActual;
   isDark?: boolean;
@@ -568,7 +594,7 @@ function MobileHeader({
         </Pressable>
 
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          {rolId === 1 && onAbrirPlan && (
+          {(rolId === 1 || esTitular) && onAbrirPlan && (
             <Pressable
               onPress={onAbrirPlan}
               accessibilityRole="button"
@@ -754,6 +780,7 @@ function MoreSheet({
   nombre,
   correo,
   rolId,
+  esTitular,
   items,
   pathname,
   planActual,
@@ -770,6 +797,7 @@ function MoreSheet({
   nombre?: string;
   correo?: string;
   rolId?: number;
+  esTitular?: boolean;
   items: NavItem[];
   pathname: string;
   planActual?: PlanActual;
@@ -847,7 +875,7 @@ function MoreSheet({
               </View>
             </View>
 
-            {rolId === 1 && onAbrirPlan && (
+            {(rolId === 1 || esTitular) && onAbrirPlan && (
               <Pressable
                 onPress={() => {
                   onClose();
@@ -1047,7 +1075,29 @@ function AppLayout() {
     }
   }, [pathname]);
 
-  const itemsRol = NAV.filter((i) => !!rolId && i.roles.includes(rolId));
+  const normalizarPlanGlobal = (nombre?: string) =>
+    (nombre || "basico")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .trim();
+  const esPlanGratuitoActual = normalizarPlanGlobal(planActual?.nombre_plan) === "gratuito";
+  const esDoctorTitular = rolId === 2 && (usuario?.es_titular ?? true);
+
+  const itemsRol = (esPlanGratuitoActual || esDoctorTitular)
+    ? [
+        NAV.find((i) => i.key === "inicio")!,
+        NAV.find((i) => i.key === "consultas")!,
+        NAV.find((i) => i.key === "pacientes")!,
+        NAV.find((i) => i.key === "usuarios")!,
+        NAV.find((i) => i.key === "salas")!,
+        NAV.find((i) => i.key === "inventario")!,
+        NAV.find((i) => i.key === "reportes")!,
+        NAV.find((i) => i.key === "auditoria")!,
+        NAV.find((i) => i.key === "contratos")!,
+        NAV.find((i) => i.key === "plan-suscripcion")!,
+      ].filter(Boolean)
+    : NAV.filter((i) => !!rolId && i.roles.includes(rolId));
   const itemsLateral = itemsRol.length ? [itemsRol[0], NOTIF, ...itemsRol.slice(1)] : [];
   const tabs = itemsRol.slice(0, 4);
   const masItems = itemsRol.slice(4);
@@ -1066,7 +1116,7 @@ function AppLayout() {
       return;
     }
     if (item.key === "plan-suscripcion") {
-      setModalPlanVisible(true);
+      router.push("/admin/suscripcion" as any);
     } else if (item.key === "inicio") {
       irInicio();
     } else {
@@ -1084,6 +1134,7 @@ function AppLayout() {
           nombre={usuario?.nombre}
           correo={usuario?.correo || usuario?.correo_electronico}
           rolId={rolId}
+          esTitular={Boolean(esDoctorTitular || usuario?.es_titular)}
           items={itemsLateral}
           pathname={pathname}
           compact={isCompactRail}
@@ -1103,6 +1154,7 @@ function AppLayout() {
             c={c}
             topInset={topInset}
             rolId={rolId}
+            esTitular={Boolean(esDoctorTitular || usuario?.es_titular)}
             notifActiva={notifActiva}
             planActual={planActual}
             isDark={isDark}
@@ -1140,6 +1192,7 @@ function AppLayout() {
           nombre={usuario?.nombre}
           correo={usuario?.correo || usuario?.correo_electronico}
           rolId={rolId}
+          esTitular={Boolean(esDoctorTitular || usuario?.es_titular)}
           items={masItems}
           pathname={pathname}
           planActual={planActual}

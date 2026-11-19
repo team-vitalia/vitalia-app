@@ -1,16 +1,3 @@
-/**
- * Registro PÚBLICO de pacientes (sin iniciar sesión).
- *
- * - Ruta: /registro (ya figura como pantalla de autenticación en _layout.tsx).
- * - Exclusivo para pacientes: no existe selector de rol y la solicitud NO envía
- *   ningún rol; el backend (POST /api/auth/registro) fija el rol Paciente y rechaza
- *   cualquier campo ajeno. Ocultar opciones aquí es solo experiencia de usuario.
- * - Las validaciones de este formulario (components/admin/validaciones.ts) replican
- *   las del backend para dar retroalimentación inmediata; el backend es quien
- *   garantiza la integridad (formato, correo y CURP únicos con restricción UNIQUE).
- *
- * Formulario administrativo (todos los roles): src/app/admin/usuarios/crear.tsx.
- */
 import { FontAwesome } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -45,11 +32,10 @@ import {
 } from "../components/admin/validaciones";
 import { useAuth } from "../context/AuthContext";
 import { useTheme as useAppThemeHook } from "../theme/theme";
-import { registrarPaciente } from "../services/registroService";
+import { registrarGratuito, registrarPaciente } from "../services/registroService";
 import { mensajeError } from "../services/util";
 import { DARK, LIGHT, type Theme } from "../theme/theme";
 
-/* Paleta de acceso: la misma del inicio de sesión (verde Vitalia). */
 const AUTH_LIGHT: Theme = {
   ...LIGHT,
   primary: "#0F766E",
@@ -73,6 +59,14 @@ const FORM_VACIO = {
   confirmar: "",
 };
 
+const FORM_DOCTOR_VACIO = {
+  nombreDoctor: "",
+  nombreClinica: "",
+  correo: "",
+  password: "",
+  confirmar: "",
+};
+
 type ErroresServidor = { correo?: string; curp?: string };
 
 export default function RegistroScreen() {
@@ -85,20 +79,20 @@ export default function RegistroScreen() {
   const compacto = width < 640;
   const s = useMemo(() => crearEstilos(c, compacto), [c, compacto]);
 
+  const [tipoCuenta, setTipoCuenta] = useState<"paciente" | "doctor">("paciente");
   const [f, setF] = useState(FORM_VACIO);
+  const [fDoctor, setFDoctor] = useState(FORM_DOCTOR_VACIO);
   const [verPassword, setVerPassword] = useState(false);
   const [intento, setIntento] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [errorGeneral, setErrorGeneral] = useState("");
   const [errorServidor, setErrorServidor] = useState<ErroresServidor>({});
-  const [registrado, setRegistrado] = useState<{ nombre: string; correo: string } | null>(null);
+  const [registrado, setRegistrado] = useState<{ nombre: string; correo: string; tipo: "paciente" | "doctor" } | null>(null);
 
-  /* Una persona con sesión iniciada no necesita registrarse. */
   useEffect(() => {
     if (!cargando && usuario) router.replace("/");
   }, [cargando, usuario]);
 
-  /* Animaciones suaves (se omiten si el sistema pide reducir movimiento). */
   const entrada = useRef(new Animated.Value(0)).current;
   const exito = useRef(new Animated.Value(0)).current;
 
@@ -134,7 +128,12 @@ export default function RegistroScreen() {
     if (campo === "curp") setErrorServidor((e) => ({ ...e, curp: undefined }));
   };
 
-  const errores = {
+  const setDoc = (campo: keyof typeof FORM_DOCTOR_VACIO) => (valor: string) => {
+    setFDoctor((a) => ({ ...a, [campo]: valor }));
+    if (campo === "correo") setErrorServidor((e) => ({ ...e, correo: undefined }));
+  };
+
+  const erroresPaciente = {
     nombre: vNombrePersona(f.nombre, "El nombre"),
     apellidoPaterno: vNombrePersona(f.apellidoPaterno, "El apellido paterno"),
     apellidoMaterno: vNombrePersona(f.apellidoMaterno, "El apellido materno", false),
@@ -148,38 +147,81 @@ export default function RegistroScreen() {
         ? "Las contraseñas no coinciden."
         : "",
   };
-  const hayErrores = Object.values(errores).some(Boolean);
-  const fort = fortalezaPassword(f.password);
+
+  const erroresDoctor = {
+    nombreDoctor: vNombrePersona(fDoctor.nombreDoctor, "El nombre del doctor"),
+    nombreClinica: !fDoctor.nombreClinica.trim() ? "El nombre del consultorio es obligatorio." : "",
+    correo: errorServidor.correo ?? vCorreo(fDoctor.correo),
+    password: vPassword(fDoctor.password),
+    confirmar: !fDoctor.confirmar
+      ? "Confirma la contraseña."
+      : fDoctor.confirmar !== fDoctor.password
+        ? "Las contraseñas no coinciden."
+        : "",
+  };
+
+  const passwordActual = tipoCuenta === "paciente" ? f.password : fDoctor.password;
+  const fort = fortalezaPassword(passwordActual);
   const colorFort = fort.puntos <= 1 ? c.error : fort.puntos === 2 ? c.warning : fort.puntos === 3 ? c.info : c.success;
 
   const enviar = async () => {
     setIntento(true);
     setErrorGeneral("");
-    if (hayErrores) {
-      setErrorGeneral("Revisa los campos marcados en rojo antes de continuar.");
-      return;
-    }
 
-    try {
-      setGuardando(true);
-      /* No se envía ningún rol: el servidor asigna Paciente. */
-      const r = await registrarPaciente({
-        nombre: normalizarEspacios(f.nombre),
-        apellido_paterno: normalizarEspacios(f.apellidoPaterno),
-        apellido_materno: normalizarEspacios(f.apellidoMaterno) || null,
-        curp: normalizarCurp(f.curp),
-        correo_electronico: f.correo.trim().toLowerCase(),
-        password: f.password,
-        telefono: f.telefono.trim() || null,
-      });
-      setRegistrado({ nombre: r.usuario.nombre, correo: r.usuario.correo_electronico });
-    } catch (e: any) {
-      const msg = mensajeError(e, "No se pudo crear la cuenta. Inténtalo de nuevo.");
-      if (/curp/i.test(msg)) setErrorServidor((x) => ({ ...x, curp: msg }));
-      else if (/correo/i.test(msg)) setErrorServidor((x) => ({ ...x, correo: msg }));
-      else setErrorGeneral(msg);
-    } finally {
-      setGuardando(false);
+    if (tipoCuenta === "paciente") {
+      if (Object.values(erroresPaciente).some(Boolean)) {
+        setErrorGeneral("Revisa los campos marcados en rojo antes de continuar.");
+        return;
+      }
+      try {
+        setGuardando(true);
+        const r = await registrarPaciente({
+          nombre: normalizarEspacios(f.nombre),
+          apellido_paterno: normalizarEspacios(f.apellidoPaterno),
+          apellido_materno: normalizarEspacios(f.apellidoMaterno) || null,
+          curp: normalizarCurp(f.curp),
+          correo_electronico: f.correo.trim().toLowerCase(),
+          password: f.password,
+          telefono: f.telefono.trim() || null,
+        });
+        setRegistrado({
+          nombre: r.usuario.nombre,
+          correo: r.usuario.correo_electronico,
+          tipo: "paciente",
+        });
+      } catch (e: any) {
+        const msg = mensajeError(e, "No se pudo crear la cuenta. Inténtalo de nuevo.");
+        if (/curp/i.test(msg)) setErrorServidor((x) => ({ ...x, curp: msg }));
+        else if (/correo/i.test(msg)) setErrorServidor((x) => ({ ...x, correo: msg }));
+        else setErrorGeneral(msg);
+      } finally {
+        setGuardando(false);
+      }
+    } else {
+      if (Object.values(erroresDoctor).some(Boolean)) {
+        setErrorGeneral("Revisa los campos marcados en rojo antes de continuar.");
+        return;
+      }
+      try {
+        setGuardando(true);
+        const r = await registrarGratuito({
+          nombre_doctor: normalizarEspacios(fDoctor.nombreDoctor),
+          nombre_clinica: normalizarEspacios(fDoctor.nombreClinica),
+          correo: fDoctor.correo.trim().toLowerCase(),
+          password: fDoctor.password,
+        });
+        setRegistrado({
+          nombre: r.nombre_clinica || fDoctor.nombreDoctor,
+          correo: fDoctor.correo.trim().toLowerCase(),
+          tipo: "doctor",
+        });
+      } catch (e: any) {
+        const msg = mensajeError(e, "No se pudo crear la cuenta gratuita. Inténtalo de nuevo.");
+        if (/correo/i.test(msg)) setErrorServidor((x) => ({ ...x, correo: msg }));
+        else setErrorGeneral(msg);
+      } finally {
+        setGuardando(false);
+      }
     }
   };
 
@@ -197,7 +239,6 @@ export default function RegistroScreen() {
       end={{ x: 1, y: 1 }}
       style={{ flex: 1 }}
     >
-      {/* Luz suave detrás de la tarjeta */}
       <LinearGradient
         pointerEvents="none"
         colors={["rgba(45,212,191,0.34)", "rgba(45,212,191,0)"]}
@@ -216,7 +257,6 @@ export default function RegistroScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View style={[s.tarjeta, tarjetaAnim]}>
-            {/* Cambio entre iniciar sesión / crear cuenta (siempre visible, sin menú hamburguesa) */}
             <View style={s.tabs} accessibilityRole="tablist">
               <Pressable
                 onPress={irALogin}
@@ -243,159 +283,291 @@ export default function RegistroScreen() {
                 </Animated.View>
                 <Text style={s.exitoTitulo}>Cuenta creada correctamente</Text>
                 <Text style={s.exitoTexto}>
-                  Hola, <Text style={s.negrita}>{registrado.nombre}</Text>. Tu cuenta de paciente está lista. Ya puedes iniciar sesión con{" "}
+                  Hola, <Text style={s.negrita}>{registrado.nombre}</Text>. Tu cuenta{" "}
+                  {registrado.tipo === "doctor" ? "de consultorio en Plan Gratuito" : "de paciente"} está lista. Ya puedes iniciar sesión con{" "}
                   <Text style={s.negrita}>{registrado.correo}</Text> y la contraseña que acabas de crear.
                 </Text>
                 <Boton texto="Iniciar sesión" icono="sign-in" onPress={irALogin} c={c} />
               </View>
             ) : (
               <>
-                <View style={s.encabezado}>
-                  <View style={s.logoHalo}>
-                    <Image source={require("../assets/images/logo.png")} style={s.logo} resizeMode="contain" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.titulo}>Crea tu cuenta de paciente</Text>
-                    <Text style={s.subtitulo}>Agenda y consulta tus citas en línea. Los campos con * son obligatorios.</Text>
-                  </View>
+                <View style={s.selectorTipo}>
+                  <Pressable
+                    onPress={() => {
+                      setTipoCuenta("paciente");
+                      setErrorGeneral("");
+                      setIntento(false);
+                    }}
+                    style={[s.tipoBoton, tipoCuenta === "paciente" && s.tipoBotonActivo]}
+                  >
+                    <FontAwesome name="user" size={14} color={tipoCuenta === "paciente" ? c.primary : c.muted} />
+                    <Text style={[s.tipoTexto, tipoCuenta === "paciente" && s.tipoTextoActivo]}>Paciente</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      setTipoCuenta("doctor");
+                      setErrorGeneral("");
+                      setIntento(false);
+                    }}
+                    style={[s.tipoBoton, tipoCuenta === "doctor" && s.tipoBotonActivo]}
+                  >
+                    <FontAwesome name="user-md" size={14} color={tipoCuenta === "doctor" ? c.primary : c.muted} />
+                    <Text style={[s.tipoTexto, tipoCuenta === "doctor" && s.tipoTextoActivo]}>Doctor (Gratuito)</Text>
+                  </Pressable>
                 </View>
 
-                <Text style={s.seccion}>
-                  <FontAwesome name="id-card-o" size={13} color={c.primary} />  Datos personales
-                </Text>
+                {tipoCuenta === "paciente" ? (
+                  <>
+                    <View style={s.encabezado}>
+                      <View style={s.logoHalo}>
+                        <Image source={require("../assets/images/logo.png")} style={s.logo} resizeMode="contain" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.titulo}>Crea tu cuenta de paciente</Text>
+                        <Text style={s.subtitulo}>Agenda y consulta tus citas en línea. Los campos con * son obligatorios.</Text>
+                      </View>
+                    </View>
 
-                <Campo
-                  c={c}
-                  etiqueta="Nombre(s)"
-                  valor={f.nombre}
-                  onChange={set("nombre")}
-                  requerido
-                  error={errores.nombre}
-                  mostrarError={intento}
-                  placeholder="Ej. María Fernanda"
-                  autoCapitalize="words"
-                  icono="user"
-                  maxLength={100}
-                />
+                    <Text style={s.seccion}>
+                      <FontAwesome name="id-card-o" size={13} color={c.primary} />  Datos personales
+                    </Text>
 
-                <View style={s.fila}>
-                  <View style={s.mitad}>
                     <Campo
                       c={c}
-                      etiqueta="Apellido paterno"
-                      valor={f.apellidoPaterno}
-                      onChange={set("apellidoPaterno")}
+                      etiqueta="Nombre(s)"
+                      valor={f.nombre}
+                      onChange={set("nombre")}
                       requerido
-                      error={errores.apellidoPaterno}
+                      error={erroresPaciente.nombre}
                       mostrarError={intento}
-                      placeholder="Ej. López"
+                      placeholder="Ej. María Fernanda"
                       autoCapitalize="words"
+                      icono="user"
                       maxLength={100}
                     />
-                  </View>
-                  <View style={s.mitad}>
+
+                    <View style={s.fila}>
+                      <View style={s.mitad}>
+                        <Campo
+                          c={c}
+                          etiqueta="Apellido paterno"
+                          valor={f.apellidoPaterno}
+                          onChange={set("apellidoPaterno")}
+                          requerido
+                          error={erroresPaciente.apellidoPaterno}
+                          mostrarError={intento}
+                          placeholder="Ej. López"
+                          autoCapitalize="words"
+                          maxLength={100}
+                        />
+                      </View>
+                      <View style={s.mitad}>
+                        <Campo
+                          c={c}
+                          etiqueta="Apellido materno"
+                          valor={f.apellidoMaterno}
+                          onChange={set("apellidoMaterno")}
+                          error={erroresPaciente.apellidoMaterno}
+                          mostrarError={intento}
+                          placeholder="Ej. Reyes"
+                          autoCapitalize="words"
+                          ayuda="Opcional"
+                          maxLength={100}
+                        />
+                      </View>
+                    </View>
+
                     <Campo
                       c={c}
-                      etiqueta="Apellido materno"
-                      valor={f.apellidoMaterno}
-                      onChange={set("apellidoMaterno")}
-                      error={errores.apellidoMaterno}
+                      etiqueta="CURP"
+                      valor={f.curp}
+                      onChange={set("curp")}
+                      requerido
+                      error={erroresPaciente.curp}
+                      mostrarError={intento || f.curp.length >= CURP_LONGITUD}
+                      placeholder="18 caracteres"
+                      autoCapitalize="characters"
+                      icono="id-badge"
+                      maxLength={CURP_LONGITUD}
+                      ayuda={`${f.curp.length}/${CURP_LONGITUD} · Debe ser la CURP del paciente; no puede repetirse.`}
+                    />
+
+                    <Campo
+                      c={c}
+                      etiqueta="Teléfono"
+                      valor={f.telefono}
+                      onChange={set("telefono")}
+                      error={erroresPaciente.telefono}
                       mostrarError={intento}
-                      placeholder="Ej. Reyes"
-                      autoCapitalize="words"
+                      teclado="phone-pad"
+                      placeholder="722 123 4567"
+                      icono="phone"
                       ayuda="Opcional"
-                      maxLength={100}
                     />
-                  </View>
-                </View>
 
-                <Campo
-                  c={c}
-                  etiqueta="CURP"
-                  valor={f.curp}
-                  onChange={set("curp")}
-                  requerido
-                  error={errores.curp}
-                  mostrarError={intento || f.curp.length >= CURP_LONGITUD}
-                  placeholder="18 caracteres"
-                  autoCapitalize="characters"
-                  icono="id-badge"
-                  maxLength={CURP_LONGITUD}
-                  ayuda={`${f.curp.length}/${CURP_LONGITUD} · Debe ser la CURP del paciente; no puede repetirse.`}
-                />
+                    <Text style={[s.seccion, { marginTop: 6 }]}>
+                      <FontAwesome name="lock" size={14} color={c.primary} />  Acceso a tu cuenta
+                    </Text>
 
-                <Campo
-                  c={c}
-                  etiqueta="Teléfono"
-                  valor={f.telefono}
-                  onChange={set("telefono")}
-                  error={errores.telefono}
-                  mostrarError={intento}
-                  teclado="phone-pad"
-                  placeholder="722 123 4567"
-                  icono="phone"
-                  ayuda="Opcional"
-                />
-
-                <Text style={[s.seccion, { marginTop: 6 }]}>
-                  <FontAwesome name="lock" size={14} color={c.primary} />  Acceso a tu cuenta
-                </Text>
-
-                <Campo
-                  c={c}
-                  etiqueta="Correo electrónico"
-                  valor={f.correo}
-                  onChange={set("correo")}
-                  requerido
-                  error={errores.correo}
-                  mostrarError={intento}
-                  teclado="email-address"
-                  placeholder="nombre@correo.com"
-                  icono="envelope-o"
-                />
-
-                <View style={s.fila}>
-                  <View style={s.mitad}>
                     <Campo
                       c={c}
-                      etiqueta="Contraseña"
-                      valor={f.password}
-                      onChange={set("password")}
+                      etiqueta="Correo electrónico"
+                      valor={f.correo}
+                      onChange={set("correo")}
                       requerido
-                      secreto={!verPassword}
-                      error={errores.password}
+                      error={erroresPaciente.correo}
                       mostrarError={intento}
-                      placeholder="Mínimo 8 caracteres"
-                      icono="key"
-                      derecha={
-                        <Pressable
-                          onPress={() => setVerPassword((v) => !v)}
-                          hitSlop={8}
-                          accessibilityLabel={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                          style={POINTER}
-                        >
-                          <FontAwesome name={verPassword ? "eye-slash" : "eye"} size={16} color={c.muted} />
-                        </Pressable>
-                      }
+                      teclado="email-address"
+                      placeholder="nombre@correo.com"
+                      icono="envelope-o"
                     />
-                  </View>
-                  <View style={s.mitad}>
+
+                    <View style={s.fila}>
+                      <View style={s.mitad}>
+                        <Campo
+                          c={c}
+                          etiqueta="Contraseña"
+                          valor={f.password}
+                          onChange={set("password")}
+                          requerido
+                          secreto={!verPassword}
+                          error={erroresPaciente.password}
+                          mostrarError={intento}
+                          placeholder="Mínimo 8 caracteres"
+                          icono="key"
+                          derecha={
+                            <Pressable
+                              onPress={() => setVerPassword((v) => !v)}
+                              hitSlop={8}
+                              accessibilityLabel={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                              style={POINTER}
+                            >
+                              <FontAwesome name={verPassword ? "eye-slash" : "eye"} size={16} color={c.muted} />
+                            </Pressable>
+                          }
+                        />
+                      </View>
+                      <View style={s.mitad}>
+                        <Campo
+                          c={c}
+                          etiqueta="Confirmar contraseña"
+                          valor={f.confirmar}
+                          onChange={set("confirmar")}
+                          requerido
+                          secreto={!verPassword}
+                          error={erroresPaciente.confirmar}
+                          mostrarError={intento}
+                          placeholder="Repite la contraseña"
+                          icono="key"
+                        />
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View style={s.encabezado}>
+                      <View style={s.logoHalo}>
+                        <Image source={require("../assets/images/logo.png")} style={s.logo} resizeMode="contain" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.titulo}>Crea tu consultorio gratuito</Text>
+                        <Text style={s.subtitulo}>Accede de inmediato con el Plan Gratuito (1 médico, hasta 20 pacientes al mes).</Text>
+                      </View>
+                    </View>
+
+                    <Text style={s.seccion}>
+                      <FontAwesome name="user-md" size={13} color={c.primary} />  Datos del profesional y consultorio
+                    </Text>
+
                     <Campo
                       c={c}
-                      etiqueta="Confirmar contraseña"
-                      valor={f.confirmar}
-                      onChange={set("confirmar")}
+                      etiqueta="Nombre completo del médico"
+                      valor={fDoctor.nombreDoctor}
+                      onChange={setDoc("nombreDoctor")}
                       requerido
-                      secreto={!verPassword}
-                      error={errores.confirmar}
+                      error={erroresDoctor.nombreDoctor}
                       mostrarError={intento}
-                      placeholder="Repite la contraseña"
-                      icono="key"
+                      placeholder="Ej. Dr. Carlos Mendoza"
+                      autoCapitalize="words"
+                      icono="user-md"
+                      maxLength={120}
                     />
-                  </View>
-                </View>
 
-                {f.password.length > 0 && (
+                    <Campo
+                      c={c}
+                      etiqueta="Nombre del consultorio o clínica"
+                      valor={fDoctor.nombreClinica}
+                      onChange={setDoc("nombreClinica")}
+                      requerido
+                      error={erroresDoctor.nombreClinica}
+                      mostrarError={intento}
+                      placeholder="Ej. Consultorio Médico San Ángel"
+                      autoCapitalize="words"
+                      icono="hospital-o"
+                      maxLength={120}
+                    />
+
+                    <Text style={[s.seccion, { marginTop: 6 }]}>
+                      <FontAwesome name="lock" size={14} color={c.primary} />  Acceso a tu cuenta
+                    </Text>
+
+                    <Campo
+                      c={c}
+                      etiqueta="Correo electrónico"
+                      valor={fDoctor.correo}
+                      onChange={setDoc("correo")}
+                      requerido
+                      error={erroresDoctor.correo}
+                      mostrarError={intento}
+                      teclado="email-address"
+                      placeholder="doctor@consultorio.com"
+                      icono="envelope-o"
+                    />
+
+                    <View style={s.fila}>
+                      <View style={s.mitad}>
+                        <Campo
+                          c={c}
+                          etiqueta="Contraseña"
+                          valor={fDoctor.password}
+                          onChange={setDoc("password")}
+                          requerido
+                          secreto={!verPassword}
+                          error={erroresDoctor.password}
+                          mostrarError={intento}
+                          placeholder="Mínimo 8 caracteres"
+                          icono="key"
+                          derecha={
+                            <Pressable
+                              onPress={() => setVerPassword((v) => !v)}
+                              hitSlop={8}
+                              accessibilityLabel={verPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                              style={POINTER}
+                            >
+                              <FontAwesome name={verPassword ? "eye-slash" : "eye"} size={16} color={c.muted} />
+                            </Pressable>
+                          }
+                        />
+                      </View>
+                      <View style={s.mitad}>
+                        <Campo
+                          c={c}
+                          etiqueta="Confirmar contraseña"
+                          valor={fDoctor.confirmar}
+                          onChange={setDoc("confirmar")}
+                          requerido
+                          secreto={!verPassword}
+                          error={erroresDoctor.confirmar}
+                          mostrarError={intento}
+                          placeholder="Repite la contraseña"
+                          icono="key"
+                        />
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                {passwordActual.length > 0 && (
                   <View style={{ gap: 8 }}>
                     <View style={s.barras}>
                       {[0, 1, 2, 3].map((i) => (
@@ -416,7 +588,13 @@ export default function RegistroScreen() {
 
                 {errorGeneral ? <Aviso c={c} tipo="error" texto={errorGeneral} onCerrar={() => setErrorGeneral("")} /> : null}
 
-                <Boton texto="Crear cuenta" icono="user-plus" cargando={guardando} onPress={enviar} c={c} />
+                <Boton
+                  texto={tipoCuenta === "doctor" ? "Comenzar gratis" : "Crear cuenta"}
+                  icono={tipoCuenta === "doctor" ? "check" : "user-plus"}
+                  cargando={guardando}
+                  onPress={enviar}
+                  c={c}
+                />
 
                 <Text style={s.legal}>
                   Al crear tu cuenta aceptas las{" "}
@@ -474,6 +652,37 @@ const crearEstilos = (c: Theme, compacto: boolean) =>
     },
     tabTexto: { fontSize: 14, fontWeight: "700", color: c.muted },
     tabTextoActiva: { color: c.primary },
+
+    selectorTipo: {
+      flexDirection: "row",
+      backgroundColor: c.mode === "dark" ? "rgba(255,255,255,0.04)" : "#F8FAFC",
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 3,
+      gap: 4,
+    },
+    tipoBoton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingVertical: 9,
+      borderRadius: 9,
+    },
+    tipoBotonActivo: {
+      backgroundColor: c.mode === "dark" ? "rgba(45,212,191,0.18)" : "#CCFBF1",
+    },
+    tipoTexto: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: c.muted,
+    },
+    tipoTextoActivo: {
+      color: c.primary,
+      fontWeight: "800",
+    },
 
     encabezado: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: 4 },
     logoHalo: {

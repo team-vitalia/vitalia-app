@@ -16,9 +16,16 @@ describe("Restricciones de Plan - Análisis IA", () => {
       },
       clinica: null,
       nombrePlan: "Básico",
+      isGratuito: false,
       canUseAI: () => false,
       canUseCalendar: () => false,
-    });
+      canUseContracts: () => false,
+      canUseInventory: () => true,
+      canUseReports: () => true,
+      canUseAuditoria: () => true,
+      canUseSalas: () => true,
+      canManagePersonal: () => true,
+    } as any);
 
     render(
       <BotonAnalisisIA
@@ -59,9 +66,16 @@ describe("Restricciones de Plan - Análisis IA", () => {
       },
       clinica: null,
       nombrePlan: "Profesional",
+      isGratuito: false,
       canUseAI: () => true,
       canUseCalendar: () => true,
-    });
+      canUseContracts: () => false,
+      canUseInventory: () => true,
+      canUseReports: () => true,
+      canUseAuditoria: () => true,
+      canUseSalas: () => true,
+      canManagePersonal: () => true,
+    } as any);
 
     render(
       <BotonAnalisisIA

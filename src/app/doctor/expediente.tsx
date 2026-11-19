@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import ExpedienteVista from "../../components/ExpedienteVista";
+import api from "../../services/api";
+import { usePlanFeatures } from "../../hooks/usePlanFeatures";
 import {
   Aviso, Boton, C, Campo, Cargando, ConfirmarModal, ModalBase, Opciones, PantallaC2, useAccesoC2,
 } from "../../components/c2/ui";
@@ -12,13 +14,14 @@ import {
   getDoctoresParaTransferir, getExpediente, quitarAlergia, transferirPaciente,
 } from "../../services/clinicoService";
 
-type Modal = null | "alergia" | "antecedente" | "nota" | "transferir";
+type Modal = null | "alergia" | "antecedente" | "nota" | "transferir" | "consulta";
 
 /** Expediente clínico de un paciente (médico). Edición: antecedentes, alergias, notas y transferencia. */
 export default function ExpedienteDoctor() {
   const router = useRouter();
   const { pacienteId } = useLocalSearchParams<{ pacienteId: string }>();
   const { rolId } = useAccesoC2([1, 2, 5]);
+  const { isGratuito } = usePlanFeatures();
   const id = Number(pacienteId);
   const puedeEditar = rolId === 1 || rolId === 2;
 
@@ -30,7 +33,6 @@ export default function ExpedienteDoctor() {
   const [enviando, setEnviando] = useState(false);
   const [quitar, setQuitar] = useState<number | null>(null);
 
-  // formularios
   const [alergia, setAlergia] = useState("");
   const [severidad, setSeveridad] = useState<"leve" | "moderada" | "grave">("moderada");
   const [diagnostico, setDiagnostico] = useState("");
@@ -38,6 +40,10 @@ export default function ExpedienteDoctor() {
   const [tratamiento, setTratamiento] = useState("");
   const [sangre, setSangre] = useState("");
   const [nota, setNota] = useState("");
+  const [fechaConsulta, setFechaConsulta] = useState(new Date().toISOString().split("T")[0]);
+  const [horaInicioConsulta, setHoraInicioConsulta] = useState("09:00");
+  const [horaFinConsulta, setHoraFinConsulta] = useState("09:30");
+  const [motivoConsulta, setMotivoConsulta] = useState("Consulta general");
   const [doctores, setDoctores] = useState<{ id_PK: number; nombre: string; especialidad: string }[]>([]);
   const [destino, setDestino] = useState<number | null>(null);
   const [motivo, setMotivo] = useState("");
@@ -118,6 +124,23 @@ export default function ExpedienteDoctor() {
       return "Nota agregada.";
     });
 
+  const guardarConsulta = () =>
+    ejecutar(async () => {
+      if (!fechaConsulta.trim() || !horaInicioConsulta.trim() || !horaFinConsulta.trim()) {
+        throw new Error("Ingresa la fecha y horario de la consulta.");
+      }
+      await api.post("/api/citas/", {
+        paciente_id_FK: id,
+        doctor_id_FK: 0,
+        fecha: fechaConsulta.trim(),
+        hora_inicio: horaInicioConsulta.trim().length === 5 ? `${horaInicioConsulta.trim()}:00` : horaInicioConsulta.trim(),
+        hora_fin: horaFinConsulta.trim().length === 5 ? `${horaFinConsulta.trim()}:00` : horaFinConsulta.trim(),
+        motivo: motivoConsulta.trim() || "Consulta general",
+        estado: "programada",
+      });
+      return "Consulta agendada exitosamente.";
+    });
+
   const transferir = () =>
     ejecutar(async () => {
       if (!destino) throw new Error("Selecciona el médico destino.");
@@ -159,17 +182,36 @@ export default function ExpedienteDoctor() {
               onQuitarAlergia={puedeEditar ? setQuitar : undefined}
               accionesAlergias={puedeEditar && <Boton pequeno variante="secundario" texto="Agregar" onPress={() => abrir("alergia")} />}
               accionesAntecedentes={puedeEditar && <Boton pequeno variante="secundario" texto="Agregar" onPress={() => abrir("antecedente")} />}
+              accionesConsultas={puedeEditar && <Boton pequeno variante="secundario" texto="Agendar" onPress={() => abrir("consulta")} />}
               accionesNotas={puedeEditar && <Boton pequeno variante="secundario" texto="Agregar" onPress={() => abrir("nota")} />}
             />
             {rolId === 2 && (
               <View style={{ gap: 8 }}>
-                <Boton texto="Transferir paciente a otro médico" variante="secundario" onPress={() => abrir("transferir")} />
+                {!isGratuito && (
+                  <Boton texto="Transferir paciente a otro médico" variante="secundario" onPress={() => abrir("transferir")} />
+                )}
                 <Boton texto="Volver a mis pacientes" variante="secundario" onPress={() => router.replace("/doctor/pacientes")} />
               </View>
             )}
           </>
         )
       )}
+
+      <ModalBase visible={modal === "consulta"} titulo="Agendar consulta" onClose={() => setModal(null)}>
+        {!!errorModal && <Aviso tipo="error" texto={errorModal} />}
+        <Campo etiqueta="Fecha (AAAA-MM-DD)" value={fechaConsulta} onChangeText={setFechaConsulta} placeholder="YYYY-MM-DD" />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <Campo etiqueta="Hora inicio" value={horaInicioConsulta} onChangeText={setHoraInicioConsulta} placeholder="09:00" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Campo etiqueta="Hora fin" value={horaFinConsulta} onChangeText={setHoraFinConsulta} placeholder="09:30" />
+          </View>
+        </View>
+        <Campo etiqueta="Motivo de la consulta" value={motivoConsulta} onChangeText={setMotivoConsulta} placeholder="Ej. Revisión general" />
+        <View style={{ height: 12 }} />
+        <Boton texto="Agendar Consulta" onPress={guardarConsulta} cargando={enviando} />
+      </ModalBase>
 
       <ModalBase visible={modal === "alergia"} titulo="Agregar alergia" onClose={() => setModal(null)}>
         {!!errorModal && <Aviso tipo="error" texto={errorModal} />}

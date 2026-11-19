@@ -15,6 +15,7 @@ import {
 
 import { useAuth } from "../context/AuthContext";
 import api, { resolveLandingUrl } from "../services/api";
+import { ModalCancelarSuscripcion } from "./ModalCancelarSuscripcion";
 
 export interface PlanItem {
   id: string;
@@ -30,6 +31,23 @@ export interface PlanItem {
 }
 
 export const CATALOGO_PLANES: PlanItem[] = [
+  {
+    id: "gratuito",
+    nombre: "Gratuito",
+    precio: 0,
+    paypalPlanId: "",
+    limitePersonal: 1,
+    limitePacientes: 20,
+    incluyeCalendar: false,
+    incluyeIA: false,
+    incluyeContratos: false,
+    caracteristicas: [
+      "1 cuenta de doctor",
+      "Hasta 20 pacientes al mes",
+      "Expedientes clínicos digitales",
+      "Agenda de citas básica",
+    ],
+  },
   {
     id: "basico",
     nombre: "Básico",
@@ -122,8 +140,11 @@ export function ModalPlanSuscripcion({
   const [vinculandoManual, setVinculandoManual] = useState(false);
   const [subscriptionIdInput, setSubscriptionIdInput] = useState("");
   const [mensajeEstado, setMensajeEstado] = useState<string | null>(null);
+  const [modalCancelarVisible, setModalCancelarVisible] = useState(false);
 
   const nombreNormalizado = (planActual?.nombre_plan || "Básico").toLowerCase().trim();
+  const esAdmin = (usuario as any)?.rol_id_FK === 1 || (usuario as any)?.rol?.id_PK === 1 || (usuario as any)?.is_superadmin || (usuario as any)?.es_titular;
+  const esGratuito = nombreNormalizado === "gratuito";
 
   const indiceActual = CATALOGO_PLANES.findIndex((p) =>
     p.nombre.toLowerCase().trim() === nombreNormalizado || p.id === nombreNormalizado
@@ -270,14 +291,17 @@ export function ModalPlanSuscripcion({
                   <Text style={styles.kickerActual}>PLAN CONTRATADO ACTUAL</Text>
                   <Text style={styles.nombrePlanActual}>{planActualDetalle.nombre}</Text>
                 </View>
-                <View style={styles.tagActivo}>
-                  <Text style={styles.tagActivoTexto}>ACTIVO</Text>
+                <View style={[styles.tagActivo, esGratuito && { backgroundColor: "rgba(14, 165, 233, 0.12)", borderColor: "rgba(14, 165, 233, 0.3)" }]}>
+                  <Text style={[styles.tagActivoTexto, esGratuito && { color: "#0284C7" }]}>
+                    {esGratuito ? "FREEMIUM" : "ACTIVO"}
+                  </Text>
                 </View>
               </View>
 
               <Text style={styles.precioActual}>
-                ${planActualDetalle.precio.toLocaleString("es-MX")}{" "}
-                <Text style={styles.precioPeriodo}>MXN / mes</Text>
+                {planActualDetalle.precio === 0
+                  ? "$0 MXN / mes"
+                  : `$${planActualDetalle.precio.toLocaleString("es-MX")} MXN / mes`}
               </Text>
 
               <View style={styles.divisor} />
@@ -287,14 +311,14 @@ export function ModalPlanSuscripcion({
               <View style={styles.filaFeature}>
                 <Ionicons name="checkmark-circle" size={17} color="#34D399" style={{ marginRight: 8 }} />
                 <Text style={styles.featureTexto}>
-                  Personal: hasta <Text style={styles.featureBold}>{planActualDetalle.limitePersonal}</Text> usuarios autorizados
+                  Personal: {esGratuito ? "1 cuenta de doctor" : `hasta ${planActualDetalle.limitePersonal} usuarios autorizados`}
                 </Text>
               </View>
 
               <View style={styles.filaFeature}>
                 <Ionicons name="checkmark-circle" size={17} color="#34D399" style={{ marginRight: 8 }} />
                 <Text style={styles.featureTexto}>
-                  Pacientes: límite de <Text style={styles.featureBold}>{planActualDetalle.limitePacientes}</Text> expedientes
+                  Pacientes: {esGratuito ? "hasta 20 pacientes al mes" : `límite de ${planActualDetalle.limitePacientes} expedientes`}
                 </Text>
               </View>
 
@@ -333,6 +357,31 @@ export function ModalPlanSuscripcion({
                   Contratos Médicos: {planActual.incluye_contratos ? "Habilitado" : "Bloqueado"}
                 </Text>
               </View>
+
+              {!esGratuito && esAdmin && (
+                <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border }}>
+                  <Pressable
+                    onPress={() => setModalCancelarVisible(true)}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      paddingVertical: 9,
+                      paddingHorizontal: 12,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: "rgba(220, 38, 38, 0.3)",
+                      backgroundColor: "rgba(220, 38, 38, 0.05)",
+                    }}
+                  >
+                    <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#DC2626" }}>
+                      Cancelar suscripción
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
 
             {siguientePlan ? (
@@ -462,6 +511,15 @@ export function ModalPlanSuscripcion({
           </ScrollView>
         </View>
       </View>
+
+      <ModalCancelarSuscripcion
+        visible={modalCancelarVisible}
+        onClose={() => setModalCancelarVisible(false)}
+        onCancelacionExitosa={() => {
+          setModalCancelarVisible(false);
+          handleSincronizarPlan();
+        }}
+      />
     </Modal>
   );
 }

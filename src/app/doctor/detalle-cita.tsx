@@ -17,6 +17,8 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 import { AsistenteIAModal } from "../../components/AsistenteIAModal";
+import { usePlanFeatures } from "../../hooks/usePlanFeatures";
+import { MejoraPlanModal } from "../../components/MejoraPlanModal";
 
 interface CitaDetalle {
   id_PK: number;
@@ -47,6 +49,9 @@ export default function DetalleCitaScreen() {
   const styles = useMemo(() => createStyles(c), [c]);
   const { id } = useLocalSearchParams();
   const { token } = useAuth();
+  const { isGratuito, canUseAI } = usePlanFeatures();
+  const tieneAccesoIA = canUseAI();
+  const [modalMejoraVisible, setModalMejoraVisible] = useState(false);
   const [cita, setCita] = useState<CitaDetalle | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -393,21 +398,23 @@ export default function DetalleCitaScreen() {
 
           {cita.estado !== "completada" && cita.estado !== "atendida" && (
             <View style={styles.actionContainer}>
-              <Pressable
-                style={[styles.actionButton, styles.buttonTransfer]}
-                onPress={abrirModalReasignar}
-              >
-                <FontAwesome
-                  name="exchange"
-                  size={16}
-                  color="#FFF"
-                  style={{ marginRight: 8 }}
-                />
-                <Text style={styles.actionButtonText}>Pasar a otro Doctor</Text>
-              </Pressable>
+              {!isGratuito && (
+                <Pressable
+                  style={[styles.actionButton, styles.buttonTransfer]}
+                  onPress={abrirModalReasignar}
+                >
+                  <FontAwesome
+                    name="exchange"
+                    size={16}
+                    color="#FFF"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.actionButtonText}>Pasar a otro Doctor</Text>
+                </Pressable>
+              )}
 
               <Pressable
-                style={[styles.actionButton, styles.buttonFinish]}
+                style={[styles.actionButton, styles.buttonFinish, isGratuito && { flex: 1 }]}
                 onPress={terminarCita}
               >
                 <FontAwesome
@@ -421,37 +428,76 @@ export default function DetalleCitaScreen() {
             </View>
           )}
 
-          {/* 👇 BOTÓN ASISTENTE CLÍNICO IA (GROQ) 👇 */}
           {cita.paciente && (
             <Pressable
               style={[
                 styles.actionButton,
-                {
-                  backgroundColor: '#0F766E',
-                  marginTop: 15,
-                  borderWidth: 1,
-                  borderColor: '#115E59',
-                  shadowColor: '#0F766E',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 4,
-                  elevation: 3,
-                },
+                tieneAccesoIA
+                  ? {
+                      backgroundColor: "#0F766E",
+                      marginTop: 15,
+                      borderWidth: 1,
+                      borderColor: "#115E59",
+                      shadowColor: "#0F766E",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 4,
+                      elevation: 3,
+                    }
+                  : {
+                      backgroundColor: c.mode === "dark" ? "#2D3748" : "#EDF2F7",
+                      marginTop: 15,
+                      borderWidth: 1,
+                      borderColor: c.mode === "dark" ? "#4A5568" : "#CBD5E0",
+                    },
               ]}
-              onPress={() => setModalIAVisible(true)}
+              onPress={() => {
+                if (tieneAccesoIA) {
+                  setModalIAVisible(true);
+                } else {
+                  setModalMejoraVisible(true);
+                }
+              }}
             >
               <FontAwesome
-                name='magic'
+                name={tieneAccesoIA ? "magic" : "lock"}
                 size={16}
-                color='#FFF'
+                color={tieneAccesoIA ? "#FFF" : (c.mode === "dark" ? "#A0AEC0" : "#718096")}
                 style={{ marginRight: 8 }}
               />
-              <Text style={styles.actionButtonText}>
+              <Text
+                style={[
+                  styles.actionButtonText,
+                  !tieneAccesoIA && {
+                    color: c.mode === "dark" ? "#CBD5E0" : "#4A5568",
+                  },
+                ]}
+              >
                 Asistente Clínico IA (Soporte Diagnóstico)
               </Text>
+              {!tieneAccesoIA && (
+                <View
+                  style={{
+                    marginLeft: 8,
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderRadius: 4,
+                    backgroundColor: "#D97706",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: "700",
+                      color: "#FFF",
+                    }}
+                  >
+                    PRO
+                  </Text>
+                </View>
+              )}
             </Pressable>
           )}
-          {/* 👆 FIN BOTÓN ASISTENTE CLÍNICO IA 👆 */}
 
           {/* 👇 BOTÓN REGISTRAR CONSULTA / EXPEDIENTE 👇 */}
           {cita.paciente && (
@@ -609,7 +655,11 @@ export default function DetalleCitaScreen() {
               });
             }}
           />
-          {/* 👆 FIN MODAL ASISTENTE CLÍNICO IA 👆 */}
+          <MejoraPlanModal
+            visible={modalMejoraVisible}
+            funcionBloqueada="Asistente Clínico IA"
+            onClose={() => setModalMejoraVisible(false)}
+          />
 
           {/* 👇 MODAL PARA AGREGAR ALERGIA (CU-30) 👇 */}
           <Modal visible={modalAlergiaVisible} transparent animationType="fade">

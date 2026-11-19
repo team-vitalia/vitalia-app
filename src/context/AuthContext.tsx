@@ -9,12 +9,13 @@ import {
 import api from "../services/api";
 
 export interface PlanActual {
-  nombre_plan: "Básico" | "Clínica" | "Profesional" | "Empresarial" | string;
+  nombre_plan: "Gratuito" | "Básico" | "Clínica" | "Profesional" | "Empresarial" | string;
   incluye_ia: boolean;
   incluye_calendar: boolean;
   incluye_contratos?: boolean;
   limite_personal?: number;
   limite_pacientes?: number;
+  limite_pacientes_mes?: number;
   limite_ia_mensual?: number;
   precio_mensual?: number;
 }
@@ -37,6 +38,7 @@ export interface Usuario {
   estado?: string;
   clinica?: ClinicaInfo | null;
   plan_actual?: PlanActual;
+  es_titular?: boolean;
 }
 
 export const DEFAULT_PLAN: PlanActual = {

@@ -1,14 +1,16 @@
 import { useTheme, type Theme } from "../../theme/theme";
 import { FontAwesome } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useMemo,  useEffect, useState  } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
@@ -50,7 +52,17 @@ export default function MisConsultasScreen() {
     desconectarGoogle,
   } = useGoogleCalendar();
 
-  const { canUseCalendar } = usePlanFeatures();
+  const { canUseCalendar, isGratuito } = usePlanFeatures();
+  const { pacienteId: paramPacienteId } = useLocalSearchParams<{ pacienteId?: string }>();
+  const [modalAgendarVisible, setModalAgendarVisible] = useState(false);
+  const [pacienteSeleccionado, setPacienteSeleccionado] = useState<number | null>(null);
+  const [fechaCita, setFechaCita] = useState(new Date().toISOString().split("T")[0]);
+  const [horaInicioCita, setHoraInicioCita] = useState("09:00");
+  const [horaFinCita, setHoraFinCita] = useState("09:30");
+  const [motivoCita, setMotivoCita] = useState("Consulta general");
+  const [notasCita, setNotasCita] = useState("");
+  const [guardandoCita, setGuardandoCita] = useState(false);
+  const [errorCita, setErrorCita] = useState("");
   const [modalCalendarVisible, setModalCalendarVisible] = useState(false);
 
   const handleConectarCalendar = () => {
@@ -95,6 +107,54 @@ export default function MisConsultasScreen() {
   useEffect(() => {
     if (messages.length > 0 && token) cargarDatos();
   }, [messages.length, token]);
+
+  useEffect(() => {
+    if (paramPacienteId) {
+      setPacienteSeleccionado(Number(paramPacienteId));
+      setModalAgendarVisible(true);
+    }
+  }, [paramPacienteId]);
+
+  const agendarConsulta = async () => {
+    if (!pacienteSeleccionado) {
+      setErrorCita("Selecciona un paciente para la consulta.");
+      return;
+    }
+    if (!fechaCita.trim()) {
+      setErrorCita("Ingresa la fecha de la consulta.");
+      return;
+    }
+    if (!horaInicioCita.trim() || !horaFinCita.trim()) {
+      setErrorCita("Ingresa el horario de la consulta.");
+      return;
+    }
+    setGuardandoCita(true);
+    setErrorCita("");
+    try {
+      await api.post(
+        "/api/citas/",
+        {
+          paciente_id_FK: pacienteSeleccionado,
+          doctor_id_FK: 0,
+          fecha: fechaCita.trim(),
+          hora_inicio: horaInicioCita.trim().length === 5 ? `${horaInicioCita.trim()}:00` : horaInicioCita.trim(),
+          hora_fin: horaFinCita.trim().length === 5 ? `${horaFinCita.trim()}:00` : horaFinCita.trim(),
+          motivo: motivoCita.trim() || "Consulta general",
+          notas: notasCita.trim() || null,
+          estado: "programada",
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setModalAgendarVisible(false);
+      setMotivoCita("Consulta general");
+      setNotasCita("");
+      await cargarDatos();
+    } catch (e: any) {
+      setErrorCita(e?.response?.data?.detail || "No se pudo agendar la consulta.");
+    } finally {
+      setGuardandoCita(false);
+    }
+  };
 
   const obtenerNombrePaciente = (pacienteId: number | null): string => {
     if (!pacienteId) return "—";
@@ -218,7 +278,19 @@ export default function MisConsultasScreen() {
         <FontAwesome name="stethoscope" size={38} color="#A7DFD6" />
       </View>
 
-      <Text style={styles.sectionTitle}>Agenda de Consultas</Text>
+      <View style={styles.sectionTitleRow}>
+        <Text style={styles.sectionTitle}>Agenda de Consultas</Text>
+        <Pressable
+          style={styles.btnNuevaConsulta}
+          onPress={() => {
+            setErrorCita("");
+            setModalAgendarVisible(true);
+          }}
+        >
+          <FontAwesome name="plus" size={12} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.btnNuevaConsultaTexto}>Nueva Consulta</Text>
+        </Pressable>
+      </View>
 
       {cargando ? (
         <View style={styles.center}>
@@ -237,7 +309,21 @@ export default function MisConsultasScreen() {
         <View style={styles.emptyCard}>
           <FontAwesome name="calendar-times-o" size={40} color="#8A9A98" style={{ marginBottom: 12 }} />
           <Text style={styles.emptyTitle}>No tienes consultas asignadas</Text>
-          <Text style={styles.emptyText}>Cuando recepción registre citas para tu consultorio, aparecerán aquí.</Text>
+          <Text style={styles.emptyText}>
+            {isGratuito
+              ? "Agenda tu primera consulta para comenzar a atender a tus pacientes."
+              : "Cuando recepción registre citas para tu consultorio, aparecerán aquí."}
+          </Text>
+          <Pressable
+            style={[styles.btnNuevaConsulta, { marginTop: 14 }]}
+            onPress={() => {
+              setErrorCita("");
+              setModalAgendarVisible(true);
+            }}
+          >
+            <FontAwesome name="plus" size={12} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={styles.btnNuevaConsultaTexto}>Agendar Consulta</Text>
+          </Pressable>
         </View>
       ) : (
         citas.map((cita) => {
@@ -335,6 +421,128 @@ export default function MisConsultasScreen() {
         funcionBloqueada="Google Calendar"
         onClose={() => setModalCalendarVisible(false)}
       />
+      <Modal
+        visible={modalAgendarVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalAgendarVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setModalAgendarVisible(false)} />
+          <View style={styles.modalContenido}>
+            <View style={styles.modalCabecera}>
+              <Text style={styles.modalTitulo}>Agendar Consulta</Text>
+              <Pressable onPress={() => setModalAgendarVisible(false)}>
+                <FontAwesome name="times" size={18} color={c.muted} />
+              </Pressable>
+            </View>
+
+            {!!errorCita && (
+              <View style={styles.modalError}>
+                <Text style={styles.modalErrorTexto}>{errorCita}</Text>
+              </View>
+            )}
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 380 }}>
+              <Text style={styles.modalEtiqueta}>Paciente *</Text>
+              {pacientes.length === 0 ? (
+                <Text style={styles.modalSinPacientes}>
+                  No tienes pacientes registrados. Da de alta un paciente primero desde "Mis pacientes".
+                </Text>
+              ) : (
+                <View style={styles.listaPacientesSelector}>
+                  {pacientes.map((p) => {
+                    const seleccionado = pacienteSeleccionado === p.id_PK;
+                    return (
+                      <Pressable
+                        key={p.id_PK}
+                        style={[styles.itemPacienteSelector, seleccionado && styles.itemPacienteSeleccionado]}
+                        onPress={() => setPacienteSeleccionado(p.id_PK)}
+                      >
+                        <Text style={[styles.textoPacienteSelector, seleccionado && styles.textoPacienteSeleccionado]}>
+                          {p.nombre} {p.apellido}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+
+              <Text style={styles.modalEtiqueta}>Fecha (AAAA-MM-DD) *</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={fechaCita}
+                onChangeText={setFechaCita}
+                placeholder="2026-11-19"
+                placeholderTextColor={c.muted}
+              />
+
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalEtiqueta}>Hora Inicio *</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={horaInicioCita}
+                    onChangeText={setHoraInicioCita}
+                    placeholder="09:00"
+                    placeholderTextColor={c.muted}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalEtiqueta}>Hora Fin *</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={horaFinCita}
+                    onChangeText={setHoraFinCita}
+                    placeholder="09:30"
+                    placeholderTextColor={c.muted}
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.modalEtiqueta}>Motivo de la consulta</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={motivoCita}
+                onChangeText={setMotivoCita}
+                placeholder="Ej. Valoración médica general"
+                placeholderTextColor={c.muted}
+              />
+
+              <Text style={styles.modalEtiqueta}>Notas adicionales (opcional)</Text>
+              <TextInput
+                style={[styles.modalInput, { height: 60, textAlignVertical: "top" }]}
+                value={notasCita}
+                onChangeText={setNotasCita}
+                placeholder="Observaciones previas"
+                placeholderTextColor={c.muted}
+                multiline
+              />
+            </ScrollView>
+
+            <View style={styles.modalBotones}>
+              <Pressable
+                style={styles.btnCancelarModal}
+                onPress={() => setModalAgendarVisible(false)}
+                disabled={guardandoCita}
+              >
+                <Text style={styles.btnCancelarTexto}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btnGuardarModal, (guardandoCita || pacientes.length === 0) && { opacity: 0.6 }]}
+                onPress={agendarConsulta}
+                disabled={guardandoCita || pacientes.length === 0}
+              >
+                {guardandoCita ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.btnGuardarTexto}>Confirmar Consulta</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -399,5 +607,28 @@ const createStyles = (c: Theme) => {
   buttonRow: { flexDirection: "row", gap: 10, marginTop: 15 },
   actionBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, borderRadius: 10, gap: 6 },
   actionBtnText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
+  sectionTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+  btnNuevaConsulta: { flexDirection: "row", alignItems: "center", backgroundColor: c.primary, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
+  btnNuevaConsultaTexto: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject },
+  modalContenido: { backgroundColor: c.card, borderRadius: 20, padding: 22, width: "100%", maxWidth: 520, borderWidth: 1, borderColor: c.border },
+  modalCabecera: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+  modalTitulo: { fontSize: 18, fontWeight: "900", color: c.text },
+  modalError: { backgroundColor: "#FFF0EF", borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: "#F7C6C6" },
+  modalErrorTexto: { color: "#D65A5A", fontSize: 12, fontWeight: "700" },
+  modalEtiqueta: { fontSize: 12, fontWeight: "800", color: c.text, marginTop: 10, marginBottom: 5 },
+  modalInput: { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "#F4F7F6", borderRadius: 10, borderWidth: 1, borderColor: c.border, paddingVertical: 9, paddingHorizontal: 12, fontSize: 13, color: c.text },
+  listaPacientesSelector: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 6 },
+  itemPacienteSelector: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1, borderColor: c.border, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "#F8FAFA" },
+  itemPacienteSeleccionado: { backgroundColor: c.primary, borderColor: c.primary },
+  textoPacienteSelector: { fontSize: 12, fontWeight: "700", color: c.text },
+  textoPacienteSeleccionado: { color: "#FFFFFF" },
+  modalSinPacientes: { fontSize: 12, color: c.muted, marginVertical: 4 },
+  modalBotones: { flexDirection: "row", gap: 10, marginTop: 18, justifyContent: "flex-end" },
+  btnCancelarModal: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: c.border },
+  btnCancelarTexto: { fontSize: 12, fontWeight: "700", color: c.muted },
+  btnGuardarModal: { backgroundColor: c.primary, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10 },
+  btnGuardarTexto: { fontSize: 12, fontWeight: "800", color: "#FFFFFF" },
 });
 };

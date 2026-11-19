@@ -18,6 +18,10 @@ import { evaluarInteracciones } from "../../services/almacenService";
 import { mensajeError } from "../../services/c2Service";
 import { crearReceta, RecetaCreada } from "../../services/clinicoService";
 import { AsistenteIAModal } from "../../components/AsistenteIAModal";
+import { usePlanFeatures } from "../../hooks/usePlanFeatures";
+import { MejoraPlanModal } from "../../components/MejoraPlanModal";
+
+
 
 interface Medicamento {
   id_PK: number;
@@ -50,6 +54,12 @@ export default function RecetaScreen() {
     sugerenciaDuracion,
   } = useLocalSearchParams();
   const [modalIAVisible, setModalIAVisible] = useState(false);
+  const { canUseAI } = usePlanFeatures();
+  const tieneAccesoIA = canUseAI();
+  const [modalMejoraVisible, setModalMejoraVisible] = useState(false);
+
+
+
   const { token } = useAuth();
 
   const [busqueda, setBusqueda] = useState("");
@@ -210,23 +220,55 @@ export default function RecetaScreen() {
           <Pressable
             style={[
               styles.backButton,
-              {
-                backgroundColor: "#0F766E",
-                borderColor: "#115E59",
-                marginLeft: "auto",
-              },
+              tieneAccesoIA
+                ? {
+                    backgroundColor: "#0F766E",
+                    borderColor: "#115E59",
+                    marginLeft: "auto",
+                  }
+                : {
+                    backgroundColor: c.mode === "dark" ? "#2D3748" : "#EDF2F7",
+                    borderColor: c.mode === "dark" ? "#4A5568" : "#CBD5E0",
+                    marginLeft: "auto",
+                  },
             ]}
-            onPress={() => setModalIAVisible(true)}
+            onPress={() => {
+              if (tieneAccesoIA) {
+                setModalIAVisible(true);
+              } else {
+                setModalMejoraVisible(true);
+              }
+            }}
           >
             <FontAwesome
-              name="magic"
+              name={tieneAccesoIA ? "magic" : "lock"}
               size={13}
-              color="#FFF"
+              color={tieneAccesoIA ? "#FFF" : (c.mode === "dark" ? "#A0AEC0" : "#718096")}
               style={{ marginRight: 6 }}
             />
-            <Text style={[styles.backText, { color: "#FFF" }]}>
+            <Text
+              style={[
+                styles.backText,
+                { color: tieneAccesoIA ? "#FFF" : (c.mode === "dark" ? "#CBD5E0" : "#4A5568") },
+              ]}
+            >
               Asistente IA
             </Text>
+            {!tieneAccesoIA && (
+              <View
+                style={{
+                  marginLeft: 6,
+                  paddingHorizontal: 5,
+                  paddingVertical: 1,
+                  borderRadius: 4,
+                  backgroundColor: "#D97706",
+                }}
+              >
+                <Text style={{ fontSize: 9, fontWeight: "700", color: "#FFF" }}>
+                  PRO
+                </Text>
+              </View>
+            )}
           </Pressable>
         )}
       </View>
@@ -461,19 +503,26 @@ export default function RecetaScreen() {
         </View>
       )}
       {Boolean(citaId) && (
-        <AsistenteIAModal
-          visible={modalIAVisible}
-          onClose={() => setModalIAVisible(false)}
-          citaId={Number(citaId)}
-          onSeleccionarMedicamentoParaReceta={(med) => {
-            setModalIAVisible(false);
-            setBusqueda(med.nombre_generico);
-            buscarMedicamentos(med.nombre_generico);
-            setDosis(med.presentacion_dosis);
-            setFrecuencia(med.frecuencia);
-            setDuracion(med.duracion_dias);
-          }}
-        />
+        <>
+          <AsistenteIAModal
+            visible={modalIAVisible}
+            onClose={() => setModalIAVisible(false)}
+            citaId={Number(citaId)}
+            onSeleccionarMedicamentoParaReceta={(med) => {
+              setModalIAVisible(false);
+              setBusqueda(med.nombre_generico);
+              buscarMedicamentos(med.nombre_generico);
+              setDosis(med.presentacion_dosis);
+              setFrecuencia(med.frecuencia);
+              setDuracion(med.duracion_dias);
+            }}
+          />
+          <MejoraPlanModal
+            visible={modalMejoraVisible}
+            funcionBloqueada="Asistente Clínico IA"
+            onClose={() => setModalMejoraVisible(false)}
+          />
+        </>
       )}
     </ScrollView>
   );
