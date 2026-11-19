@@ -88,6 +88,10 @@ export default function ContratosScreen() {
 
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [doctores, setDoctores] = useState<Doctor[]>([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState<
+    "Todos" | "Activo" | "Pendiente" | "Finalizado"
+  >("Todos");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [otroTipoContrato, setOtroTipoContrato] = useState("");
@@ -388,6 +392,57 @@ export default function ContratosScreen() {
     );
   };
 
+  const normalizarTexto = (texto: string) =>
+    texto
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+  const contratosFiltrados = useMemo(() => {
+    const textoBusqueda = normalizarTexto(busqueda);
+
+    return contratos
+      .filter((contrato) => {
+        const nombre = nombreDoctor(contrato.doctor_id_FK);
+        const tipo = contrato.tipo_contrato ?? "";
+        const estado = contrato.estado ?? "";
+        const numero = String(contrato.id_PK);
+
+        const coincideBusqueda =
+          textoBusqueda === "" ||
+          normalizarTexto(nombre).includes(textoBusqueda) ||
+          normalizarTexto(tipo).includes(textoBusqueda) ||
+          normalizarTexto(estado).includes(textoBusqueda) ||
+          numero.includes(textoBusqueda);
+
+        const coincideEstado =
+          filtroEstado === "Todos" ||
+          normalizarTexto(estado) ===
+            normalizarTexto(filtroEstado);
+
+        return coincideBusqueda && coincideEstado;
+      })
+      .sort((a, b) => b.id_PK - a.id_PK);
+  }, [contratos, busqueda, filtroEstado]);
+
+  const totalContratos = contratos.length;
+
+  const totalActivos = contratos.filter(
+    (contrato) =>
+      normalizarTexto(contrato.estado ?? "") === "activo"
+  ).length;
+
+  const totalPendientes = contratos.filter(
+    (contrato) =>
+      normalizarTexto(contrato.estado ?? "") === "pendiente"
+  ).length;
+
+  const totalFinalizados = contratos.filter(
+    (contrato) =>
+      normalizarTexto(contrato.estado ?? "") === "finalizado"
+  ).length;
+
   const descargarContrato = async (contrato: Contrato) => {
     try {
       setDescargandoId(contrato.id_PK);
@@ -681,32 +736,159 @@ export default function ContratosScreen() {
       </View>
 
       {cargando ? (
-        <ActivityIndicator
-          size="large"
-          color="#2A8C82"
-          style={styles.cargando}
-        />
-      ) : (
-        <FlatList
-          data={contratos}
-          keyExtractor={(item) => String(item.id_PK)}
-          renderItem={renderContrato}
-          contentContainerStyle={styles.lista}
-          refreshing={cargando}
-          onRefresh={cargarDatos}
-          ListEmptyComponent={
-            <View style={styles.vacio}>
-              <Text style={styles.vacioTitulo}>
-                No hay contratos registrados
-              </Text>
+          <ActivityIndicator
+            size="large"
+            color="#2A8C82"
+            style={styles.cargando}
+          />
+        ) : (
+          <FlatList
+            data={contratosFiltrados}
+            keyExtractor={(item) => String(item.id_PK)}
+            renderItem={renderContrato}
+            contentContainerStyle={styles.lista}
+            refreshing={cargando}
+            onRefresh={cargarDatos}
+            ListHeaderComponent={
+              <View>
+                {/* RESUMEN */}
+                <View style={styles.resumenGrid}>
+                  <View style={styles.resumenCard}>
+                    <Text style={styles.resumenNumero}>{totalContratos}</Text>
+                    <Text style={styles.resumenLabel}>Total contratos</Text>
+                  </View>
 
-              <Text style={styles.vacioTexto}>
-                Registra un contrato para comenzar.
-              </Text>
-            </View>
-          }
-        />
-      )}
+                  <View style={styles.resumenCard}>
+                    <Text style={[styles.resumenNumero, { color: "#16A085" }]}>
+                      {totalActivos}
+                    </Text>
+                    <Text style={styles.resumenLabel}>Activos</Text>
+                  </View>
+
+                  <View style={styles.resumenCard}>
+                    <Text style={[styles.resumenNumero, { color: "#D99A25" }]}>
+                      {totalPendientes}
+                    </Text>
+                    <Text style={styles.resumenLabel}>Pendientes</Text>
+                  </View>
+
+                  <View style={styles.resumenCard}>
+                    <Text style={[styles.resumenNumero, { color: c.muted }]}>
+                      {totalFinalizados}
+                    </Text>
+                    <Text style={styles.resumenLabel}>Finalizados</Text>
+                  </View>
+                </View>
+
+                {/* BUSCADOR */}
+                <View style={styles.buscador}>
+                  <Text style={styles.iconoBusqueda}>⌕</Text>
+
+                  <TextInput
+                    style={styles.inputBusqueda}
+                    value={busqueda}
+                    onChangeText={setBusqueda}
+                    placeholder="Buscar médico, contrato o tipo..."
+                    placeholderTextColor={c.muted}
+                    autoCorrect={false}
+                  />
+
+                  {busqueda.length > 0 && (
+                    <Pressable
+                      onPress={() => setBusqueda("")}
+                      style={styles.limpiarBusqueda}
+                    >
+                      <Text style={styles.limpiarBusquedaTexto}>✕</Text>
+                    </Pressable>
+                  )}
+                </View>
+
+                {/* FILTROS */}
+                <Text style={styles.tituloFiltros}>Filtrar contratos</Text>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.filtros}
+                >
+                  {(
+                    [
+                      "Todos",
+                      "Activo",
+                      "Pendiente",
+                      "Finalizado",
+                    ] as const
+                  ).map((estado) => (
+                    <Pressable
+                      key={estado}
+                      onPress={() => setFiltroEstado(estado)}
+                      style={[
+                        styles.filtroBoton,
+                        filtroEstado === estado && styles.filtroBotonActivo,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.filtroTexto,
+                          filtroEstado === estado && styles.filtroTextoActivo,
+                        ]}
+                      >
+                        {estado}
+                        {estado === "Todos" && ` (${totalContratos})`}
+                        {estado === "Activo" && ` (${totalActivos})`}
+                        {estado === "Pendiente" && ` (${totalPendientes})`}
+                        {estado === "Finalizado" && ` (${totalFinalizados})`}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
+                {/* RESULTADOS */}
+                <View style={styles.resultadosHeader}>
+                  <Text style={styles.resultadosTitulo}>
+                    {filtroEstado === "Finalizado"
+                      ? "Historial de contratos"
+                      : "Listado de contratos"}
+                  </Text>
+
+                  <Text style={styles.resultadosCantidad}>
+                    {contratosFiltrados.length} resultado
+                    {contratosFiltrados.length !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+              </View>
+            }
+            ListEmptyComponent={
+              <View style={styles.vacio}>
+                <Text style={styles.vacioTitulo}>
+                  {contratos.length === 0
+                    ? "No hay contratos registrados"
+                    : "No se encontraron contratos"}
+                </Text>
+
+                <Text style={styles.vacioTexto}>
+                  {contratos.length === 0
+                    ? "Registra un contrato para comenzar."
+                    : "Prueba con otro nombre, número de contrato o filtro."}
+                </Text>
+
+                {(busqueda !== "" || filtroEstado !== "Todos") && (
+                  <Pressable
+                    style={styles.limpiarFiltros}
+                    onPress={() => {
+                      setBusqueda("");
+                      setFiltroEstado("Todos");
+                    }}
+                  >
+                    <Text style={styles.limpiarFiltrosTexto}>
+                      Limpiar filtros
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            }
+          />
+        )}
 
       {/* MODAL PARA REGISTRAR Y EDITAR */}
       <Modal
@@ -1387,11 +1569,14 @@ const createStyles = (c: Theme) => {
     color: c.text,
     fontSize: 18,
     fontWeight: "800",
+    flexShrink: 1,
   },
+
   subtituloDocumento: {
     color: c.muted,
     fontSize: 12,
     marginTop: 5,
+    flexShrink: 1,
   },
   botonCerrarDocumento: {
     backgroundColor: c.primary,
@@ -1478,7 +1663,7 @@ const createStyles = (c: Theme) => {
 
   infoDocumento: {
     flex: 1,
-    minWidth: 180,
+    minWidth: 0,
   },
 
   encabezadoDocumento: {
@@ -1486,9 +1671,9 @@ const createStyles = (c: Theme) => {
     alignItems: "center",
     justifyContent: "space-between",
     flexWrap: "wrap",
-    gap: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: c.card,
     borderBottomWidth: 1,
     borderBottomColor: c.border,
@@ -1510,6 +1695,151 @@ const createStyles = (c: Theme) => {
     height: 42,
     alignItems: "center",
     justifyContent: "center",
+  },
+    // RESUMEN DE CONTRATOS
+  resumenGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 20,
+  },
+
+  resumenCard: {
+    flexGrow: 1,
+    flexBasis: "46%",
+    backgroundColor: c.card,
+    borderWidth: 1,
+    borderColor: c.border,
+    borderRadius: 14,
+    padding: 15,
+    minHeight: 90,
+    justifyContent: "center",
+  },
+
+  resumenNumero: {
+    color: c.text,
+    fontSize: 25,
+    fontWeight: "800",
+  },
+
+  resumenLabel: {
+    color: c.muted,
+    fontSize: 12,
+    marginTop: 5,
+    fontWeight: "600",
+  },
+
+  // BUSCADOR
+  buscador: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: c.card,
+    borderWidth: 1,
+    borderColor: c.border,
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    minHeight: 48,
+    marginBottom: 18,
+  },
+
+  iconoBusqueda: {
+    color: c.muted,
+    fontSize: 24,
+    marginRight: 10,
+  },
+
+  inputBusqueda: {
+    flex: 1,
+    color: c.text,
+    fontSize: 14,
+    paddingVertical: 10,
+    outlineStyle: "none" as any,
+  },
+
+  limpiarBusqueda: {
+    padding: 7,
+    marginLeft: 5,
+  },
+
+  limpiarBusquedaTexto: {
+    color: c.muted,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  // FILTROS
+  tituloFiltros: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: c.text,
+    marginBottom: 10,
+  },
+
+  filtros: {
+    gap: 8,
+    paddingBottom: 5,
+  },
+
+  filtroBoton: {
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.card,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+
+  filtroBotonActivo: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+
+  filtroTexto: {
+    color: c.muted,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  filtroTextoActivo: {
+    color: isDark ? "#121212" : "#FFFFFF",
+    fontWeight: "800",
+  },
+
+  // RESULTADOS E HISTORIAL
+  resultadosHeader: {
+    marginTop: 22,
+    marginBottom: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 5,
+  },
+
+  resultadosTitulo: {
+    color: c.text,
+    fontSize: 17,
+    fontWeight: "800",
+  },
+
+  resultadosCantidad: {
+    color: c.muted,
+    fontSize: 12,
+  },
+
+  limpiarFiltros: {
+    marginTop: 18,
+    borderWidth: 1,
+    borderColor: c.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+
+  limpiarFiltrosTexto: {
+    color: c.primary,
+    fontSize: 13,
+    fontWeight: "700",
   },
 });
 };
