@@ -40,7 +40,7 @@ export const getMedicamentos = async (): Promise<Medicamento[]> => {
 };
 
 export const registrarMedicamento = async (
-  medicamento: MedicamentoCreate
+  medicamento: MedicamentoCreate,
 ): Promise<Medicamento> => {
   const payload = {
     nombre: medicamento.nombre.trim(),
@@ -59,7 +59,10 @@ export const registrarMedicamento = async (
     const response = await api.post("/api/medicamentos/", payload);
     return response.data;
   } catch (error: any) {
-    console.warn("Error al registrar medicamento:", error?.response?.data || error);
+    console.warn(
+      "Error al registrar medicamento:",
+      error?.response?.data || error,
+    );
     throw error;
   }
 };
@@ -82,22 +85,29 @@ export const registrarLoteInventario = async (loteData: LoteData) => {
       stock_actual: Number(loteData.stock_actual) || 0,
       ubicacion: loteData.ubicacion?.trim() || null,
       fecha_vencimiento: loteData.fecha_vencimiento || null,
-      precio_venta: loteData.precio_venta ? Number(loteData.precio_venta) : null,
-      proveedor_id_FK: loteData.proveedor_id_FK ? Number(loteData.proveedor_id_FK) : null,
+      precio_venta: loteData.precio_venta
+        ? Number(loteData.precio_venta)
+        : null,
+      proveedor_id_FK: loteData.proveedor_id_FK
+        ? Number(loteData.proveedor_id_FK)
+        : null,
       fecha_recepcion: loteData.fecha_recepcion || null,
     };
 
     const response = await api.post("/api/almacen/inventario", payload);
     return response.data;
   } catch (error: any) {
-    console.warn("Error al registrar lote en la API:", error?.response?.data || error);
+    console.warn(
+      "Error al registrar lote en la API:",
+      error?.response?.data || error,
+    );
     throw error;
   }
 };
 
 export const actualizarLoteInventario = async (
   id: number,
-  loteData: LoteData
+  loteData: LoteData,
 ) => {
   const payload = {
     medicamento_id_FK: Number(loteData.medicamento_id_FK),
@@ -114,7 +124,10 @@ export const actualizarLoteInventario = async (
     const response = await api.put(`/api/almacen/inventario/${id}`, payload);
     return response.data;
   } catch (error: any) {
-    console.warn("Error al actualizar lote en la API:", error?.response?.data || error);
+    console.warn(
+      "Error al actualizar lote en la API:",
+      error?.response?.data || error,
+    );
     throw error;
   }
 };
@@ -195,8 +208,17 @@ export interface DispensarResultado {
   receta_id: number;
   estado_receta: string | null;
   completa: boolean;
-  dispensaciones: { item_receta_id: number; medicamento: string | null; numero_lote: string | null; cantidad: number }[];
-  faltantes: { item_receta_id: number; medicamento: string | null; cantidad_pendiente: number }[];
+  dispensaciones: {
+    item_receta_id: number;
+    medicamento: string | null;
+    numero_lote: string | null;
+    cantidad: number;
+  }[];
+  faltantes: {
+    item_receta_id: number;
+    medicamento: string | null;
+    cantidad_pendiente: number;
+  }[];
 }
 
 export interface MovimientoInventario {
@@ -216,7 +238,10 @@ export type TipoMovimiento = "entrada" | "salida" | "merma" | "ajuste";
 export const getResumenAlmacen = async (): Promise<ResumenAlmacen> =>
   (await api.get("/api/almacen/resumen")).data;
 
-export const getCaducidades = async (dias = 60, tipo?: TipoArticulo): Promise<Caducidad[]> =>
+export const getCaducidades = async (
+  dias = 60,
+  tipo?: TipoArticulo,
+): Promise<Caducidad[]> =>
   (await api.get("/api/almacen/caducidades", { params: { dias, tipo } })).data;
 
 export const getRecetasPendientes = async (): Promise<RecetaPendiente[]> =>
@@ -226,25 +251,44 @@ export const getRecetasPendientes = async (): Promise<RecetaPendiente[]> =>
 export const dispensarReceta = async (
   recetaId: number,
   items?: { item_receta_id: number; cantidad: number }[],
-  notas?: string
+  notas?: string,
 ): Promise<DispensarResultado> =>
-  (await api.post("/api/almacen/dispensar", { receta_id: recetaId, items: items ?? null, notas: notas || null })).data;
+  (
+    await api.post("/api/almacen/dispensar", {
+      receta_id: recetaId,
+      items: items ?? null,
+      notas: notas || null,
+    })
+  ).data;
 
-export const getMovimientos = async (limite = 100): Promise<MovimientoInventario[]> =>
+export const getMovimientos = async (
+  limite = 100,
+): Promise<MovimientoInventario[]> =>
   (await api.get("/api/almacen/movimientos", { params: { limite } })).data;
 
 export const registrarMovimientoLote = async (
   loteId: number,
   tipo: TipoMovimiento,
   cantidad: number,
-  motivo?: string
-) => (await api.post(`/api/almacen/inventario/${loteId}/movimientos`, { tipo, cantidad, motivo: motivo || null })).data;
-
+  motivo?: string,
+) =>
+  (
+    await api.post(`/api/almacen/inventario/${loteId}/movimientos`, {
+      tipo,
+      cantidad,
+      motivo: motivo || null,
+    })
+  ).data;
 
 /* ============================================================
    Consumo interno, gráficas y predicción de demanda
 ============================================================ */
-export const registrarConsumo = async (p: { medicamentoId: number; cantidad: number; area?: string; motivo?: string }) =>
+export const registrarConsumo = async (p: {
+  medicamentoId: number;
+  cantidad: number;
+  area?: string;
+  motivo?: string;
+}) =>
   (
     await api.post("/api/almacen/consumos", {
       medicamento_id: p.medicamentoId,
@@ -260,13 +304,38 @@ export const registrarConsumo = async (p: { medicamentoId: number; cantidad: num
   };
 
 export interface PanelAnalitico {
-  consumo_mensual: { mes: string; medicamentos: number; insumos: number; merma: number }[];
-  top_consumo_90d: { medicamento_id: number; nombre: string; tipo_articulo: TipoArticulo; unidades: number }[];
-  stock_por_tipo: { tipo_articulo: TipoArticulo; unidades: number; valor: number }[];
-  caducidad_unidades: { vencido: number; por_vencer_30: number; por_vencer_90: number; vigente: number; sin_fecha: number };
+  consumo_mensual: {
+    mes: string;
+    medicamentos: number;
+    insumos: number;
+    merma: number;
+  }[];
+  top_consumo_90d: {
+    medicamento_id: number;
+    nombre: string;
+    tipo_articulo: TipoArticulo;
+    unidades: number;
+  }[];
+  stock_por_tipo: {
+    tipo_articulo: TipoArticulo;
+    unidades: number;
+    valor: number;
+  }[];
+  caducidad_unidades: {
+    vencido: number;
+    por_vencer_30: number;
+    por_vencer_90: number;
+    vigente: number;
+    sin_fecha: number;
+  };
 }
 
-export type RiesgoStock = "agotado" | "critico" | "bajo" | "ok" | "sin_movimiento";
+export type RiesgoStock =
+  | "agotado"
+  | "critico"
+  | "bajo"
+  | "ok"
+  | "sin_movimiento";
 
 export interface ItemPrediccion {
   medicamento_id: number;
@@ -294,7 +363,13 @@ export interface Prediccion {
   horizonte_dias: number;
   nota: string;
   resumen_riesgo: Record<RiesgoStock, number>;
-  mas_demandados: { medicamento_id: number; nombre: string; tipo_articulo: TipoArticulo; pronostico_horizonte: number; unidad_medida: string | null }[];
+  mas_demandados: {
+    medicamento_id: number;
+    nombre: string;
+    tipo_articulo: TipoArticulo;
+    pronostico_horizonte: number;
+    unidad_medida: string | null;
+  }[];
   items: ItemPrediccion[];
 }
 
@@ -313,8 +388,29 @@ export interface AnalisisIA {
 export const getPanelAnalitico = async (meses = 6): Promise<PanelAnalitico> =>
   (await api.get("/api/almacen/analitica/panel", { params: { meses } })).data;
 
-export const getPrediccion = async (horizonteDias = 30, tipo?: TipoArticulo): Promise<Prediccion> =>
-  (await api.get("/api/almacen/analitica/prediccion", { params: { horizonte_dias: horizonteDias, tipo } })).data;
+export const getPrediccion = async (
+  horizonteDias = 30,
+  tipo?: TipoArticulo,
+): Promise<Prediccion> =>
+  (
+    await api.get("/api/almacen/analitica/prediccion", {
+      params: { horizonte_dias: horizonteDias, tipo },
+    })
+  ).data;
 
-export const getAnalisisIA = async (horizonteDias = 30, tipo?: TipoArticulo): Promise<AnalisisIA> =>
-  (await api.post("/api/almacen/analitica/analisis-ia", { horizonte_dias: horizonteDias, tipo: tipo ?? null })).data;
+export const getAnalisisIA = async (
+  horizonteDias = 30,
+  tipo?: TipoArticulo,
+): Promise<AnalisisIA> =>
+  (
+    await api.post("/api/almacen/analitica/analisis-ia", {
+      horizonte_dias: horizonteDias,
+      tipo: tipo ?? null,
+    })
+  ).data;
+
+// Agrega al final del archivo
+export const verificarQR = async (codigo_qr: string) => {
+  const res = await api.get(`/api/recetas/verificar-qr/${codigo_qr}`);
+  return res.data;
+};
