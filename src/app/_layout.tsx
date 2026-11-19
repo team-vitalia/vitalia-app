@@ -3,8 +3,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Stack, usePathname, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { ComponentProps, useEffect, useRef, useState } from "react";
-
-WebBrowser.maybeCompleteAuthSession();
 import {
   Animated,
   Easing,
@@ -20,15 +18,17 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { initializeDatadogRum } from "../services/datadogRum";
+WebBrowser.maybeCompleteAuthSession();
 
+import { InstallPrompt } from "../components/InstallPrompt";
+import { ModalPlanSuscripcion } from "../components/ModalPlanSuscripcion";
+import { OfflineBanner } from "../components/OfflineBanner";
+import { CrownSvg, UpgradeModal } from "../components/UpgradeModal";
 import { AuthProvider, useAuth, type PlanActual } from "../context/AuthContext";
 import { CalendarProvider } from "../context/CalendarContext";
 import { NotificationsProvider } from "../context/NotificationsContext";
 import { ThemeProvider, useAppTheme } from "../context/ThemeContext";
-import { OfflineBanner } from "../components/OfflineBanner";
-import { InstallPrompt } from "../components/InstallPrompt";
-import { ModalPlanSuscripcion } from "../components/ModalPlanSuscripcion";
-import { UpgradeModal, CrownSvg } from "../components/UpgradeModal";
 import {
   BP_DESKTOP,
   BP_MOBILE,
@@ -1177,6 +1177,10 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS === "web" && typeof document !== "undefined") {
       document.title = "Vitalia";
+    }
+
+    if (Platform.OS === "web") {
+      initializeDatadogRum();
     }
 
     if (
