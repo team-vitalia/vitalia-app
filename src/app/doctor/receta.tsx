@@ -1,25 +1,25 @@
-import { useTheme, type Theme } from "../../theme/theme";
 import { FontAwesome } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo,  useEffect, useState  } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
+import { AsistenteIAModal } from "../../components/AsistenteIAModal";
+import { MejoraPlanModal } from "../../components/MejoraPlanModal";
 import { useAuth } from "../../context/AuthContext";
-import api from "../../services/api";
+import { usePlanFeatures } from "../../hooks/usePlanFeatures";
 import { evaluarInteracciones } from "../../services/almacenService";
+import api from "../../services/api";
 import { mensajeError } from "../../services/c2Service";
 import { crearReceta, RecetaCreada } from "../../services/clinicoService";
-import { AsistenteIAModal } from "../../components/AsistenteIAModal";
-import { usePlanFeatures } from "../../hooks/usePlanFeatures";
-import { MejoraPlanModal } from "../../components/MejoraPlanModal";
+import { useTheme, type Theme } from "../../theme/theme";
 
 
 
