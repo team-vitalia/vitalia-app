@@ -21,8 +21,6 @@ import { mensajeError } from "../../services/c2Service";
 import { crearReceta, RecetaCreada } from "../../services/clinicoService";
 import { useTheme, type Theme } from "../../theme/theme";
 
-
-
 interface Medicamento {
   id_PK: number;
   nombre: string;
@@ -57,8 +55,6 @@ export default function RecetaScreen() {
   const { canUseAI } = usePlanFeatures();
   const tieneAccesoIA = canUseAI();
   const [modalMejoraVisible, setModalMejoraVisible] = useState(false);
-
-
 
   const { token } = useAuth();
 
@@ -95,7 +91,7 @@ export default function RecetaScreen() {
       return;
     }
     evaluarInteracciones(items.map((i) => i.medicamento_id_FK)).then((r) =>
-      setInteracciones(r?.detalles ?? [])
+      setInteracciones(r?.detalles ?? []),
     );
   }, [items]);
 
@@ -113,7 +109,12 @@ export default function RecetaScreen() {
     if (sugerenciaDuracion && typeof sugerenciaDuracion === "string") {
       setDuracion(sugerenciaDuracion);
     }
-  }, [sugerenciaNombre, sugerenciaDosis, sugerenciaFrecuencia, sugerenciaDuracion]);
+  }, [
+    sugerenciaNombre,
+    sugerenciaDosis,
+    sugerenciaFrecuencia,
+    sugerenciaDuracion,
+  ]);
 
   const buscarMedicamentos = async (texto: string) => {
     setBusqueda(texto);
@@ -174,7 +175,9 @@ export default function RecetaScreen() {
       return;
     }
     if (!citaId) {
-      setErrorMsg("Abre la receta desde el detalle de una cita para vincularla a la consulta.");
+      setErrorMsg(
+        "Abre la receta desde el detalle de una cita para vincularla a la consulta.",
+      );
       return;
     }
 
@@ -190,13 +193,22 @@ export default function RecetaScreen() {
       setResultado(creada);
     } catch (error: any) {
       const detalle = error?.response?.data?.detail;
-      if (error?.response?.status === 409 && detalle?.codigo === "INTERACCION_GRAVE") {
+      if (
+        error?.response?.status === 409 &&
+        detalle?.codigo === "INTERACCION_GRAVE"
+      ) {
         // Interacción grave: el médico debe revisar y confirmar de forma explícita
         setInteracciones(detalle.advertencias_interacciones ?? []);
         setRequiereConfirmar(true);
-        setErrorMsg("Se detectaron interacciones graves. Revisa los avisos y confirma si deseas continuar.");
+        setErrorMsg(
+          "Se detectaron interacciones graves. Revisa los avisos y confirma si deseas continuar.",
+        );
       } else {
-        setErrorMsg(typeof detalle === "string" ? detalle : mensajeError(error, "No se pudo guardar la receta."));
+        setErrorMsg(
+          typeof detalle === "string"
+            ? detalle
+            : mensajeError(error, "No se pudo guardar la receta."),
+        );
       }
     } finally {
       setGuardando(false);
@@ -243,13 +255,25 @@ export default function RecetaScreen() {
             <FontAwesome
               name={tieneAccesoIA ? "magic" : "lock"}
               size={13}
-              color={tieneAccesoIA ? "#FFF" : (c.mode === "dark" ? "#A0AEC0" : "#718096")}
+              color={
+                tieneAccesoIA
+                  ? "#FFF"
+                  : c.mode === "dark"
+                    ? "#A0AEC0"
+                    : "#718096"
+              }
               style={{ marginRight: 6 }}
             />
             <Text
               style={[
                 styles.backText,
-                { color: tieneAccesoIA ? "#FFF" : (c.mode === "dark" ? "#CBD5E0" : "#4A5568") },
+                {
+                  color: tieneAccesoIA
+                    ? "#FFF"
+                    : c.mode === "dark"
+                      ? "#CBD5E0"
+                      : "#4A5568",
+                },
               ]}
             >
               Asistente IA
@@ -288,8 +312,16 @@ export default function RecetaScreen() {
           }}
         >
           <FontAwesome name="check-circle" size={16} color="#059669" />
-          <Text style={{ fontSize: 13, color: "#065F46", fontWeight: "700", flex: 1 }}>
-            Sugerencia IA cargada: {String(sugerenciaNombre)} ({String(sugerenciaDosis || "")})
+          <Text
+            style={{
+              fontSize: 13,
+              color: "#065F46",
+              fontWeight: "700",
+              flex: 1,
+            }}
+          >
+            Sugerencia IA cargada: {String(sugerenciaNombre)} (
+            {String(sugerenciaDosis || "")})
           </Text>
         </View>
       )}
@@ -382,13 +414,27 @@ export default function RecetaScreen() {
             onChangeText={setDuracion}
           />
 
-          <Text style={styles.label}>Cantidad total (ej. 15)</Text>
+          <Text style={styles.label}>
+            Cantidad total en piezas (ej. 15 tabletas)
+          </Text>
           <TextInput
             style={styles.input}
             value={cantidad}
             onChangeText={setCantidad}
             keyboardType="numeric"
+            placeholder="Ej. 15"
+            placeholderTextColor="#A0AEC0"
           />
+          <Text
+            style={{
+              fontSize: 11,
+              color: c.muted,
+              marginTop: 4,
+              marginBottom: 10,
+            }}
+          >
+            * El inventario se descontará en piezas individuales.
+          </Text>
 
           <Text style={styles.label}>Vía de administración</Text>
           <TextInput style={styles.input} value={via} onChangeText={setVia} />
@@ -447,11 +493,24 @@ export default function RecetaScreen() {
 
       {/* AVISOS DE INTERACCIONES (apoyo; no sustituyen el criterio clínico) */}
       {interacciones.length > 0 && !resultado && (
-        <View style={{ backgroundColor: "#FFF5F5", borderColor: "#D65A5A", borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 15, gap: 6 }}>
-          <Text style={{ fontWeight: "800", color: "#B03A3A" }}>⚠ Interacciones detectadas</Text>
+        <View
+          style={{
+            backgroundColor: "#FFF5F5",
+            borderColor: "#D65A5A",
+            borderWidth: 1,
+            borderRadius: 10,
+            padding: 12,
+            marginBottom: 15,
+            gap: 6,
+          }}
+        >
+          <Text style={{ fontWeight: "800", color: "#B03A3A" }}>
+            ⚠ Interacciones detectadas
+          </Text>
           {interacciones.map((i, n) => (
             <Text key={n} style={{ fontSize: 13, color: "#7A2E2E" }}>
-              {i.medicamento_1} + {i.medicamento_2} ({i.severidad}): {i.descripcion}
+              {i.medicamento_1} + {i.medicamento_2} ({i.severidad}):{" "}
+              {i.descripcion}
               {i.accion_requerida ? ` → ${i.accion_requerida}` : ""}
             </Text>
           ))}
@@ -459,13 +518,18 @@ export default function RecetaScreen() {
       )}
 
       {!!errorMsg && !resultado && (
-        <Text style={{ color: "#B03A3A", fontWeight: "700", marginBottom: 10 }}>{errorMsg}</Text>
+        <Text style={{ color: "#B03A3A", fontWeight: "700", marginBottom: 10 }}>
+          {errorMsg}
+        </Text>
       )}
 
       {/* BOTÓN GUARDAR */}
       {items.length > 0 && !resultado && (
         <Pressable
-          style={[styles.mainButton, requiereConfirmar && { backgroundColor: "#B03A3A" }]}
+          style={[
+            styles.mainButton,
+            requiereConfirmar && { backgroundColor: "#B03A3A" },
+          ]}
           onPress={() => guardarReceta(requiereConfirmar)}
           disabled={guardando}
         >
@@ -473,7 +537,9 @@ export default function RecetaScreen() {
             <ActivityIndicator color="#FFF" />
           ) : (
             <Text style={styles.mainButtonText}>
-              {requiereConfirmar ? "Confirmar y guardar de todos modos" : "Guardar Receta Médica"}
+              {requiereConfirmar
+                ? "Confirmar y guardar de todos modos"
+                : "Guardar Receta Médica"}
             </Text>
           )}
         </Pressable>
@@ -481,23 +547,44 @@ export default function RecetaScreen() {
 
       {/* RESULTADO: receta creada + avisos de alergias y disponibilidad */}
       {resultado && (
-        <View style={[styles.card, { borderColor: "#247F76", borderWidth: 2, gap: 8 }]}>
-          <Text style={styles.cardTitle}>✓ Receta #{resultado.id_PK} guardada</Text>
+        <View
+          style={[
+            styles.card,
+            { borderColor: "#247F76", borderWidth: 2, gap: 8 },
+          ]}
+        >
+          <Text style={styles.cardTitle}>
+            ✓ Receta #{resultado.id_PK} guardada
+          </Text>
           {resultado.alertas_alergias.map((a, n) => (
-            <Text key={n} style={{ fontSize: 13, color: "#B7791F", fontWeight: "700" }}>⚠ {a.mensaje}</Text>
+            <Text
+              key={n}
+              style={{ fontSize: 13, color: "#B7791F", fontWeight: "700" }}
+            >
+              ⚠ {a.mensaje}
+            </Text>
           ))}
           {resultado.advertencias_interacciones.length > 0 && (
             <Text style={{ fontSize: 13, color: "#B03A3A" }}>
-              Se guardó con {resultado.advertencias_interacciones.length} interacción(es) confirmada(s) por ti.
+              Se guardó con {resultado.advertencias_interacciones.length}{" "}
+              interacción(es) confirmada(s) por ti.
             </Text>
           )}
           {resultado.hay_faltantes && (
-            <Text style={{ fontSize: 13, color: "#B7791F", fontWeight: "700" }}>{resultado.mensaje_disponibilidad}</Text>
+            <Text style={{ fontSize: 13, color: "#B7791F", fontWeight: "700" }}>
+              {resultado.mensaje_disponibilidad}
+            </Text>
           )}
           {!resultado.hay_faltantes && (
-            <Text style={{ fontSize: 13, color: "#247F76" }}>Medicamentos disponibles en almacén (si la clínica usa inventario).</Text>
+            <Text style={{ fontSize: 13, color: "#247F76" }}>
+              Medicamentos disponibles en almacén (si la clínica usa
+              inventario).
+            </Text>
           )}
-          <Pressable style={styles.mainButton} onPress={() => router.replace("/doctor/consultas")}>
+          <Pressable
+            style={styles.mainButton}
+            onPress={() => router.replace("/doctor/consultas")}
+          >
             <Text style={styles.mainButtonText}>Terminar</Text>
           </Pressable>
         </View>
@@ -531,114 +618,121 @@ export default function RecetaScreen() {
 const createStyles = (c: Theme) => {
   const isDark = c.mode === "dark";
   return StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bg },
-  content: {
-    padding: 30,
-    maxWidth: 800,
-    width: "100%",
-    alignSelf: "center",
-    paddingBottom: 50,
-  },
-  header: { marginBottom: 16 },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: c.card,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  backText: { color: c.primary, fontSize: 13, fontWeight: "800" },
-  smallTitle: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 2,
-    color: c.primary,
-    marginBottom: 5,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: "900",
-    color: c.text,
-    marginBottom: 20,
-  },
-  card: {
-    backgroundColor: c.card,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: c.border,
-    marginBottom: 20,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: c.text,
-    marginBottom: 15,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: c.bg,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 45,
-  },
-  searchInput: { flex: 1, fontSize: 14, color: c.text },
-  resultsContainer: {
-    marginTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#E8F0EE",
-    paddingTop: 10,
-  },
-  resultItem: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E8F0EE",
-  },
-  resultText: { fontSize: 14, color: c.text, fontWeight: "600" },
-  label: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: c.text,
-    marginBottom: 5,
-    marginTop: 10,
-  },
-  input: {
-    backgroundColor: "#F8FAFA",
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 14,
-    color: c.text,
-  },
-  formActions: { flexDirection: "row", gap: 10, marginTop: 20 },
-  btn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-  btnCancel: { backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5" },
-  btnSave: { backgroundColor: c.primary },
-  btnTextCancel: { color: "#D65A5A", fontWeight: "800", fontSize: 13 },
-  btnTextSave: { color: "#FFF", fontWeight: "800", fontSize: 13 },
-  emptyText: { fontSize: 13, color: c.muted, fontStyle: "italic" },
-  itemRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E8F0EE",
-  },
-  itemName: { fontSize: 14, fontWeight: "800", color: c.text },
-  itemDetail: { fontSize: 12, color: c.muted, marginTop: 2 },
-  mainButton: {
-    backgroundColor: c.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  mainButtonText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
-});
+    container: { flex: 1, backgroundColor: c.bg },
+    content: {
+      padding: 30,
+      maxWidth: 800,
+      width: "100%",
+      alignSelf: "center",
+      paddingBottom: 50,
+    },
+    header: { marginBottom: 16 },
+    backButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: c.card,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    backText: { color: c.primary, fontSize: 13, fontWeight: "800" },
+    smallTitle: {
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 2,
+      color: c.primary,
+      marginBottom: 5,
+    },
+    title: {
+      fontSize: 30,
+      fontWeight: "900",
+      color: c.text,
+      marginBottom: 20,
+    },
+    card: {
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: c.border,
+      marginBottom: 20,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: "800",
+      color: c.text,
+      marginBottom: 15,
+    },
+    searchContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: c.bg,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      height: 45,
+    },
+    searchInput: { flex: 1, fontSize: 14, color: c.text },
+    resultsContainer: {
+      marginTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: "#E8F0EE",
+      paddingTop: 10,
+    },
+    resultItem: {
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: "#E8F0EE",
+    },
+    resultText: { fontSize: 14, color: c.text, fontWeight: "600" },
+    label: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: c.text,
+      marginBottom: 5,
+      marginTop: 10,
+    },
+    input: {
+      backgroundColor: "#F8FAFA",
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      padding: 12,
+      fontSize: 14,
+      color: c.text,
+    },
+    formActions: { flexDirection: "row", gap: 10, marginTop: 20 },
+    btn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 10,
+      alignItems: "center",
+    },
+    btnCancel: {
+      backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FFF5F5",
+    },
+    btnSave: { backgroundColor: c.primary },
+    btnTextCancel: { color: "#D65A5A", fontWeight: "800", fontSize: 13 },
+    btnTextSave: { color: "#FFF", fontWeight: "800", fontSize: 13 },
+    emptyText: { fontSize: 13, color: c.muted, fontStyle: "italic" },
+    itemRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: "#E8F0EE",
+    },
+    itemName: { fontSize: 14, fontWeight: "800", color: c.text },
+    itemDetail: { fontSize: 12, color: c.muted, marginTop: 2 },
+    mainButton: {
+      backgroundColor: c.primary,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      marginTop: 10,
+    },
+    mainButtonText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
+  });
 };
