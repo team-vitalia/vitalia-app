@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AuthProvider, useAuth, type PlanActual } from "../context/AuthContext";
 import { CalendarProvider } from "../context/CalendarContext";
-import { NotificationsProvider } from "../context/NotificationsContext";
+import { NotificationsProvider, useNotifications } from "../context/NotificationsContext";
 import { ThemeProvider, useAppTheme } from "../context/ThemeContext";
 import { OfflineBanner } from "../components/OfflineBanner";
 import { InstallPrompt } from "../components/InstallPrompt";
@@ -184,6 +184,7 @@ function SideItem({
   active,
   compact,
   bloqueado,
+  unreadCount,
   onPress,
 }: {
   c: Theme;
@@ -191,6 +192,7 @@ function SideItem({
   active: boolean;
   compact: boolean;
   bloqueado?: boolean;
+  unreadCount?: number;
   onPress: () => void;
 }) {
   return (
@@ -250,6 +252,41 @@ function SideItem({
           {item.label}
         </Text>
       )}
+      {!compact && item.key === "notificaciones" && (unreadCount ?? 0) > 0 && (
+        <View
+          style={{
+            backgroundColor: "#EF4444",
+            borderRadius: 10,
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+            marginLeft: 6,
+          }}
+        >
+          <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>
+            {unreadCount! > 99 ? "99+" : unreadCount}
+          </Text>
+        </View>
+      )}
+      {compact && item.key === "notificaciones" && (unreadCount ?? 0) > 0 && (
+        <View
+          style={{
+            position: "absolute",
+            top: 6,
+            right: 6,
+            minWidth: 14,
+            height: 14,
+            borderRadius: 7,
+            backgroundColor: "#EF4444",
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 2,
+          }}
+        >
+          <Text style={{ color: "#FFFFFF", fontSize: 8.5, fontWeight: "800" }}>
+            {unreadCount! > 9 ? "9+" : unreadCount}
+          </Text>
+        </View>
+      )}
       {!compact && bloqueado && (
         <View style={{ marginLeft: 6 }}>
           <CrownSvg size={16} color="#FBBF24" />
@@ -275,6 +312,7 @@ function Sidebar({
   compact,
   planActual,
   isDark,
+  unreadCount,
   onToggleTheme,
   onSelect,
   onHome,
@@ -291,6 +329,7 @@ function Sidebar({
   compact: boolean;
   planActual?: PlanActual;
   isDark?: boolean;
+  unreadCount?: number;
   onToggleTheme?: () => void;
   onSelect: (item: NavItem) => void;
   onHome: () => void;
@@ -456,6 +495,7 @@ function Sidebar({
               active={item.activo(pathname)}
               compact={compact}
               bloqueado={res.bloqueado}
+              unreadCount={unreadCount}
               onPress={() => onSelect(item)}
             />
           );
@@ -540,6 +580,7 @@ function MobileHeader({
   notifActiva,
   planActual,
   isDark,
+  unreadCount,
   onToggleTheme,
   onHome,
   onNotif,
@@ -552,6 +593,7 @@ function MobileHeader({
   notifActiva: boolean;
   planActual?: PlanActual;
   isDark?: boolean;
+  unreadCount?: number;
   onToggleTheme?: () => void;
   onHome: () => void;
   onNotif: () => void;
@@ -659,6 +701,28 @@ function MobileHeader({
               size={22}
               color={notifActiva ? c.activeFg : c.muted}
             />
+            {(unreadCount ?? 0) > 0 && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: 5,
+                  right: 5,
+                  minWidth: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: "#EF4444",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingHorizontal: 4,
+                  borderWidth: 1.5,
+                  borderColor: c.card,
+                }}
+              >
+                <Text style={{ color: "#FFFFFF", fontSize: 9.5, fontWeight: "800", lineHeight: 11 }}>
+                  {unreadCount! > 99 ? "99+" : unreadCount}
+                </Text>
+              </View>
+            )}
           </Pressable>
         </View>
       </View>
@@ -785,6 +849,7 @@ function MoreSheet({
   pathname,
   planActual,
   isDark,
+  unreadCount,
   onToggleTheme,
   onClose,
   onSelect,
@@ -802,6 +867,7 @@ function MoreSheet({
   pathname: string;
   planActual?: PlanActual;
   isDark?: boolean;
+  unreadCount?: number;
   onToggleTheme?: () => void;
   onClose: () => void;
   onSelect: (item: NavItem) => void;
@@ -946,6 +1012,21 @@ function MoreSheet({
                         <Ionicons name={active ? item.iconActive : item.icon} size={20} color={c.activeFg} />
                       </View>
                       <Text style={{ flex: 1, fontSize: 14, fontWeight: "700", color: c.text }}>{item.label}</Text>
+                      {item.key === "notificaciones" && (unreadCount ?? 0) > 0 && (
+                        <View
+                          style={{
+                            backgroundColor: "#EF4444",
+                            borderRadius: 10,
+                            paddingHorizontal: 7,
+                            paddingVertical: 2,
+                            marginRight: 8,
+                          }}
+                        >
+                          <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>
+                            {unreadCount! > 99 ? "99+" : unreadCount}
+                          </Text>
+                        </View>
+                      )}
                       {res.bloqueado && (
                         <View style={{ marginRight: 8 }}>
                           <CrownSvg size={16} color="#FBBF24" />
@@ -1017,6 +1098,7 @@ function AppLayout() {
   const router = useRouter();
   const pathname = usePathname();
   const { usuario, logout, cargando, planActual } = useAuth();
+  const { unreadCount } = useNotifications();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -1140,6 +1222,7 @@ function AppLayout() {
           compact={isCompactRail}
           planActual={planActual}
           isDark={isDark}
+          unreadCount={unreadCount}
           onToggleTheme={toggleTheme}
           onSelect={seleccionar}
           onHome={irInicio}
@@ -1156,6 +1239,7 @@ function AppLayout() {
             rolId={rolId}
             esTitular={Boolean(esDoctorTitular || usuario?.es_titular)}
             notifActiva={notifActiva}
+            unreadCount={unreadCount}
             planActual={planActual}
             isDark={isDark}
             onToggleTheme={toggleTheme}
@@ -1197,6 +1281,7 @@ function AppLayout() {
           pathname={pathname}
           planActual={planActual}
           isDark={isDark}
+          unreadCount={unreadCount}
           onToggleTheme={toggleTheme}
           onClose={() => setMasAbierto(false)}
           onSelect={seleccionar}
