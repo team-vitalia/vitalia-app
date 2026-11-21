@@ -58,6 +58,7 @@ export default function AlmacenInicio() {
       )}
 
       <Tarjeta style={{ gap: 10 }}>
+        <Boton texto="Entrada por código de barras" onPress={() => router.push("/almacen/entrada-codigo")} />
         <Boton texto="Dispensar recetas" onPress={() => router.push("/almacen/dispensacion")} />
         <Boton texto="Analítica y predicción (IA)" variante="secundario" onPress={() => router.push("/almacen/analitica")} />
         <Boton texto="Registrar consumo de insumos" variante="secundario" onPress={() => router.push("/almacen/consumo")} />

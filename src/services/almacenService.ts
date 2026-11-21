@@ -414,3 +414,79 @@ export const verificarQR = async (codigo_qr: string) => {
   const res = await api.get(`/api/recetas/verificar-qr/${codigo_qr}`);
   return res.data;
 };
+
+/* ============================================================
+   Entrada de mercancía por código de barras
+============================================================ */
+export interface LoteResumen {
+  inventario_id: number;
+  numero_lote: string | null;
+  fecha_vencimiento: string | null;
+  stock_actual: number;
+  ubicacion: string | null;
+}
+
+export interface ProductoCodigoBarras {
+  medicamento_id: number;
+  nombre: string;
+  presentacion: string | null;
+  principio_activo: string | null;
+  codigo_barras: string | null;
+  tipo_articulo: TipoArticulo;
+  unidad_medida: string | null;
+  stock_actual: number;
+  stock_minimo: number;
+  /** Los medicamentos exigen lote y caducidad; insumos y equipo no. */
+  requiere_lote: boolean;
+  ubicacion_sugerida: string | null;
+  lotes_recientes: LoteResumen[];
+  /** Solo si el código era GS1 (DataMatrix) y traía lote y/o caducidad. */
+  datos_gs1: { numero_lote: string | null; fecha_vencimiento: string | null } | null;
+}
+
+export interface EntradaCodigoBarrasPayload {
+  codigoBarras: string;
+  cantidad: number;
+  numeroLote?: string;
+  fechaVencimiento?: string | null;
+  ubicacion?: string;
+}
+
+export interface EntradaCodigoBarras {
+  medicamento_id: number;
+  medicamento: string;
+  presentacion: string | null;
+  unidad_medida: string | null;
+  codigo_barras: string | null;
+  inventario_id: number;
+  numero_lote: string | null;
+  fecha_vencimiento: string | null;
+  cantidad_agregada: number;
+  stock_lote_anterior: number;
+  stock_lote_nuevo: number;
+  stock_total: number;
+  /** true = se creó un lote nuevo; false = se sumó a un lote existente. */
+  lote_nuevo: boolean;
+  movimiento_id: number | null;
+  mensaje: string;
+}
+
+/** Busca el producto por su código. Lanza 404 con un mensaje claro si el código no existe. */
+export const buscarPorCodigoBarras = async (
+  codigo: string,
+): Promise<ProductoCodigoBarras> =>
+  (await api.get("/api/almacen/codigo-barras", { params: { codigo } })).data;
+
+/** Suma al lote si coincide lote + caducidad; si no, crea un lote nuevo. Registra el movimiento de entrada. */
+export const registrarEntradaPorCodigoBarras = async (
+  p: EntradaCodigoBarrasPayload,
+): Promise<EntradaCodigoBarras> =>
+  (
+    await api.post("/api/almacen/entradas/codigo-barras", {
+      codigo_barras: p.codigoBarras,
+      cantidad: p.cantidad,
+      numero_lote: p.numeroLote?.trim() || null,
+      fecha_vencimiento: p.fechaVencimiento || null,
+      ubicacion: p.ubicacion?.trim() || null,
+    })
+  ).data;

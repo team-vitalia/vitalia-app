@@ -3,8 +3,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Stack, usePathname, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { ComponentProps, useEffect, useRef, useState } from "react";
-
-WebBrowser.maybeCompleteAuthSession();
 import {
   Animated,
   Easing,
@@ -21,14 +19,16 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+WebBrowser.maybeCompleteAuthSession();
+
+import { InstallPrompt } from "../components/InstallPrompt";
+import { ModalPlanSuscripcion } from "../components/ModalPlanSuscripcion";
+import { OfflineBanner } from "../components/OfflineBanner";
+import { CrownSvg, UpgradeModal } from "../components/UpgradeModal";
 import { AuthProvider, useAuth, type PlanActual } from "../context/AuthContext";
 import { CalendarProvider } from "../context/CalendarContext";
 import { NotificationsProvider, useNotifications } from "../context/NotificationsContext";
 import { ThemeProvider, useAppTheme } from "../context/ThemeContext";
-import { OfflineBanner } from "../components/OfflineBanner";
-import { InstallPrompt } from "../components/InstallPrompt";
-import { ModalPlanSuscripcion } from "../components/ModalPlanSuscripcion";
-import { UpgradeModal, CrownSvg } from "../components/UpgradeModal";
 import {
   BP_DESKTOP,
   BP_MOBILE,
@@ -82,6 +82,7 @@ const NAV: NavItem[] = [
   { key: "plan-suscripcion", label: "Plan y suscripción", short: "Suscripción", icon: "card-outline", iconActive: "card", ruta: "/admin/suscripcion", roles: [1], activo: (p) => p.includes("/admin/suscripcion") },
   { key: "contratos", label: "Contratos médicos", short: "Contratos", icon: "document-text-outline", iconActive: "document-text", ruta: "/admin/doctores", roles: [1], activo: (p) => p === "/admin/doctores" },
   { key: "inventario", label: "Almacén e inventario", short: "Inventario", icon: "cube-outline", iconActive: "cube", ruta: "/admin/inventario", roles: [1, 6], activo: (p) => p.includes("/admin/inventario") },
+  { key: "alm-entrada", label: "Entrada por código de barras", short: "Entrada", icon: "barcode-outline", iconActive: "barcode", ruta: "/almacen/entrada-codigo", roles: [6], activo: (p) => p.includes("/almacen/entrada-codigo") },
   { key: "alm-dispensacion", label: "Dispensación de recetas", short: "Dispensar", icon: "medkit-outline", iconActive: "medkit", ruta: "/almacen/dispensacion", roles: [6], activo: (p) => p.includes("/almacen/dispensacion") },
   { key: "alm-analitica", label: "Analítica y predicción", short: "Analítica", icon: "stats-chart-outline", iconActive: "stats-chart", ruta: "/almacen/analitica", roles: [6], activo: (p) => p.includes("/almacen/analitica") },
   { key: "alm-consumo", label: "Registrar consumo", short: "Consumo", icon: "remove-circle-outline", iconActive: "remove-circle", ruta: "/almacen/consumo", roles: [6], activo: (p) => p.includes("/almacen/consumo") },
