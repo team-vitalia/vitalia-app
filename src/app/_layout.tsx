@@ -81,7 +81,7 @@ const NAV: NavItem[] = [
   { key: "usuarios", label: "Gestionar usuarios", short: "Usuarios", icon: "people-outline", iconActive: "people", ruta: "/admin/usuarios", roles: [1, 5], activo: (p) => p.includes("/admin/usuarios") },
   { key: "plan-suscripcion", label: "Plan y suscripción", short: "Suscripción", icon: "card-outline", iconActive: "card", ruta: "/admin/suscripcion", roles: [1], activo: (p) => p.includes("/admin/suscripcion") },
   { key: "contratos", label: "Contratos médicos", short: "Contratos", icon: "document-text-outline", iconActive: "document-text", ruta: "/admin/doctores", roles: [1], activo: (p) => p === "/admin/doctores" },
-  { key: "inventario", label: "Almacén e inventario", short: "Inventario", icon: "cube-outline", iconActive: "cube", ruta: "/admin/inventario", roles: [1, 6], activo: (p) => p.includes("/admin/inventario") },
+  { key: "inventario", label: "Medicamentos", short: "Medicamentos", icon: "cube-outline", iconActive: "cube", ruta: "/admin/inventario", roles: [1, 6], activo: (p) => p.includes("/admin/inventario") },
   { key: "alm-entrada", label: "Entrada por código de barras", short: "Entrada", icon: "barcode-outline", iconActive: "barcode", ruta: "/almacen/entrada-codigo", roles: [6], activo: (p) => p.includes("/almacen/entrada-codigo") },
   { key: "alm-dispensacion", label: "Dispensación de recetas", short: "Dispensar", icon: "medkit-outline", iconActive: "medkit", ruta: "/almacen/dispensacion", roles: [6], activo: (p) => p.includes("/almacen/dispensacion") },
   { key: "alm-analitica", label: "Analítica y predicción", short: "Analítica", icon: "stats-chart-outline", iconActive: "stats-chart", ruta: "/almacen/analitica", roles: [6], activo: (p) => p.includes("/almacen/analitica") },

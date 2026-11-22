@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  ActivityIndicator,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -56,7 +55,7 @@ export function BotonAnalisisIA({
       >
         <View style={styles.contenido}>
           {cargando ? (
-            <ActivityIndicator size="small" color="#FFFFFF" style={styles.icono} />
+            <Ionicons name="hourglass-outline" size={17} color="#FFFFFF" style={styles.icono} />
           ) : (
             <Ionicons
               name={planPermitido ? "sparkles" : "lock-closed-outline"}
@@ -66,7 +65,7 @@ export function BotonAnalisisIA({
             />
           )}
 
-          <Text style={styles.textoBoton}>{texto}</Text>
+          <Text style={styles.textoBoton}>{cargando ? "Preparando análisis…" : texto}</Text>
 
           {!planPermitido && (
             <View style={styles.badgePro} testID="badge-pro">

@@ -53,7 +53,7 @@ type Acceso = {
 
 const ACCESOS: Acceso[] = [
   { id: "crear-usuario", icon: "person-add-outline", titulo: "Crear usuario", descripcion: "Alta de médicos y personal", ruta: "/admin/usuarios", color: "info" },
-  { id: "inventario", icon: "cube-outline", titulo: "Gestionar inventario", descripcion: "Existencias, lotes e insumos", ruta: "/admin/inventario", color: "warning" },
+  { id: "inventario", icon: "cube-outline", titulo: "Gestionar medicamentos", descripcion: "Catálogo, altas, Excel y PDF", ruta: "/admin/inventario", color: "warning" },
   { id: "contratos", icon: "document-text-outline", titulo: "Contratos médicos", descripcion: "Registro y consulta", ruta: "/admin/doctores", color: "primary" },
   { id: "salas", icon: "business-outline", titulo: "Salas y equipo", descripcion: "Estado y equipamiento", ruta: "/admin/salas", color: "success" },
   { id: "salas-doctor", icon: "calendar-outline", titulo: "Salas por doctor", descripcion: "Asignación y horarios", ruta: "/admin/doctores/salas", color: "info" },

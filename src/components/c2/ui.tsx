@@ -1,4 +1,5 @@
 import React, { ReactNode } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   ActivityIndicator,
   KeyboardTypeOptions,
@@ -152,8 +153,9 @@ export function PantallaC2({
 
   if (acceso.cargando || !acceso.hayUsuario) {
     return (
-      <View style={[s.centro, { backgroundColor: c.bg }]}>
-        <ActivityIndicator size="large" color={c.primary} />
+      <View style={[s.centro, { backgroundColor: c.bg, paddingHorizontal: 24, gap: 10 }]}>
+        <Ionicons name="shield-checkmark-outline" size={25} color={c.primary} />
+        <Text style={{ color: c.muted, fontSize: 13, textAlign: "center" }}>Verificando permisos y preparando esta sección…</Text>
       </View>
     );
   }
@@ -237,9 +239,38 @@ export function Vacio({ texto }: { texto: string }) {
   );
 }
 
-export function Cargando() {
+export function Cargando({ mensaje = "Consultando información operativa…" }: { mensaje?: string }) {
   const { c } = useC2Colors();
-  return <ActivityIndicator size="large" color={c.primary} style={{ marginVertical: 28 }} />;
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel={mensaje}
+      style={{ width: "100%", gap: 14, paddingVertical: 18 }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 9 }}>
+        <Ionicons name="pulse-outline" size={17} color={c.primary} />
+        <Text style={{ color: c.muted, fontSize: 13, fontWeight: "600", flexShrink: 1 }}>{mensaje}</Text>
+      </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+        {[0, 1, 2].map((item) => (
+          <View key={item} style={{
+            flexGrow: 1, flexBasis: 145, minWidth: 125, minHeight: 94,
+            padding: 14, borderRadius: 14, borderWidth: 1, borderColor: c.border,
+            backgroundColor: c.card, gap: 12,
+          }}>
+            <View style={{ width: "58%", height: 9, borderRadius: 5, backgroundColor: c.border, opacity: 0.9 }} />
+            <View style={{ width: "42%", height: 22, borderRadius: 6, backgroundColor: c.border, opacity: 0.72 }} />
+            <View style={{ width: "76%", height: 7, borderRadius: 5, backgroundColor: c.border, opacity: 0.55 }} />
+          </View>
+        ))}
+      </View>
+      <View style={{ gap: 9 }}>
+        {[0, 1].map((item) => (
+          <View key={item} style={{ height: 42, borderRadius: 10, backgroundColor: c.border, opacity: 0.48 }} />
+        ))}
+      </View>
+    </View>
+  );
 }
 
 export function Tarjeta({ children, style }: { children: ReactNode; style?: object }) {
@@ -426,7 +457,7 @@ export function ModalBase({
           <View style={s.modalCabecera}>
             <Text style={[s.modalTitulo, { color: c.text }]}>{titulo}</Text>
             <Pressable onPress={onClose} style={[s.modalCerrar, { backgroundColor: isDark ? "#2D3748" : "#F1F8F6" }]}>
-              <Text style={[s.modalCerrarTexto, { color: c.muted }]}>✕</Text>
+              <Ionicons name="close" size={18} color={c.muted} />
             </Pressable>
           </View>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>

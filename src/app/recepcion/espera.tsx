@@ -114,7 +114,7 @@ export default function EsperaCitas() {
       <Boton texto="Agregar paciente a la lista" onPress={() => { setErrorModal(""); setModal("agregar"); }} />
 
       {cargando && lista.length === 0 ? (
-        <Cargando />
+        <Cargando mensaje="Actualizando citas pendientes y disponibilidad de atención…" />
       ) : lista.length === 0 ? (
         <Vacio texto="No hay pacientes en espera." />
       ) : (

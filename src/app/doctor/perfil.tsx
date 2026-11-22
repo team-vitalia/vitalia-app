@@ -72,7 +72,7 @@ function AlertaPersonalizada({
                 tipo === "error" && styles.alertaIconoTextoError,
               ]}
             >
-              {tipo === "exito" ? "✓" : "!"}
+              {tipo === "exito" ? "Operación correcta" : "Atención"}
             </Text>
           </View>
 
@@ -533,7 +533,7 @@ const [codigoEspecialidad, setCodigoEspecialidad] = useState("");
                         ]}
                         >
                         {activa && (
-                            <Text style={styles.checkmark}>✓</Text>
+                            <Text style={styles.checkmark}>Verificado</Text>
                         )}
                         </View>
 

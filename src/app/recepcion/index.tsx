@@ -43,6 +43,10 @@ export default function RecepcionScreen() {
   const c = useTheme();
   const { width } = useWindowDimensions();
 
+  // 🔑 Huella del tema: si cambia el fondo/modo, forzamos re-mount del árbol
+  const modoTema = c.bg; // cambia con claro/oscuro
+  const [temaKey, setTemaKey] = useState(0);
+
   const { pad, esc, cols } = useMemo(() => {
     const esc = width < 560 ? 1 : width < 900 ? 1.06 : 1.12;
     const pad = width < 400 ? 14 : width < 560 ? 18 : width < 1024 ? 26 : 34;
@@ -50,16 +54,33 @@ export default function RecepcionScreen() {
     return { pad, esc, cols };
   }, [width]);
 
+  // Animación de entrada (se re-lanza cuando cambia el tema)
   const fade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(fade, { toValue: 1, duration: 420, easing: Easing.out(Easing.quad), useNativeDriver: ND }).start();
-  }, []);
+    fade.setValue(0);
+    Animated.timing(fade, {
+      toValue: 1,
+      duration: 420,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: ND,
+    }).start();
+  }, [temaKey, fade]);
 
+  // Reinicia pager/scrollX cuando cambia el tema para evitar "saltos" de color
   const [pager, setPager] = useState({ w: 0, h: 0 });
   const [tab, setTab] = useState(0);
   const tabRef = useRef(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const pagerRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Al cambiar tema, reseteamos la pestaña y el scroll
+    tabRef.current = 0;
+    setTab(0);
+    scrollX.setValue(0);
+    setPager({ w: 0, h: 0 });
+    setTemaKey((k) => k + 1);
+  }, [modoTema]);
 
   const irATab = (i: number) => {
     tabRef.current = i;
@@ -84,7 +105,8 @@ export default function RecepcionScreen() {
   );
 
   useEffect(() => {
-    if (pager.w) pagerRef.current?.scrollTo({ x: tabRef.current * pager.w, animated: false });
+    if (pager.w)
+      pagerRef.current?.scrollTo({ x: tabRef.current * pager.w, animated: false });
   }, [pager.w]);
 
   /* ---------- Métricas (intacto) ---------- */
@@ -114,7 +136,9 @@ export default function RecepcionScreen() {
       ]);
       const hoyStr = obtenerFechaHoy();
       const citasHoy = resCitas.data.filter((c) => c.fecha === hoyStr);
-      const enEspera = listaColas.filter((col) => col.estado === "esperando" || col.estado === "llamado");
+      const enEspera = listaColas.filter(
+        (col) => col.estado === "esperando" || col.estado === "llamado"
+      );
       setTotalCitasHoy(citasHoy.length);
       setTotalEnEspera(enEspera.length);
     } catch {
@@ -131,10 +155,29 @@ export default function RecepcionScreen() {
 
   if (!cargandoAuth && rolId !== 4) {
     return (
-      <View style={{ flex: 1, backgroundColor: c.bg, justifyContent: "center", alignItems: "center", padding: 24 }}>
+      <View
+        key={`restricted-${modoTema}`}
+        style={{
+          flex: 1,
+          backgroundColor: c.bg,
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 24,
+        }}
+      >
         <FondoLuces c={c} />
         <Glass c={c} radius={22} style={{ width: "100%", maxWidth: 480, padding: 32, alignItems: "center" }}>
-          <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: c.errorBg, justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
+          <View
+            style={{
+              width: 68,
+              height: 68,
+              borderRadius: 34,
+              backgroundColor: c.errorBg,
+              justifyContent: "center",
+              alignItems: "center",
+              marginBottom: 20,
+            }}
+          >
             <Ionicons name="lock-closed" size={32} color={c.error} />
           </View>
           <Text style={{ fontSize: 22, fontWeight: "900", color: c.text, marginBottom: 10, textAlign: "center" }}>
@@ -150,10 +193,19 @@ export default function RecepcionScreen() {
               else if (rolId === 3) router.replace("/paciente");
               else router.replace("/login");
             }}
-            style={{ flexDirection: "row", alignItems: "center", backgroundColor: c.primary, paddingVertical: 13, paddingHorizontal: 22, borderRadius: 14 }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: c.primary,
+              paddingVertical: 13,
+              paddingHorizontal: 22,
+              borderRadius: 14,
+            }}
           >
             <Ionicons name="arrow-back" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "800" }}>Volver a mi Panel Principal</Text>
+            <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "800" }}>
+              Volver a mi Panel Principal
+            </Text>
           </Pressable>
         </Glass>
       </View>
@@ -181,8 +233,10 @@ export default function RecepcionScreen() {
     { icon: "checkmark-circle-outline" as const, color: c.primary, titulo: "Historial de Atenciones", desc: "Visualiza las consultas concluidas y pacientes atendidos el día de hoy.", onPress: () => router.push("/recepcion/cola/atendidas") },
   ];
 
+  // 🔑 key en el contenedor raíz: al cambiar el tema, TODO se re-monta
+  //    y así Animated.View, ScrollView, FondoLuces, etc. toman los colores nuevos.
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View key={`recepcion-${modoTema}-${temaKey}`} style={{ flex: 1, backgroundColor: c.bg }}>
       <FondoLuces c={c} />
       <Animated.View style={{ flex: 1, opacity: fade }}>
         <View style={{ paddingHorizontal: pad, paddingTop: 14, alignItems: "center" }}>

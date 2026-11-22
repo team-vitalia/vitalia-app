@@ -73,7 +73,7 @@ export default function Caducidades() {
       {!!exito && <Aviso tipo="ok" texto={exito} />}
 
       {cargando && lotes.length === 0 ? (
-        <Cargando />
+        <Cargando mensaje="Revisando lotes y fechas de caducidad…" />
       ) : lotes.length === 0 ? (
         <Vacio texto="No hay lotes vencidos ni por vencer en este periodo." />
       ) : (

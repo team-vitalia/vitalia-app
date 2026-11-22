@@ -13,7 +13,7 @@ export type Cola = {
   numero_consultorio: string | null;
 };
 
-// 📤 Registrar la llegada de un paciente (crea la cola)
+//  Registrar la llegada de un paciente (crea la cola)
 export async function registrarLlegada(
   citaId: number,
   token: string,
@@ -27,7 +27,7 @@ export async function registrarLlegada(
   return respuesta.data;
 }
 
-// 📥 Listar TODAS las colas del día (en_espera, llamado y atendido)
+//  Listar TODAS las colas del día (en_espera, llamado y atendido)
 // El backend devuelve todas; aquí las usamos para saber qué citas ya tienen turno.
 export async function listarColas(token: string): Promise<Cola[]> {
   const respuesta = await api.get<Cola[]>("/api/colas/", {
@@ -36,19 +36,19 @@ export async function listarColas(token: string): Promise<Cola[]> {
   return respuesta.data;
 }
 
-// 📥 Listar SOLO las colas activas (en_espera y llamado) — para la vista de lista de espera
+//  Listar SOLO las colas activas (en_espera y llamado) — para la vista de lista de espera
 export async function listarColasActivas(token: string): Promise<Cola[]> {
   const respuesta = await api.get<Cola[]>("/api/colas/", {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  // 🔹 Filtrar en el frontend: solo en_espera y llamado
+  //  Filtrar en el frontend: solo en_espera y llamado
   return respuesta.data.filter(
     (cola) => cola.estado === "en_espera" || cola.estado === "llamado"
   );
 }
 
-// 📥 Listar solo las colas atendidas
+//  Listar solo las colas atendidas
 export async function listarAtendidas(token: string): Promise<Cola[]> {
   const respuesta = await api.get<Cola[]>("/api/colas/atendidas", {
     headers: { Authorization: `Bearer ${token}` },
@@ -56,7 +56,7 @@ export async function listarAtendidas(token: string): Promise<Cola[]> {
   return respuesta.data;
 }
 
-// ✏️ Actualizar el estado de una cola
+// ️ Actualizar el estado de una cola
 export async function actualizarCola(
   colaId: number,
   token: string,

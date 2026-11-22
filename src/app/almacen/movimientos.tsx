@@ -121,7 +121,7 @@ export default function Movimientos() {
 
       <Text style={[s.titulo, { marginTop: 8 }]}>Últimos movimientos</Text>
       {cargando && historial.length === 0 ? (
-        <Cargando />
+        <Cargando mensaje="Cargando movimientos y trazabilidad del inventario…" />
       ) : historial.length === 0 ? (
         <Vacio texto="Aún no hay movimientos registrados." />
       ) : (

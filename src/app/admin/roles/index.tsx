@@ -372,7 +372,7 @@ export default function RolesScreen() {
                         <View style={styles.editModalHeader}>
                             <View style={styles.editModalIcon}>
                                 <Text style={styles.editModalIconText}>
-                                    ✎
+                                    Editar
                                 </Text>
                             </View>
 
@@ -537,7 +537,7 @@ export default function RolesScreen() {
                                     },
                                 ]}
                             >
-                                {alerta.tipo === "exito" ? "✓" : "!"}
+                                {alerta.tipo === "exito" ? "Operación correcta" : "Atención"}
                             </Text>
                         </View>
 

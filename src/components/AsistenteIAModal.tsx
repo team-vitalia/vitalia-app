@@ -159,7 +159,7 @@ export const AsistenteIAModal: React.FC<AsistenteIAModalProps> = ({
             {/* Estado de Carga */}
             {cargando && (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#247F76" />
+                <FontAwesome name="heartbeat" size={22} color="#247F76" />
                 <Text style={styles.loadingTitle}>Procesando análisis clínico...</Text>
                 <Text style={styles.loadingSubtitle}>
                   Validando síntomas y cruzando contraindicaciones con el historial de alergias.

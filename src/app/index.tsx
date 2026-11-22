@@ -1,5 +1,6 @@
 import { Redirect } from "expo-router";
-import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 
 export default function Index() {
@@ -15,7 +16,10 @@ export default function Index() {
         />
         <Text style={styles.title}>VITALIA</Text>
         <Text style={styles.subtitle}>Gestión clínica inteligente</Text>
-        <ActivityIndicator size="large" color="#22D3EE" style={styles.spinner} />
+        <View style={styles.statusRow}>
+          <Ionicons name="shield-checkmark-outline" size={17} color="#22D3EE" />
+          <Text style={styles.statusText}>Verificando tu sesión y preparando tu espacio de trabajo…</Text>
+        </View>
       </View>
     );
   }
@@ -62,7 +66,19 @@ const styles = StyleSheet.create({
     color: "#8FA3BF",
     marginTop: 4,
   },
-  spinner: {
+  statusRow: {
     marginTop: 24,
+    maxWidth: 280,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+  },
+  statusText: {
+    color: "#8FA3BF",
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: "left",
+    flexShrink: 1,
   },
 });

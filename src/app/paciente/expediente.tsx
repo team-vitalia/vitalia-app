@@ -22,7 +22,7 @@ export default function MiExpediente() {
   return (
     <PantallaC2 titulo="Mi expediente" subtitulo="Información clínica disponible para ti" roles={[3]}>
       {!!error && <Aviso tipo="error" texto={error} />}
-      {!exp && !error ? <Cargando /> : exp && <ExpedienteVista exp={exp} />}
+      {!exp && !error ? <Cargando mensaje="Consultando tu expediente y la información clínica disponible…" /> : exp && <ExpedienteVista exp={exp} />}
     </PantallaC2>
   );
 }

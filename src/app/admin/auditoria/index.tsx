@@ -220,7 +220,7 @@ export default function AuditoriaScreen() {
       {!!error && <Aviso tipo="error" texto={error} />}
 
       {cargando ? (
-        <Cargando />
+        <Cargando mensaje="Consultando el registro de actividad del sistema…" />
       ) : registros.length === 0 ? (
         <Vacio texto="No hay actividad con estos filtros. Prueba ampliando las fechas." />
       ) : (

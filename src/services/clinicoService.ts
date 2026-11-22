@@ -137,7 +137,7 @@ export interface Expediente {
     notas?: string | null;
   }[];
 
-  // 👇 ESTA ES LA PARTE QUE CAMBIÓ: Ahora usa "items" con detalle completo 👇
+  //  ESTA ES LA PARTE QUE CAMBIÓ: Ahora usa "items" con detalle completo 
   recetas: {
     id_PK: number;
     estado: string | null;

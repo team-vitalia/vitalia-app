@@ -26,7 +26,7 @@ interface Medicamento {
   nombre: string;
   presentacion: string | null;
   requiere_receta: boolean | null;
-  stock_actual: number; // 👈 Agregado para CU-32
+  stock_actual: number; // Agregado para CU-32
 }
 
 interface ItemReceta {
@@ -359,7 +359,7 @@ export default function RecetaScreen() {
                 style={styles.resultItem}
                 onPress={() => setMedicamentoSeleccionado(med)}
               >
-                {/* 👇 MODIFICADO PARA MOSTRAR EL STOCK (CU-32) 👇 */}
+                {/*  MODIFICADO PARA MOSTRAR EL STOCK (CU-32)  */}
                 <View
                   style={{
                     flexDirection: "row",
@@ -379,7 +379,7 @@ export default function RecetaScreen() {
                     Stock: {med.stock_actual}
                   </Text>
                 </View>
-                {/* 👆 FIN MODIFICACIÓN 👆 */}
+                {/*  FIN MODIFICACIÓN  */}
               </Pressable>
             ))}
           </View>
@@ -505,7 +505,7 @@ export default function RecetaScreen() {
           }}
         >
           <Text style={{ fontWeight: "800", color: "#B03A3A" }}>
-            ⚠ Interacciones detectadas
+            Interacciones detectadas
           </Text>
           {interacciones.map((i, n) => (
             <Text key={n} style={{ fontSize: 13, color: "#7A2E2E" }}>
@@ -554,14 +554,14 @@ export default function RecetaScreen() {
           ]}
         >
           <Text style={styles.cardTitle}>
-            ✓ Receta #{resultado.id_PK} guardada
+            Receta #{resultado.id_PK} guardada
           </Text>
           {resultado.alertas_alergias.map((a, n) => (
             <Text
               key={n}
               style={{ fontSize: 13, color: "#B7791F", fontWeight: "700" }}
             >
-              ⚠ {a.mensaje}
+              {a.mensaje}
             </Text>
           ))}
           {resultado.advertencias_interacciones.length > 0 && (

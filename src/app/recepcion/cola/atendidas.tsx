@@ -114,7 +114,7 @@ export default function AtendidasScreen() {
         </View>
       ) : colas.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>✓</Text>
+          <Text style={styles.emptyIcon}>Sin pendientes</Text>
           <Text style={styles.emptyTitle}>
             Aún no hay citas atendidas
           </Text>
@@ -134,7 +134,7 @@ export default function AtendidasScreen() {
               </View>
 
               <View style={styles.statusAtendido}>
-                <Text style={styles.statusAtendidoText}>✓ ATENDIDO</Text>
+                <Text style={styles.statusAtendidoText}>ATENDIDO</Text>
               </View>
             </View>
 

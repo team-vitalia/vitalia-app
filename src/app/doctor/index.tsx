@@ -624,7 +624,7 @@ export default function DoctorScreen() {
                   fontSize: 14,
                 }}
               >
-                Cerrar ✕
+                Cerrar
               </Text>
             </Pressable>
           </View>
@@ -638,10 +638,14 @@ export default function DoctorScreen() {
                 padding: 24,
               }}
             >
-              <ActivityIndicator size="large" color={c.primary} />
-              <Text style={{ marginTop: 14, color: c.muted, fontSize: 15 }}>
-                Cargando contratos...
+              <Ionicons name="document-text-outline" size={22} color={c.primary} />
+              <Text style={{ marginTop: 10, color: c.muted, fontSize: 13, textAlign: "center" }}>
+                Consultando contratos y documentos disponibles…
               </Text>
+              <View style={{ width: "100%", maxWidth: 360, gap: 8, marginTop: 14 }}>
+                <View style={{ height: 12, width: "72%", borderRadius: 6, backgroundColor: c.border }} />
+                <View style={{ height: 42, width: "100%", borderRadius: 10, backgroundColor: c.border, opacity: 0.65 }} />
+              </View>
             </View>
           ) : errorContrato ? (
             <View

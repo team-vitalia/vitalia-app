@@ -132,7 +132,7 @@ export default function AsignarSalasScreen() {
   return (
     <PantallaC2 titulo="Salas por doctor" subtitulo="Asigna a cada médico las salas que usará y su horario de uso.">
       {cargando ? (
-        <Cargando />
+        <Cargando mensaje="Consultando asignaciones de médicos, salas y horarios…" />
       ) : (
         <>
           <Text style={s.label}>1. Elige al doctor</Text>

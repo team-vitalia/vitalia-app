@@ -116,7 +116,7 @@ export default function EvaluarInteraccionesScreen() {
             style={styles.chip}
             onPress={() => toggleSeleccion(med)}
           >
-            <Text style={styles.chipText}>{med.nombre} ✕</Text>
+            <Text style={styles.chipText}>{med.nombre}</Text>
           </Pressable>
         ))}
       </View>

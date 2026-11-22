@@ -60,9 +60,9 @@ export default function ExpedienteVista({
           </View>
         </View>
         <Text style={s.sub}>
-          🩸 Tipo de sangre: {d.tipo_sangre ?? "no registrado"}
+          Tipo de sangre: {d.tipo_sangre ?? "no registrado"}
           {d.nombre_contacto_emergencia
-            ? ` · 🚨 Emergencia: ${d.nombre_contacto_emergencia} ${d.telefono_contacto_emergencia ?? ""}`
+            ? ` · Contacto de emergencia: ${d.nombre_contacto_emergencia} ${d.telefono_contacto_emergencia ?? ""}`
             : ""}
         </Text>
       </Tarjeta>
@@ -123,7 +123,7 @@ export default function ExpedienteVista({
                 <Text style={s.sub}>{a.descripcion}</Text>
               )}
               {!!a.tratamiento && (
-                <Text style={s.sub}>💊 Tratamiento: {a.tratamiento}</Text>
+                <Text style={s.sub}>Tratamiento: {a.tratamiento}</Text>
               )}
               <Text style={s.meta}>
                 {[
@@ -159,9 +159,9 @@ export default function ExpedienteVista({
                 {c.codigo_cie10 ? ` (${c.codigo_cie10})` : ""}
               </Text>
               {!!c.tratamiento && (
-                <Text style={s.sub}>🩺 Tratamiento: {c.tratamiento}</Text>
+                <Text style={s.sub}>Tratamiento: {c.tratamiento}</Text>
               )}
-              {!!c.notas && <Text style={s.sub}>📝 Notas: {c.notas}</Text>}
+              {!!c.notas && <Text style={s.sub}>Notas: {c.notas}</Text>}
               <Text style={s.meta}>
                 {fechaHora(c.fecha_visita)} · Dr. {c.doctor ?? "—"}
               </Text>
@@ -181,7 +181,7 @@ export default function ExpedienteVista({
               style={[s.bloque, s.blockBorder, { borderLeftColor: "#10B981" }]}
             >
               <View style={s.fila}>
-                <Text style={[s.item, { flex: 1 }]}>💊 Receta #{r.id_PK}</Text>
+                <Text style={[s.item, { flex: 1 }]}>Receta #{r.id_PK}</Text>
                 <Etiqueta
                   texto={etiquetaEstado(r.estado)}
                   tono={
@@ -194,12 +194,12 @@ export default function ExpedienteVista({
                 />
               </View>
 
-              {/* 👇 MEDICAMENTOS CON DETALLE 👇 */}
+              {/*  MEDICAMENTOS CON DETALLE  */}
               {r.items && r.items.length > 0 ? (
                 r.items.map((it) => (
                   <View key={it.id_PK} style={s.medItem}>
                     <Text style={s.medItemTitle}>
-                      💊 {it.medicamento ?? "Medicamento"}{" "}
+                      {it.medicamento ?? "Medicamento"}{" "}
                       {it.presentacion ? `(${it.presentacion})` : ""}
                     </Text>
                     {!!it.dosis && (
@@ -242,7 +242,7 @@ export default function ExpedienteVista({
                 {fechaHora(r.creado_en)} · Dr. {r.doctor ?? "—"}
               </Text>
 
-              {/* 👇 BOTÓN VER / DESCARGAR PDF 👇 */}
+              {/*  BOTÓN VER / DESCARGAR PDF  */}
               <Pressable
                 style={s.pdfButton}
                 onPress={() =>
@@ -314,7 +314,7 @@ export default function ExpedienteVista({
               style={[s.bloque, s.blockBorder, { borderLeftColor: "#F97316" }]}
             >
               <Text style={s.item}>
-                🔄 Dr. {t.de ?? "—"} → Dr. {t.a ?? "—"}
+                Cambio de médico: Dr. {t.de ?? "—"} → Dr. {t.a ?? "—"}
               </Text>
               {!!t.motivo && <Text style={s.sub}>{t.motivo}</Text>}
               <Text style={s.meta}>{fechaHora(t.creado_en)}</Text>
@@ -395,7 +395,7 @@ const createStyles = (c: Theme) => {
     alignItems: "center",
     justifyContent: "center",
   },
-  // 👇 NUEVOS ESTILOS PARA LOS MEDICAMENTOS 👇
+  //  NUEVOS ESTILOS PARA LOS MEDICAMENTOS 
   medItem: {
     backgroundColor: isDark ? "#1E2631" : "#F9FBFA",
     borderRadius: 8,
@@ -419,7 +419,7 @@ const createStyles = (c: Theme) => {
     fontWeight: "800",
     color: c.text,
   },
-  // 👇 ESTILOS DEL BOTÓN PDF 👇
+  //  ESTILOS DEL BOTÓN PDF 
   pdfButton: {
     flexDirection: "row",
     alignItems: "center",

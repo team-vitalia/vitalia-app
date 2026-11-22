@@ -40,7 +40,7 @@ export default function ListaEsperaScreen() {
       setCargando(true);
       setError("");
 
-      // 🔹 Solo colas activas (en_espera o llamado)
+      //  Solo colas activas (en_espera o llamado)
       const data = await listarColasActivas(token);
       setColas(data);
     } catch (err: any) {
@@ -140,7 +140,7 @@ export default function ListaEsperaScreen() {
             onPress={() => router.push("/recepcion/cola/atendidas")}
           >
             <Text style={styles.historyButtonText}>
-              ✓ Ver Citas atendidas
+              Ver citas atendidas
             </Text>
           </Pressable>
 
@@ -149,7 +149,7 @@ export default function ListaEsperaScreen() {
             onPress={() => router.push("/recepcion/citas")}
           >
             <Text style={styles.historyButtonText}>
-              ✓ Ver Citas
+              Ver citas
             </Text>
           </Pressable>
 

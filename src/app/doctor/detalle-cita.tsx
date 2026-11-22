@@ -61,7 +61,7 @@ export default function DetalleCitaScreen() {
   const [busqueda, setBusqueda] = useState("");
   const [cargandoDoctores, setCargandoDoctores] = useState(false);
 
-  // 👇 ESTADOS PARA EL CU-30 (Alergias) 👇
+  //  ESTADOS PARA EL CU-30 (Alergias) 
   const [modalAlergiaVisible, setModalAlergiaVisible] = useState(false);
   const [nuevaAlergia, setNuevaAlergia] = useState("");
   const [severidadAlergia, setSeveridadAlergia] = useState("leve");
@@ -169,7 +169,7 @@ export default function DetalleCitaScreen() {
     }
   };
 
-  // 👇 FUNCIÓN PARA GUARDAR LA ALERGIA (CU-30) 👇
+  //  FUNCIÓN PARA GUARDAR LA ALERGIA (CU-30) 
   const guardarAlergia = async () => {
     if (!nuevaAlergia.trim()) {
       alert("Escribe el nombre de la alergia");
@@ -307,7 +307,7 @@ export default function DetalleCitaScreen() {
                   color="#D65A5A"
                 />
                 <Text style={styles.alergiasTitle}>Alergias Registradas</Text>
-                {/* 👇 BOTÓN PARA AGREGAR ALERGIA (CU-30) 👇 */}
+                {/*  BOTÓN PARA AGREGAR ALERGIA (CU-30)  */}
                 <Pressable
                   onPress={() => setModalAlergiaVisible(true)}
                   style={{ marginLeft: "auto" }}
@@ -499,7 +499,7 @@ export default function DetalleCitaScreen() {
             </Pressable>
           )}
 
-          {/* 👇 BOTÓN REGISTRAR CONSULTA / EXPEDIENTE 👇 */}
+          {/*  BOTÓN REGISTRAR CONSULTA / EXPEDIENTE  */}
           {cita.paciente && (
             <>
               <Pressable
@@ -526,7 +526,7 @@ export default function DetalleCitaScreen() {
             </>
           )}
 
-          {/* 👇 BOTÓN DE RECETA 👇 */}
+          {/*  BOTÓN DE RECETA  */}
           {cita.paciente && (
             <Pressable
               style={[
@@ -552,7 +552,7 @@ export default function DetalleCitaScreen() {
               <Text style={styles.actionButtonText}>Crear Receta Médica</Text>
             </Pressable>
           )}
-          {/* 👆 FIN DEL BOTÓN DE RECETA 👆 */}
+          {/*  FIN DEL BOTÓN DE RECETA  */}
 
           <Modal
             visible={modalVisible}
@@ -628,7 +628,7 @@ export default function DetalleCitaScreen() {
             </View>
           </Modal>
 
-          {/* 👇 MODAL ASISTENTE CLÍNICO IA 👇 */}
+          {/*  MODAL ASISTENTE CLÍNICO IA  */}
           <AsistenteIAModal
             visible={modalIAVisible}
             onClose={() => setModalIAVisible(false)}
@@ -661,7 +661,7 @@ export default function DetalleCitaScreen() {
             onClose={() => setModalMejoraVisible(false)}
           />
 
-          {/* 👇 MODAL PARA AGREGAR ALERGIA (CU-30) 👇 */}
+          {/*  MODAL PARA AGREGAR ALERGIA (CU-30)  */}
           <Modal visible={modalAlergiaVisible} transparent animationType="fade">
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
@@ -745,7 +745,7 @@ export default function DetalleCitaScreen() {
               </View>
             </View>
           </Modal>
-          {/* 👆 FIN DEL MODAL DE ALERGIA 👆 */}
+          {/*  FIN DEL MODAL DE ALERGIA  */}
         </>
       ) : null}
     </ScrollView>

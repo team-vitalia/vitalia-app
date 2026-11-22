@@ -22,7 +22,7 @@ export default function MisRecetas() {
     <PantallaC2 titulo="Mis recetas" subtitulo="Medicamentos indicados por tu médico" roles={[3]}>
       {!!error && <Aviso tipo="error" texto={error} />}
       {recetas === null && !error ? (
-        <Cargando />
+        <Cargando mensaje="Consultando tus recetas y su estado de dispensación…" />
       ) : recetas && recetas.length === 0 ? (
         <Vacio texto="Aún no tienes recetas." />
       ) : (

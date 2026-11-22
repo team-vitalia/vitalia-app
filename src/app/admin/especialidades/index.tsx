@@ -401,7 +401,7 @@ export default function EspecialidadesScreen() {
                             <View style={styles.tarjetaEncabezado}>
                                 <View style={styles.iconoEspecialidad}>
                                     <Text style={styles.iconoEspecialidadTexto}>
-                                        ✚
+                                        Agregar
                                     </Text>
                                 </View>
 
@@ -439,7 +439,7 @@ export default function EspecialidadesScreen() {
                                     activeOpacity={0.7}
                                 >
                                     <Text style={styles.botonEditarTexto}>
-                                        ✎  Editar
+                                        Editar
                                     </Text>
                                 </TouchableOpacity>
 
@@ -671,7 +671,7 @@ export default function EspecialidadesScreen() {
                                     },
                                 ]}
                             >
-                                {alerta.tipo === "exito" ? "✓" : "!"}
+                                {alerta.tipo === "exito" ? "Operación correcta" : "Atención"}
                             </Text>
                         </View>
 

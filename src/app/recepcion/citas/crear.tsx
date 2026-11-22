@@ -569,7 +569,7 @@ export default function CrearCita() {
             <>
               <Pressable style={ex.toggle} onPress={() => setRequiereEquipo((v) => !v)}>
                 <View style={[ex.check, requiereEquipo && ex.checkActivo]}>
-                  {requiereEquipo && <Text style={ex.checkMark}>✓</Text>}
+                  {requiereEquipo && <Text style={ex.checkMark}>Equipo requerido</Text>}
                 </View>
                 <Text style={styles.etiqueta}>La cita requiere tomar equipo de la sala</Text>
               </Pressable>

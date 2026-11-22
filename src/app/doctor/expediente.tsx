@@ -173,7 +173,7 @@ export default function ExpedienteDoctor() {
       {!!error && <Aviso tipo="error" texto={error} />}
       {!!exito && <Aviso tipo="ok" texto={exito} />}
       {!exp && !error ? (
-        <Cargando />
+        <Cargando mensaje="Consultando el expediente clínico y sus antecedentes…" />
       ) : (
         exp && (
           <>

@@ -154,7 +154,7 @@ export default function Dispensacion() {
       {!!exito && <Aviso tipo="ok" texto={exito} />}
 
       {cargando && recetas.length === 0 ? (
-        <Cargando />
+        <Cargando mensaje="Consultando recetas pendientes y disponibilidad de medicamentos…" />
       ) : recetas.length === 0 ? (
         <Vacio texto="No hay recetas pendientes de dispensar." />
       ) : (

@@ -385,7 +385,7 @@ export default function SalasScreen() {
       </Tarjeta>
 
       {cargando ? (
-        <Cargando />
+        <Cargando mensaje="Actualizando salas, equipamiento y disponibilidad…" />
       ) : salas.length === 0 ? (
         <Vacio texto="No hay salas que coincidan con los filtros." />
       ) : (
@@ -509,7 +509,7 @@ export default function SalasScreen() {
         {!!errorEquipo && <Aviso tipo="error" texto={errorEquipo} />}
 
         {cargandoEquipos ? (
-          <Cargando />
+          <Cargando mensaje="Actualizando salas, equipamiento y disponibilidad…" />
         ) : equipos.length === 0 ? (
           <Vacio texto="Esta sala aún no tiene equipos registrados." />
         ) : (

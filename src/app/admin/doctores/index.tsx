@@ -798,7 +798,7 @@ export default function ContratosScreen() {
                       onPress={() => setBusqueda("")}
                       style={styles.limpiarBusqueda}
                     >
-                      <Text style={styles.limpiarBusquedaTexto}>✕</Text>
+                      <Text style={styles.limpiarBusquedaTexto}>Limpiar</Text>
                     </Pressable>
                   )}
                 </View>
@@ -1212,7 +1212,7 @@ export default function ContratosScreen() {
               ]}
             >
               <Text style={styles.iconoAlertaTexto}>
-                {alerta.exito ? "✓" : "!"}
+                {alerta.exito ? "Operación correcta" : "Atención"}
               </Text>
             </View>
 

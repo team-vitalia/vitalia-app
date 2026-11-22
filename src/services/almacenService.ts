@@ -67,6 +67,83 @@ export const registrarMedicamento = async (
   }
 };
 
+/* ============================================================
+   Catálogo de medicamentos: CRUD, Excel y PDF
+   (estas funciones LANZAN el error para que la pantalla muestre el mensaje)
+============================================================ */
+const payloadMedicamento = (m: Partial<MedicamentoCreate>) => ({
+  nombre: (m.nombre ?? "").trim(),
+  principio_activo: m.principio_activo?.trim() || null,
+  presentacion: m.presentacion?.trim() || null,
+  requiere_receta: m.requiere_receta ?? false,
+  descripcion: m.descripcion?.trim() || null,
+  codigo_barras: m.codigo_barras?.trim() || null,
+  categoria: m.categoria?.trim() || null,
+  tipo_articulo: m.tipo_articulo ?? "medicamento",
+  unidad_medida: m.unidad_medida?.trim() || null,
+  stock_minimo: m.stock_minimo ?? 0,
+});
+
+/** Catálogo completo (hasta 5000) con búsqueda y tipo opcionales. */
+export const getCatalogoMedicamentos = async (
+  q?: string,
+  tipo?: TipoArticulo,
+): Promise<Medicamento[]> => {
+  const res = await api.get("/api/medicamentos/", {
+    params: { q: q?.trim() || undefined, tipo, limite: 5000 },
+  });
+  return Array.isArray(res?.data) ? res.data : [];
+};
+
+export const crearMedicamento = async (m: MedicamentoCreate): Promise<Medicamento> =>
+  (await api.post("/api/medicamentos/", payloadMedicamento(m))).data;
+
+export const actualizarMedicamento = async (
+  id: number,
+  m: MedicamentoCreate,
+): Promise<Medicamento> =>
+  (await api.put(`/api/medicamentos/${id}`, payloadMedicamento(m))).data;
+
+/** El backend responde 409 si el medicamento tiene lotes o aparece en recetas. */
+export const eliminarMedicamento = async (id: number): Promise<void> => {
+  await api.delete(`/api/medicamentos/${id}`);
+};
+
+export interface FiltroCatalogo {
+  q?: string;
+  tipo?: TipoArticulo;
+}
+
+export const exportarMedicamentos = async (
+  formato: "excel" | "pdf",
+  filtro: FiltroCatalogo = {},
+): Promise<ArrayBuffer> =>
+  (
+    await api.get(`/api/medicamentos/exportar/${formato}`, {
+      params: { q: filtro.q?.trim() || undefined, tipo: filtro.tipo },
+      responseType: "arraybuffer",
+    })
+  ).data;
+
+export const descargarPlantillaMedicamentos = async (): Promise<ArrayBuffer> =>
+  (await api.get("/api/medicamentos/plantilla/excel", { responseType: "arraybuffer" })).data;
+
+export type ModoImportacion = "omitir" | "actualizar";
+
+export interface ResultadoImportacion {
+  total_filas: number;
+  creados: number;
+  actualizados: number;
+  omitidos: number;
+  errores: { fila: number; mensaje: string }[];
+}
+
+export const importarMedicamentos = async (
+  archivoBase64: string,
+  modo: ModoImportacion,
+): Promise<ResultadoImportacion> =>
+  (await api.post("/api/medicamentos/importar", { archivo_base64: archivoBase64, modo })).data;
+
 export const getInventario = async () => {
   try {
     const response = await api.get("/api/almacen/inventario");
