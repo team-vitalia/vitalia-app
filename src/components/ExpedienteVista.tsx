@@ -1,25 +1,19 @@
-import { useTheme, type Theme } from "../theme/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { ReactNode, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useTheme, type Theme } from "../theme/theme";
 
 import type { Expediente } from "../services/clinicoService";
 import {
   Boton,
-  C,
   Etiqueta,
   etiquetaEstado,
   fechaHora,
   soloFecha,
-  Tarjeta,
+  Tarjeta
 } from "./c2/ui";
 
-/**
- * Vista de un expediente. La usan el médico (con acciones de edición) y el
- * paciente (solo lectura, sin notas internas). Las secciones `registros` y
- * `transferencias` solo vienen del backend para personal clínico.
- */
 export default function ExpedienteVista({
   exp,
   accionesAlergias,
@@ -43,7 +37,6 @@ export default function ExpedienteVista({
 
   return (
     <>
-      {/* Tarjeta de datos generales */}
       <Tarjeta
         style={{ gap: 4, borderLeftWidth: 4, borderLeftColor: "#247F76" }}
       >
@@ -62,12 +55,11 @@ export default function ExpedienteVista({
         <Text style={s.sub}>
           Tipo de sangre: {d.tipo_sangre ?? "no registrado"}
           {d.nombre_contacto_emergencia
-            ? ` · Contacto de emergencia: ${d.nombre_contacto_emergencia} ${d.telefono_contacto_emergencia ?? ""}`
+            ? ` · Contacto: ${d.nombre_contacto_emergencia} ${d.telefono_contacto_emergencia ?? ""}`
             : ""}
         </Text>
       </Tarjeta>
 
-      {/* ALERGIAS - rojo */}
       <Seccion
         titulo="Alergias"
         icono="warning"
@@ -100,7 +92,6 @@ export default function ExpedienteVista({
         )}
       </Seccion>
 
-      {/* ANTECEDENTES - amarillo */}
       <Seccion
         titulo="Antecedentes"
         icono="document-text"
@@ -170,7 +161,6 @@ export default function ExpedienteVista({
         )}
       </Seccion>
 
-      {/* RECETAS - verde */}
       <Seccion titulo="Recetas" icono="bandage" color="#065F46" bg="#ECFDF5">
         {exp.recetas.length === 0 ? (
           <Text style={s.vacio}>Sin recetas.</Text>
@@ -194,7 +184,6 @@ export default function ExpedienteVista({
                 />
               </View>
 
-              {/*  MEDICAMENTOS CON DETALLE  */}
               {r.items && r.items.length > 0 ? (
                 r.items.map((it) => (
                   <View key={it.id_PK} style={s.medItem}>
@@ -238,11 +227,22 @@ export default function ExpedienteVista({
                 <Text style={s.vacio}>Sin medicamentos registrados.</Text>
               )}
 
+              {/* 👇 RECUADRO DE INDICACIONES GENERALES 👇 */}
+              {r.indicaciones_generales && (
+                <View style={s.indicacionesBox}>
+                  <Text style={s.indicacionesTitle}>
+                    Indicaciones y Restricciones
+                  </Text>
+                  <Text style={s.indicacionesText}>
+                    {r.indicaciones_generales}
+                  </Text>
+                </View>
+              )}
+
               <Text style={s.meta}>
                 {fechaHora(r.creado_en)} · Dr. {r.doctor ?? "—"}
               </Text>
 
-              {/*  BOTÓN VER / DESCARGAR PDF  */}
               <Pressable
                 style={s.pdfButton}
                 onPress={() =>
@@ -268,7 +268,6 @@ export default function ExpedienteVista({
         )}
       </Seccion>
 
-      {/* NOTAS - morado */}
       {exp.registros && (
         <Seccion
           titulo="Notas del expediente"
@@ -300,7 +299,6 @@ export default function ExpedienteVista({
         </Seccion>
       )}
 
-      {/* TRANSFERENCIAS - naranja */}
       {exp.transferencias && exp.transferencias.length > 0 && (
         <Seccion
           titulo="Historial de transferencias"
@@ -360,82 +358,91 @@ function Seccion({
 const createStyles = (c: Theme) => {
   const isDark = c.mode === "dark";
   return StyleSheet.create({
-  nombre: { fontSize: 18, fontWeight: "800", color: c.text },
-  titulo: { fontSize: 15, fontWeight: "800", color: c.text },
-  item: { fontSize: 14, fontWeight: "700", color: c.text },
-  sub: { fontSize: 13, color: c.muted },
-  meta: { fontSize: 11.5, color: c.muted, marginTop: 2 },
-  vacio: { fontSize: 13, color: c.muted },
-  fila: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  bloque: { paddingTop: 6, marginTop: 6 },
-  blockBorder: { borderLeftWidth: 3, paddingLeft: 10 },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 6,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E7F5F2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sectionIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  //  NUEVOS ESTILOS PARA LOS MEDICAMENTOS 
-  medItem: {
-    backgroundColor: isDark ? "#1E2631" : "#F9FBFA",
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 6,
-    borderLeftWidth: 3,
-    borderLeftColor: "#10B981",
-  },
-  medItemTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: c.text,
-    marginBottom: 4,
-  },
-  medItemDetail: {
-    fontSize: 12,
-    color: c.muted,
-    marginTop: 2,
-  },
-  medItemLabel: {
-    fontWeight: "800",
-    color: c.text,
-  },
-  //  ESTILOS DEL BOTÓN PDF 
-  pdfButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: c.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    marginTop: 10,
-    alignSelf: "flex-start",
-  },
-  pdfButtonText: {
-    color: "#FFF",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-});
+    nombre: { fontSize: 18, fontWeight: "800", color: c.text },
+    titulo: { fontSize: 15, fontWeight: "800", color: c.text },
+    item: { fontSize: 14, fontWeight: "700", color: c.text },
+    sub: { fontSize: 13, color: c.muted },
+    meta: { fontSize: 11.5, color: c.muted, marginTop: 2 },
+    vacio: { fontSize: 13, color: c.muted },
+    fila: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexWrap: "wrap",
+    },
+    bloque: { paddingTop: 6, marginTop: 6 },
+    blockBorder: { borderLeftWidth: 3, paddingLeft: 10 },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginBottom: 6,
+    },
+    iconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E7F5F2",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    sectionIcon: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    medItem: {
+      backgroundColor: isDark ? "#1E2631" : "#F9FBFA",
+      borderRadius: 8,
+      padding: 10,
+      marginTop: 6,
+      borderLeftWidth: 3,
+      borderLeftColor: "#10B981",
+    },
+    medItemTitle: {
+      fontSize: 13,
+      fontWeight: "800",
+      color: c.text,
+      marginBottom: 4,
+    },
+    medItemDetail: { fontSize: 12, color: c.muted, marginTop: 2 },
+    medItemLabel: { fontWeight: "800", color: c.text },
+    pdfButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      backgroundColor: c.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 10,
+      marginTop: 10,
+      alignSelf: "flex-start",
+    },
+    pdfButtonText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
+
+    // 👇 ESTILOS PARA LAS INDICACIONES 👇
+    indicacionesBox: {
+      backgroundColor: isDark ? "rgba(245, 158, 11, 0.1)" : "#FFFBEB",
+      borderColor: isDark ? "rgba(245, 158, 11, 0.3)" : "#FDE68A",
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 10,
+      marginTop: 10,
+    },
+    indicacionesTitle: {
+      fontSize: 12,
+      fontWeight: "800",
+      color: isDark ? "#FBBF24" : "#92400E",
+      marginBottom: 4,
+      textTransform: "uppercase",
+    },
+    indicacionesText: {
+      fontSize: 12,
+      color: isDark ? "#FDE68A" : "#78350F",
+      lineHeight: 18,
+    },
+  });
 };

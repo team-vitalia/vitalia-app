@@ -38,6 +38,7 @@ export const crearReceta = async (p: {
   citaId: number;
   items: ItemRecetaPayload[];
   confirmarInteracciones?: boolean;
+  indicacionesGenerales?: string; // 👈 NUEVO CAMPO AGREGADO
 }): Promise<RecetaCreada> =>
   (
     await api.post("/api/recetas/", {
@@ -45,6 +46,7 @@ export const crearReceta = async (p: {
       cita_id_FK: p.citaId,
       items: p.items,
       confirmar_interacciones: !!p.confirmarInteracciones,
+      indicaciones_generales: p.indicacionesGenerales || null, // 👈 SE ENVÍA AL BACKEND
     })
   ).data;
 
@@ -137,12 +139,12 @@ export interface Expediente {
     notas?: string | null;
   }[];
 
-  //  ESTA ES LA PARTE QUE CAMBIÓ: Ahora usa "items" con detalle completo 
   recetas: {
     id_PK: number;
     estado: string | null;
     creado_en: string;
     doctor: string | null;
+    indicaciones_generales?: string | null; // 👈 AGREGAR
     items: {
       id_PK: number;
       medicamento: string | null;

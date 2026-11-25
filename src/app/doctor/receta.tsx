@@ -26,12 +26,12 @@ interface Medicamento {
   nombre: string;
   presentacion: string | null;
   requiere_receta: boolean | null;
-  stock_actual: number; // Agregado para CU-32
+  stock_actual: number;
 }
 
 interface ItemReceta {
   medicamento_id_FK: number;
-  nombre_medicamento: string; // Solo para mostrar en la UI
+  nombre_medicamento: string;
   dosis: string;
   frecuencia: string;
   duracion: string;
@@ -72,18 +72,18 @@ export default function RecetaScreen() {
   const [cantidad, setCantidad] = useState("");
   const [via, setVia] = useState("Oral");
 
+  // 👇 NUEVO ESTADO PARA INDICACIONES 👇
+  const [indicaciones, setIndicaciones] = useState("");
+
   const [items, setItems] = useState<ItemReceta[]>([]);
   const [guardando, setGuardando] = useState(false);
 
-  // Avisos de seguridad (interacciones) y resultado del guardado.
-  // Se muestran en pantalla porque Alert.alert no hace nada en web.
   type Interaccion = RecetaCreada["advertencias_interacciones"][number];
   const [interacciones, setInteracciones] = useState<Interaccion[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [requiereConfirmar, setRequiereConfirmar] = useState(false);
   const [resultado, setResultado] = useState<RecetaCreada | null>(null);
 
-  // Revisión de interacciones en vivo cada vez que cambian los medicamentos
   useEffect(() => {
     setRequiereConfirmar(false);
     if (items.length < 2) {
@@ -158,7 +158,6 @@ export default function RecetaScreen() {
 
     setItems([...items, nuevoItem]);
 
-    // Limpiar formulario
     setMedicamentoSeleccionado(null);
     setBusqueda("");
     setResultados([]);
@@ -189,6 +188,7 @@ export default function RecetaScreen() {
         citaId: parseInt(citaId as string),
         items: items.map(({ nombre_medicamento, ...resto }) => resto),
         confirmarInteracciones,
+        indicacionesGenerales: indicaciones, // 👈 NUEVO CAMPO ENVIADO AL BACKEND
       });
       setResultado(creada);
     } catch (error: any) {
@@ -197,7 +197,6 @@ export default function RecetaScreen() {
         error?.response?.status === 409 &&
         detalle?.codigo === "INTERACCION_GRAVE"
       ) {
-        // Interacción grave: el médico debe revisar y confirmar de forma explícita
         setInteracciones(detalle.advertencias_interacciones ?? []);
         setRequiereConfirmar(true);
         setErrorMsg(
@@ -359,7 +358,6 @@ export default function RecetaScreen() {
                 style={styles.resultItem}
                 onPress={() => setMedicamentoSeleccionado(med)}
               >
-                {/*  MODIFICADO PARA MOSTRAR EL STOCK (CU-32)  */}
                 <View
                   style={{
                     flexDirection: "row",
@@ -379,7 +377,6 @@ export default function RecetaScreen() {
                     Stock: {med.stock_actual}
                   </Text>
                 </View>
-                {/*  FIN MODIFICACIÓN  */}
               </Pressable>
             ))}
           </View>
@@ -491,7 +488,23 @@ export default function RecetaScreen() {
         )}
       </View>
 
-      {/* AVISOS DE INTERACCIONES (apoyo; no sustituyen el criterio clínico) */}
+      {/* 👇 NUEVA TARJETA DE INDICACIONES GENERALES 👇 */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>3. Indicaciones Generales</Text>
+        <Text style={{ fontSize: 12, color: c.muted, marginBottom: 10 }}>
+          Ej. Reposo absoluto por 3 días, incapacidad, dieta, etc.
+        </Text>
+        <TextInput
+          style={[styles.input, { height: 80, textAlignVertical: "top" }]}
+          multiline
+          numberOfLines={4}
+          placeholder="Escribe las indicaciones, restricciones o incapacidades aquí..."
+          value={indicaciones}
+          onChangeText={setIndicaciones}
+        />
+      </View>
+
+      {/* AVISOS DE INTERACCIONES */}
       {interacciones.length > 0 && !resultado && (
         <View
           style={{
@@ -505,7 +518,7 @@ export default function RecetaScreen() {
           }}
         >
           <Text style={{ fontWeight: "800", color: "#B03A3A" }}>
-            Interacciones detectadas
+            ⚠ Interacciones detectadas
           </Text>
           {interacciones.map((i, n) => (
             <Text key={n} style={{ fontSize: 13, color: "#7A2E2E" }}>
@@ -545,7 +558,7 @@ export default function RecetaScreen() {
         </Pressable>
       )}
 
-      {/* RESULTADO: receta creada + avisos de alergias y disponibilidad */}
+      {/* RESULTADO: receta creada */}
       {resultado && (
         <View
           style={[
@@ -554,14 +567,14 @@ export default function RecetaScreen() {
           ]}
         >
           <Text style={styles.cardTitle}>
-            Receta #{resultado.id_PK} guardada
+            ✓ Receta #{resultado.id_PK} guardada
           </Text>
           {resultado.alertas_alergias.map((a, n) => (
             <Text
               key={n}
               style={{ fontSize: 13, color: "#B7791F", fontWeight: "700" }}
             >
-              {a.mensaje}
+              ⚠ {a.mensaje}
             </Text>
           ))}
           {resultado.advertencias_interacciones.length > 0 && (
@@ -589,6 +602,7 @@ export default function RecetaScreen() {
           </Pressable>
         </View>
       )}
+
       {Boolean(citaId) && (
         <>
           <AsistenteIAModal
