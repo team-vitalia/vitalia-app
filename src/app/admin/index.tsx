@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   ComponentProps,
   ReactNode,
@@ -28,8 +28,9 @@ import {
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 import { HeroSaludo } from "../../components/DashboardUI";
+import { CrownSvg, UpgradeModal } from "../../components/UpgradeModal";
 import { useAuth } from "../../context/AuthContext";
-import { UpgradeModal, CrownSvg } from "../../components/UpgradeModal";
+import api from "../../services/api";
 import { useTheme, type Theme } from "../../theme/theme";
 
 /* ============================================================
@@ -62,53 +63,135 @@ const ACCESOS: Acceso[] = [
   { id: "notificaciones", icon: "notifications-outline", titulo: "Notificaciones", descripcion: "Avisos del sistema", ruta: "/notificaciones", color: "info" },
 ];
 
-const MODO_DEMO = true;
+type DiaSemana = { dia: string; total: number; hoy: boolean };
+type SalaOcupacion = { nombre: string; ocupacion: number; citas: number };
 
+/** `null` = ese dato no se pudo obtener (error de red, permiso o plan). */
 type Resumen = {
-  citasHoy: number;
-  enEspera: number;
-  medicosActivos: number;
-  stockBajo: number;
-  citasSemana: { dia: string; total: number; hoy: boolean }[];
-  salas: { nombre: string; ocupacion: number }[];
+  citasHoy: number | null;
+  enEspera: number | null;
+  medicosActivos: number | null;
+  stockBajo: number | null;
+  citasSemana: DiaSemana[] | null;
+  salas: SalaOcupacion[] | null;
 };
 
 const DIAS_CORTOS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+/** Jornada base para calcular la ocupación diaria de una sala. */
+const HORAS_JORNADA = 8;
+const ESTADOS_CITA_INACTIVOS = ["cancelada", "no_asistio"];
 
 const fechaCorta = () => {
   const d = new Date();
   return `${DIAS_CORTOS[d.getDay()]}, ${d.getDate()} ${MESES[d.getMonth()].slice(0, 3)}`;
 };
 
-const ultimosSieteDias = () => {
-  const hoy = new Date();
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(hoy);
-    d.setDate(hoy.getDate() - (6 - i));
-    return { dia: DIAS_CORTOS[d.getDay()], hoy: i === 6 };
-  });
+const isoLocal = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const minutosDe = (hora?: string | null): number | null => {
+  if (!hora || hora.length < 5) return null;
+  const h = parseInt(hora.slice(0, 2), 10);
+  const mi = parseInt(hora.slice(3, 5), 10);
+  return Number.isNaN(h) || Number.isNaN(mi) ? null : h * 60 + mi;
 };
 
-async function cargarResumen(): Promise<Resumen> {
-  if (MODO_DEMO) {
-    const valores = [18, 26, 22, 31, 28, 12, 24];
-    return {
-      citasHoy: 24,
-      enEspera: 6,
-      medicosActivos: 11,
-      stockBajo: 3,
-      citasSemana: ultimosSieteDias().map((d, i) => ({ ...d, total: valores[i] })),
-      salas: [
-        { nombre: "Consultorio 1", ocupacion: 82 },
-        { nombre: "Consultorio 2", ocupacion: 64 },
-        { nombre: "Laboratorio", ocupacion: 91 },
-        { nombre: "Rayos X", ocupacion: 47 },
-        { nombre: "Urgencias", ocupacion: 73 },
-      ],
-    };
+type CitaApi = {
+  fecha?: string | null;
+  hora_inicio?: string | null;
+  hora_fin?: string | null;
+  estado?: string | null;
+  sala_id_FK?: number | null;
+  sala_nombre?: string | null;
+};
+
+type Resultado = PromiseSettledResult<{ data: any }>;
+const datosDe = (r: Resultado): any => (r.status === "fulfilled" ? r.value.data : undefined);
+
+/**
+ * Indicadores reales de la clínica:
+ *  - Citas de hoy / semana / ocupación de salas  → GET /api/citas/ y GET /api/salas
+ *  - Pacientes en espera                         → GET /api/colas/ (cola de hoy, estado «en_espera»)
+ *  - Médicos activos                             → GET /api/doctores/ (solo activos)
+ *  - Stock bajo                                  → GET /api/almacen/resumen (Plan Profesional o superior)
+ * Cada consulta es independiente: si una falla, solo ese dato queda en «—».
+ */
+async function cargarResumen(incluyeAlmacen: boolean): Promise<Resumen> {
+  const [citasR, colasR, doctoresR, almacenR, salasR] = await Promise.allSettled([
+    api.get("/api/citas/"),
+    api.get("/api/colas/"),
+    api.get("/api/doctores/"),
+    incluyeAlmacen ? api.get("/api/almacen/resumen") : Promise.reject(new Error("plan")),
+    api.get("/api/salas", { params: { page_size: 100 } }),
+  ]);
+
+  const citasData = datosDe(citasR);
+  const citas: CitaApi[] | null = Array.isArray(citasData) ? citasData : null;
+  const activas = citas?.filter((c) => !ESTADOS_CITA_INACTIVOS.includes(c.estado ?? "")) ?? null;
+
+  const hoy = new Date();
+  const hoyIso = isoLocal(hoy);
+
+  const citasHoy = activas ? activas.filter((c) => c.fecha === hoyIso).length : null;
+
+  let citasSemana: DiaSemana[] | null = null;
+  if (activas) {
+    citasSemana = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(hoy);
+      d.setDate(hoy.getDate() - (6 - i));
+      const iso = isoLocal(d);
+      return { dia: DIAS_CORTOS[d.getDay()], hoy: i === 6, total: activas.filter((c) => c.fecha === iso).length };
+    });
   }
-  throw new Error("Resumen no conectado");
+
+  const colasData = datosDe(colasR);
+  const enEspera = Array.isArray(colasData)
+    ? colasData.filter((c: { estado?: string | null }) => c.estado === "en_espera").length
+    : null;
+
+  const doctoresData = datosDe(doctoresR);
+  const medicosActivos = Array.isArray(doctoresData) ? doctoresData.length : null;
+
+  const stockData = datosDe(almacenR);
+  const stockBajo = typeof stockData?.medicamentos_stock_bajo === "number" ? stockData.medicamentos_stock_bajo : null;
+
+  // Ocupación de hoy: minutos de citas activas con sala / jornada de la sala
+  let salas: SalaOcupacion[] | null = null;
+  if (activas) {
+    const minutosPorSala = new Map<number, { minutos: number; citas: number; nombre?: string }>();
+    activas
+      .filter((c) => c.fecha === hoyIso && c.sala_id_FK != null)
+      .forEach((c) => {
+        const id = c.sala_id_FK as number;
+        const ini = minutosDe(c.hora_inicio);
+        const fin = minutosDe(c.hora_fin);
+        const acum = minutosPorSala.get(id) ?? { minutos: 0, citas: 0, nombre: c.sala_nombre ?? undefined };
+        acum.citas += 1;
+        if (ini !== null && fin !== null && fin > ini) acum.minutos += fin - ini;
+        minutosPorSala.set(id, acum);
+      });
+
+    const salasData = datosDe(salasR)?.data;
+    const catalogo: { id: number; nombre: string }[] = Array.isArray(salasData)
+      ? salasData
+          .filter((x: { estado?: string | null }) => x.estado !== "inactiva")
+          .map((x: { id_PK: number; nombre: string }) => ({ id: x.id_PK, nombre: x.nombre }))
+      : // Sin acceso al módulo de salas (p. ej. plan básico): solo las que tienen citas hoy
+        Array.from(minutosPorSala.entries()).map(([id, v]) => ({ id, nombre: v.nombre ?? `Sala ${id}` }));
+
+    salas = catalogo
+      .map((sala) => {
+        const uso = minutosPorSala.get(sala.id);
+        const ocupacion = uso ? Math.min(100, Math.round((uso.minutos / (HORAS_JORNADA * 60)) * 100)) : 0;
+        return { nombre: sala.nombre, ocupacion, citas: uso?.citas ?? 0 };
+      })
+      .sort((a, b) => b.ocupacion - a.ocupacion || b.citas - a.citas || a.nombre.localeCompare(b.nombre))
+      .slice(0, 5);
+  }
+
+  return { citasHoy, enEspera, medicosActivos, stockBajo, citasSemana, salas };
 }
 
 /* ============================================================
@@ -219,27 +302,6 @@ function FondoLuces({ c }: { c: Theme }) {
         <Rect x={0} y={0} width={400} height={800} fill="url(#luzMenta)" />
         <Rect x={0} y={0} width={400} height={800} fill="url(#luzGris)" />
       </Svg>
-    </View>
-  );
-}
-
-function ChipDemo({ c, m }: { c: Theme; m: Medidas }) {
-  if (!MODO_DEMO) return null;
-  return (
-    <View
-      style={{
-        alignSelf: "flex-start",
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: 4,
-        paddingHorizontal: 9,
-        borderRadius: 999,
-        backgroundColor: withAlpha(c.warning, 0.16),
-        marginBottom: 12,
-      }}
-    >
-      <Ionicons name="information-circle-outline" size={m.r(13)} color={c.warning} style={{ marginRight: 4 }} />
-      <Text style={{ fontSize: 11 * m.esc, fontWeight: "700", color: c.warning }}>Datos de ejemplo</Text>
     </View>
   );
 }
@@ -546,6 +608,7 @@ function Panel({
   titulo,
   icon,
   color,
+  nota,
   onVerMas,
   children,
 }: {
@@ -554,6 +617,7 @@ function Panel({
   titulo: string;
   icon: IconName;
   color: string;
+  nota?: string;
   onVerMas: () => void;
   children: ReactNode;
 }) {
@@ -573,7 +637,10 @@ function Panel({
         >
           <Ionicons name={icon} size={m.r(17)} color={color} />
         </View>
-        <Text style={{ flex: 1, fontSize: 15 * m.esc, fontWeight: "800", color: c.text }}>{titulo}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 15 * m.esc, fontWeight: "800", color: c.text }}>{titulo}</Text>
+          {!!nota && <Text style={{ fontSize: 11 * m.esc, color: c.muted, marginTop: 1 }}>{nota}</Text>}
+        </View>
         <Pressable
           onPress={onVerMas}
           hitSlop={8}
@@ -589,18 +656,29 @@ function Panel({
   );
 }
 
-function SinDatos({ c, m, error }: { c: Theme; m: Medidas; error: boolean }) {
+function SinDatos({
+  c,
+  m,
+  estado,
+  vacio,
+}: {
+  c: Theme;
+  m: Medidas;
+  estado: "cargando" | "error" | "vacio";
+  vacio?: string;
+}) {
+  const icono: IconName =
+    estado === "error" ? "cloud-offline-outline" : estado === "vacio" ? "file-tray-outline" : "hourglass-outline";
+  const texto =
+    estado === "error"
+      ? "No se pudieron cargar los datos."
+      : estado === "vacio"
+        ? vacio || "Sin datos por ahora."
+        : "Cargando datos...";
   return (
-    <View style={{ minHeight: m.r(150), alignItems: "center", justifyContent: "center" }}>
-      <Ionicons
-        name={error ? "cloud-offline-outline" : "hourglass-outline"}
-        size={m.r(26)}
-        color={error ? c.error : c.info}
-        style={{ marginBottom: 8 }}
-      />
-      <Text style={{ fontSize: 13 * m.esc, color: c.muted }}>
-        {error ? "No se pudieron cargar los datos." : "Cargando datos..."}
-      </Text>
+    <View style={{ minHeight: m.r(150), alignItems: "center", justifyContent: "center", paddingHorizontal: 12 }}>
+      <Ionicons name={icono} size={m.r(26)} color={estado === "error" ? c.error : c.info} style={{ marginBottom: 8 }} />
+      <Text style={{ fontSize: 13 * m.esc, color: c.muted, textAlign: "center" }}>{texto}</Text>
     </View>
   );
 }
@@ -613,7 +691,7 @@ function CitasSemana({
 }: {
   c: Theme;
   m: Medidas;
-  datos: Resumen["citasSemana"];
+  datos: DiaSemana[];
   grow: Animated.Value;
 }) {
   const ALTO = m.r(150);
@@ -679,7 +757,7 @@ function OcupacionSalas({
 }: {
   c: Theme;
   m: Medidas;
-  salas: Resumen["salas"];
+  salas: SalaOcupacion[];
   grow: Animated.Value;
 }) {
   const alto = m.r(8);
@@ -694,7 +772,9 @@ function OcupacionSalas({
               <Text numberOfLines={1} style={{ flex: 1, fontSize: 13 * m.esc, fontWeight: "700", color: c.text }}>
                 {s.nombre}
               </Text>
-              <Text style={{ fontSize: 13 * m.esc, fontWeight: "800", color }}>{s.ocupacion}%</Text>
+              <Text style={{ fontSize: 13 * m.esc, fontWeight: "800", color }}>
+                {s.ocupacion}%{s.citas > 0 ? ` · ${s.citas} cita${s.citas === 1 ? "" : "s"}` : ""}
+              </Text>
             </View>
             <View
               style={{
@@ -833,19 +913,25 @@ export default function AdminScreen() {
   );
   const hayUso = Object.values(clics).some((n) => n > 0);
 
-  /* ---------- Datos ---------- */
+  /* ---------- Datos reales ---------- */
   const [resumen, setResumen] = useState<Resumen | null>(null);
-  const [errorDatos, setErrorDatos] = useState(false);
+  const incluyeAlmacen = !restriccionAcceso("inventario", planActual).bloqueado;
 
-  useEffect(() => {
-    let vivo = true;
-    cargarResumen()
-      .then((r) => vivo && setResumen(r))
-      .catch(() => vivo && setErrorDatos(true));
-    return () => {
-      vivo = false;
-    };
-  }, []);
+  // Se recalcula cada vez que el administrador vuelve a esta pantalla
+  useFocusEffect(
+    useCallback(() => {
+      let vivo = true;
+      cargarResumen(incluyeAlmacen)
+        .then((r) => vivo && setResumen(r))
+        .catch(() =>
+          vivo &&
+          setResumen({ citasHoy: null, enEspera: null, medicosActivos: null, stockBajo: null, citasSemana: null, salas: null })
+        );
+      return () => {
+        vivo = false;
+      };
+    }, [incluyeAlmacen])
+  );
 
   /* ---------- Animaciones ---------- */
   const fade = useRef(new Animated.Value(0)).current;
@@ -875,10 +961,16 @@ export default function AdminScreen() {
   };
 
   const kpis: { label: string; detalle: string; icon: IconName; color: string; valor?: number }[] = [
-    { label: "Citas de hoy", detalle: "Programadas para hoy", icon: "calendar-outline", color: c.info, valor: resumen?.citasHoy },
-    { label: "Pacientes en espera", detalle: "Esperando atención", icon: "time-outline", color: c.warning, valor: resumen?.enEspera },
-    { label: "Médicos activos", detalle: "En turno ahora", icon: "medkit-outline", color: c.success, valor: resumen?.medicosActivos },
-    { label: "Insumos con stock bajo", detalle: "Requieren reabasto", icon: "alert-circle-outline", color: c.error, valor: resumen?.stockBajo },
+    { label: "Citas de hoy", detalle: "Programadas, sin canceladas", icon: "calendar-outline", color: c.info, valor: resumen?.citasHoy ?? undefined },
+    { label: "Pacientes en espera", detalle: "En la cola de hoy", icon: "time-outline", color: c.warning, valor: resumen?.enEspera ?? undefined },
+    { label: "Médicos activos", detalle: "Registrados como activos", icon: "medkit-outline", color: c.success, valor: resumen?.medicosActivos ?? undefined },
+    {
+      label: "Artículos con stock bajo",
+      detalle: incluyeAlmacen ? "Requieren reabasto" : "Disponible en Plan Profesional",
+      icon: "alert-circle-outline",
+      color: c.error,
+      valor: resumen?.stockBajo ?? undefined,
+    },
   ];
 
   const verReportes = useCallback(() => router.push("/admin/reportes" as any), [router]);
@@ -1026,7 +1118,6 @@ export default function AdminScreen() {
               {pagina(
                 "contadores",
                 <>
-                  <ChipDemo c={c} m={m} />
                   <View style={{ flexDirection: "row", flexWrap: "wrap", marginHorizontal: -6 }}>
                     {kpis.map((k) => (
                       <View key={k.label} style={{ width: pct(m.colsKpi), padding: 6 }}>
@@ -1041,7 +1132,6 @@ export default function AdminScreen() {
               {pagina(
                 "tendencias",
                 <>
-                  <ChipDemo c={c} m={m} />
                   <View style={{ flexDirection: m.dosColumnas ? "row" : "column" }}>
                     <View
                       style={{
@@ -1050,21 +1140,43 @@ export default function AdminScreen() {
                         marginBottom: m.dosColumnas ? 0 : 14,
                       }}
                     >
-                      <Panel c={c} m={m} titulo="Citas de la semana" icon="stats-chart-outline" color={c.info} onVerMas={verReportes}>
-                        {resumen ? (
+                      <Panel
+                        c={c}
+                        m={m}
+                        titulo="Citas de la semana"
+                        nota="Últimos 7 días, sin canceladas"
+                        icon="stats-chart-outline"
+                        color={c.info}
+                        onVerMas={verReportes}
+                      >
+                        {!resumen ? (
+                          <SinDatos c={c} m={m} estado="cargando" />
+                        ) : resumen.citasSemana ? (
                           <CitasSemana c={c} m={m} datos={resumen.citasSemana} grow={grow} />
                         ) : (
-                          <SinDatos c={c} m={m} error={errorDatos} />
+                          <SinDatos c={c} m={m} estado="error" />
                         )}
                       </Panel>
                     </View>
 
                     <View style={{ flex: m.dosColumnas ? 2 : undefined }}>
-                      <Panel c={c} m={m} titulo="Ocupación de salas" icon="pulse-outline" color={c.success} onVerMas={verReportes}>
-                        {resumen ? (
-                          <OcupacionSalas c={c} m={m} salas={resumen.salas} grow={grow} />
+                      <Panel
+                        c={c}
+                        m={m}
+                        titulo="Ocupación de salas"
+                        nota={`Hoy, sobre una jornada de ${HORAS_JORNADA} h`}
+                        icon="pulse-outline"
+                        color={c.success}
+                        onVerMas={verReportes}
+                      >
+                        {!resumen ? (
+                          <SinDatos c={c} m={m} estado="cargando" />
+                        ) : !resumen.salas ? (
+                          <SinDatos c={c} m={m} estado="error" />
+                        ) : resumen.salas.length === 0 ? (
+                          <SinDatos c={c} m={m} estado="vacio" vacio="Aún no hay salas registradas." />
                         ) : (
-                          <SinDatos c={c} m={m} error={errorDatos} />
+                          <OcupacionSalas c={c} m={m} salas={resumen.salas} grow={grow} />
                         )}
                       </Panel>
                     </View>
