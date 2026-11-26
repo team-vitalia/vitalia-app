@@ -29,9 +29,15 @@ import { generarHtmlContrato } from "../../../utils/contratoPdf";
 interface Doctor {
   id_PK: number;
   nombre?: string;
+  apellido_paterno?: string | null;
+  apellido_materno?: string | null;
   nombre_completo?: string;
+
   usuario?: {
     nombre?: string;
+    apellido_paterno?: string | null;
+    apellido_materno?: string | null;
+    nombre_completo?: string;
   };
 }
 
@@ -89,6 +95,7 @@ export default function ContratosScreen() {
 
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [doctores, setDoctores] = useState<Doctor[]>([]);
+  const [busquedaDoctor, setBusquedaDoctor] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<
     "Todos" | "Activo" | "Pendiente" | "Finalizado"
@@ -213,6 +220,7 @@ export default function ContratosScreen() {
     setContratoEditar(null);
     setFormulario(formularioInicial);
     setOtroTipoContrato("");
+    setBusquedaDoctor("");
     setModalVisible(true);
   };
 
@@ -385,12 +393,36 @@ export default function ContratosScreen() {
     const doctor = doctores.find(
       (item) => item.id_PK === id
     );
-    return (
-      doctor?.nombre_completo ??
-      doctor?.nombre ??
-      doctor?.usuario?.nombre ??
-      `Médico #${id}`
-    );
+
+    if (!doctor) {
+      return `Médico #${id}`;
+    }
+
+    const usuario = doctor.usuario;
+
+    const nombreCompleto =
+      usuario?.nombre_completo ||
+      doctor.nombre_completo;
+
+    if (nombreCompleto?.trim()) {
+      return nombreCompleto.trim();
+    }
+
+    const nombre = usuario?.nombre || doctor.nombre || "";
+
+    const apellidoPaterno =
+      usuario?.apellido_paterno ?? doctor.apellido_paterno ?? "";
+
+    const apellidoMaterno =
+      usuario?.apellido_materno ?? doctor.apellido_materno ?? "";
+
+    return [
+      nombre,
+      apellidoPaterno,
+      apellidoMaterno
+    ]
+      .filter((parte) => parte.trim() !== "")
+      .join(" ") || `Médico #${id}`;
   };
 
   const normalizarTexto = (texto: string) =>
@@ -399,6 +431,15 @@ export default function ContratosScreen() {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .trim();
+  
+  const doctoresFiltrados = useMemo(() => {
+  const texto = normalizarTexto(busquedaDoctor);
+
+  return doctores.filter((doctor) =>
+    normalizarTexto(nombreDoctor(doctor.id_PK))
+      .includes(texto)
+  );
+}, [doctores, busquedaDoctor]);
 
   const contratosFiltrados = useMemo(() => {
     const textoBusqueda = normalizarTexto(busqueda);
@@ -462,8 +503,7 @@ export default function ContratosScreen() {
       throw new Error("La descarga solo está disponible en el navegador.");
     }
 
-    const modulo = await import("html2pdf.js");
-    const html2pdf = modulo.default;
+    const html2pdf = (await import("html2pdf.js")).default;
 
     // Leer el HTML completo del contrato.
     const documento = new DOMParser().parseFromString(
@@ -923,47 +963,64 @@ export default function ContratosScreen() {
                   </Text>
                 </View>
               ) : (
-                <View style={styles.listaDoctores}>
-                  {doctores.length === 0 ? (
-                    <Text style={styles.aviso}>
-                      No hay médicos disponibles. Verifica el
-                      endpoint GET /api/doctores/.
-                    </Text>
-                  ) : (
-                    doctores.map((doctor) => (
-                      <Pressable
-                        key={doctor.id_PK}
-                        style={[
-                          styles.opcionDoctor,
-                          formulario.doctor_id_FK ===
-                          String(doctor.id_PK)
-                            ? styles.opcionDoctorActiva
-                            : null,
-                        ]}
-                        onPress={() =>
-                          actualizarCampo(
-                            "doctor_id_FK",
-                            String(doctor.id_PK)
-                          )
-                        }
-                      >
-                        <Text
+                <View>
+                  {/* BUSCADOR DE MÉDICOS */}
+                  <TextInput
+                    style={styles.input}
+                    value={busquedaDoctor}
+                    onChangeText={setBusquedaDoctor}
+                    placeholder="Buscar médico por nombre o apellido..."
+                    placeholderTextColor={c.muted}
+                    autoCorrect={false}
+                    autoCapitalize="words"
+                  />
+
+                  {/* LISTA DE MÉDICOS */}
+                  <View style={styles.listaDoctores}>
+                    {doctores.length === 0 ? (
+                      <Text style={styles.aviso}>
+                        No hay médicos disponibles. Verifica el
+                        endpoint GET /api/doctores/.
+                      </Text>
+                    ) : doctoresFiltrados.length === 0 ? (
+                      <Text style={styles.aviso}>
+                        No se encontraron médicos con ese nombre.
+                      </Text>
+                    ) : (
+                      doctoresFiltrados.map((doctor) => (
+                        <Pressable
+                          key={doctor.id_PK}
                           style={[
-                            styles.opcionDoctorTexto,
+                            styles.opcionDoctor,
                             formulario.doctor_id_FK ===
-                            String(doctor.id_PK)
-                              ? styles.opcionDoctorTextoActivo
+                              String(doctor.id_PK)
+                              ? styles.opcionDoctorActiva
                               : null,
                           ]}
+                          onPress={() => {
+                            actualizarCampo(
+                              "doctor_id_FK",
+                              String(doctor.id_PK)
+                            );
+
+                            setBusquedaDoctor("");
+                          }}
                         >
-                          {doctor.nombre_completo ??
-                            doctor.nombre ??
-                            doctor.usuario?.nombre ??
-                            `Médico #${doctor.id_PK}`}
-                        </Text>
-                      </Pressable>
-                    ))
-                  )}
+                          <Text
+                            style={[
+                              styles.opcionDoctorTexto,
+                              formulario.doctor_id_FK ===
+                                String(doctor.id_PK)
+                                ? styles.opcionDoctorTextoActivo
+                                : null,
+                            ]}
+                          >
+                            {nombreDoctor(doctor.id_PK)}
+                          </Text>
+                        </Pressable>
+                      ))
+                    )}
+                  </View>
                 </View>
               )}
 

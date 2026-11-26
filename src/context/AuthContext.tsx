@@ -31,6 +31,9 @@ export interface Usuario {
   id?: number;
   id_PK?: number;
   nombre: string;
+  apellido_paterno?: string;
+  apellido_materno?: string;
+  nombre_completo?: string;
   correo?: string;
   correo_electronico?: string;
   rol_id?: number;

@@ -102,6 +102,21 @@ export default function DoctorScreen() {
     [pager.w],
   );
 
+  const obtenerNombreCompleto = () => {
+    if (usuario?.nombre_completo?.trim()) {
+      return usuario.nombre_completo.trim();
+    }
+
+    return [
+      usuario?.nombre,
+      usuario?.apellido_paterno,
+      usuario?.apellido_materno,
+    ]
+      .filter((parte) => typeof parte === "string" && parte.trim().length > 0)
+      .map((parte) => parte!.trim())
+      .join(" ") || "Médico";
+  };
+
   useEffect(() => {
     if (pager.w)
       pagerRef.current?.scrollTo({
@@ -163,7 +178,7 @@ export default function DoctorScreen() {
         (a, b) => Number(b.id_PK) - Number(a.id_PK),
       );
       setContratos(contratosOrdenados);
-      setNombreDoctor(usuario?.nombre?.trim() || "Médico");
+      setNombreDoctor(obtenerNombreCompleto());
     } catch (err: any) {
       const detalle = err?.response?.data?.detail;
       setErrorContrato(
