@@ -115,7 +115,7 @@ api.interceptors.request.use(async (config) => {
     !config.headers.Authorization &&
     !config.url?.includes("/api/auth/login")
   ) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = "Bearer " + token;
   }
 
   return config;

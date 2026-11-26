@@ -9,27 +9,26 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { evaluarInteracciones, getMedicamentos } from "../../services/almacenService";
+import {
+  evaluarInteraccionesIA,
+  getMedicamentos,
+  type EvaluacionInteraccionesIA,
+} from "../../services/almacenService";
 import { AlertaInteraccion } from "../../components/AlertaInteraccion";
 import { BotonAnalisisIA } from "../../components/BotonAnalisisIA";
-import { usePlanFeatures } from "../../hooks/usePlanFeatures";
-import { MejoraPlanModal } from "../../components/MejoraPlanModal";
+import { mensajeError } from "../../services/c2Service";
 
 export default function EvaluarInteraccionesScreen() {
   const c = useTheme();
   const styles = useMemo(() => createStyles(c), [c]);
   const router = useRouter();
-  const { canUseAI } = usePlanFeatures();
 
   const [catalogo, setCatalogo] = useState<any[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
   const [analizando, setAnalizando] = useState<boolean>(false);
   const [seleccionados, setSeleccionados] = useState<any[]>([]);
-  const [modalVisible, setModalVisible] = useState<boolean>(false);
-  const [resultado, setResultado] = useState<{
-    tiene_interaccion: boolean;
-    detalles: any[];
-  }>({ tiene_interaccion: false, detalles: [] });
+  const [errorMsg, setErrorMsg] = useState("");
+  const [resultado, setResultado] = useState<EvaluacionInteraccionesIA | null>(null);
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -46,31 +45,37 @@ export default function EvaluarInteraccionesScreen() {
   }, []);
 
   const ejecutarAnalisisIA = async () => {
-    if (!canUseAI()) {
-      setModalVisible(true);
-      return;
-    }
-
     if (seleccionados.length < 2) {
       return;
     }
 
     setAnalizando(true);
+    setErrorMsg("");
+    setResultado(null);
     try {
       const ids = seleccionados.map((item) => item.id_PK);
-      const res = await evaluarInteracciones(ids);
+      const res = await evaluarInteraccionesIA(ids);
       setResultado(res);
     } catch (e) {
       console.error("Error al evaluar interacciones con IA:", e);
+      setErrorMsg(
+        mensajeError(e, "No se pudo evaluar la interacción medicamentosa con IA."),
+      );
     } finally {
       setAnalizando(false);
     }
   };
 
   const toggleSeleccion = (med: any) => {
+    setResultado(null);
+    setErrorMsg("");
     if (seleccionados.find((m) => m.id_PK === med.id_PK)) {
       setSeleccionados(seleccionados.filter((m) => m.id_PK !== med.id_PK));
     } else {
+      if (seleccionados.length >= 20) {
+        setErrorMsg("Puedes analizar hasta 20 medicamentos por consulta.");
+        return;
+      }
       setSeleccionados([...seleccionados, med]);
     }
   };
@@ -89,19 +94,36 @@ export default function EvaluarInteraccionesScreen() {
         <Text style={styles.backText}>← Volver al panel</Text>
       </Pressable>
 
-      <Text style={styles.title}>Evaluador de Interacciones</Text>
+      <Text style={styles.title}>Evaluador de Interacciones con IA</Text>
       <Text style={styles.subtitle}>
-        Selecciona 2 o más medicamentos para analizar incompatibilidades farmacológicas con IA.
+        Selecciona de 2 a 20 medicamentos para obtener un análisis informativo generado por IA.
       </Text>
 
-      <AlertaInteraccion resultado={resultado} />
+      {resultado && <AlertaInteraccion resultado={resultado} />}
+      {resultado && (
+        <View style={styles.resultInfo}>
+          <Text style={styles.resultInfoTitle}>
+            {resultado.tiene_interaccion
+              ? `Resultado de ${resultado.fuente}`
+              : `La IA no reportó interacciones potenciales (${resultado.fuente})`}
+          </Text>
+          {!resultado.tiene_interaccion && (
+            <Text style={styles.resultInfoText}>
+              Esto no confirma que la combinación sea segura.
+            </Text>
+          )}
+          <Text style={styles.resultInfoText}>{resultado.observaciones}</Text>
+          <Text style={styles.resultDisclaimer}>{resultado.aviso}</Text>
+        </View>
+      )}
+      {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
       <View style={styles.actionRow}>
         <BotonAnalisisIA
           onEjecutarAnalisis={ejecutarAnalisisIA}
           disabled={seleccionados.length < 2}
           cargando={analizando}
-          texto="Análisis IA"
+          texto="Evaluar con IA"
           testID="btn-analisis-ia"
         />
       </View>
@@ -145,11 +167,6 @@ export default function EvaluarInteraccionesScreen() {
         })
       )}
 
-      <MejoraPlanModal
-        visible={modalVisible}
-        funcionBloqueada="Análisis IA"
-        onClose={() => setModalVisible(false)}
-      />
     </ScrollView>
   );
 }
@@ -172,5 +189,10 @@ const createStyles = (c: Theme) => {
   itemCardSelected: { borderColor: "#247F76", backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0" },
   itemName: { fontSize: 14, fontWeight: "700", color: c.text },
   itemSub: { fontSize: 12, color: c.muted },
+  resultInfo: { backgroundColor: c.card, borderRadius: 10, borderWidth: 1, borderColor: c.border, padding: 12, marginVertical: 8 },
+  resultInfoTitle: { color: c.text, fontSize: 14, fontWeight: "700", marginBottom: 4 },
+  resultInfoText: { color: c.muted, fontSize: 12, marginTop: 4 },
+  resultDisclaimer: { color: c.warning, fontSize: 12, fontWeight: "600", marginTop: 8 },
+  errorText: { color: "#B91C1C", backgroundColor: "#FEE2E2", borderRadius: 8, padding: 10, marginVertical: 8, fontSize: 13 },
 });
 };

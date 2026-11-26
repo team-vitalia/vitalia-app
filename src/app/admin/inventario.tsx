@@ -806,19 +806,14 @@ function Catalogo() {
     const stock = m.stock_actual ?? 0;
     const tam = compacto ? 32 : 34;
     return (
-      <Pressable
+      <View
         key={m.id_PK}
-        onPress={() => setDetalle(m)}
-        accessibilityRole="button"
-        accessibilityLabel={`Ver detalle de ${m.nombre}`}
-        style={({ pressed }) => [
+        style={[
           s.fila,
           s.filaDatos,
           {
             borderColor: k.borde,
-            backgroundColor: pressed
-              ? k.primarioSuave
-              : i % 2 === 1
+            backgroundColor: i % 2 === 1
                 ? k.isDark
                   ? "rgba(255,255,255,0.03)"
                   : "#F8FBFA"
@@ -870,7 +865,7 @@ function Catalogo() {
           <BotonAccion icono="create-outline" etiqueta={`Editar ${m.nombre}`} tono="primario" tam={tam} onPress={() => abrirEdicion(m)} />
           <BotonAccion icono="trash-outline" etiqueta={`Eliminar ${m.nombre}`} tono="peligro" tam={tam} onPress={() => pedirBaja(m)} />
         </View>
-      </Pressable>
+      </View>
     );
   };
 

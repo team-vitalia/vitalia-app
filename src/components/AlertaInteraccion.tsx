@@ -7,7 +7,7 @@ interface InteraccionItem {
   medicamento_2: string;
   severidad: string;
   descripcion: string;
-  accion_requerida?: string;
+  accion_requerida?: string | null;
 }
 
 interface Props {

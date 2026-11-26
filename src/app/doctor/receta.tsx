@@ -90,9 +90,12 @@ export default function RecetaScreen() {
       setInteracciones([]);
       return;
     }
-    evaluarInteracciones(items.map((i) => i.medicamento_id_FK)).then((r) =>
-      setInteracciones(r?.detalles ?? []),
-    );
+    evaluarInteracciones(items.map((i) => i.medicamento_id_FK))
+      .then((r) => setInteracciones(r?.detalles ?? []))
+      .catch((error) => {
+        console.error("Error al evaluar interacciones:", error);
+        setInteracciones([]);
+      });
   }, [items]);
 
   useEffect(() => {

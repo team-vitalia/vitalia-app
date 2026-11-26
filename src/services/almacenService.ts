@@ -209,16 +209,78 @@ export const actualizarLoteInventario = async (
   }
 };
 
+const normalizarMedicamentosIds = (medicamentosIds: number[]) =>
+  Array.from(
+    new Set(
+      medicamentosIds
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0),
+    ),
+  );
+
 export const evaluarInteracciones = async (medicamentosIds: number[]) => {
-  try {
-    const response = await api.post("/api/almacen/evaluar-interacciones", {
-      medicamentos_ids: medicamentosIds,
-    });
-    return response.data;
-  } catch (error) {
-    console.warn("Error al evaluar interacciones:", error);
-    return { tiene_interaccion: false, detalles: [] };
+  const ids = normalizarMedicamentosIds(medicamentosIds);
+
+  if (ids.length < 2) {
+    throw new Error("Selecciona al menos 2 medicamentos válidos.");
   }
+
+  const response = await api.post("/api/almacen/evaluar-interacciones", {
+    medicamentos_ids: ids,
+  });
+
+  const data = response.data ?? {};
+  const detalles = Array.isArray(data.detalles)
+    ? data.detalles
+    : Array.isArray(data.advertencias_interacciones)
+      ? data.advertencias_interacciones
+      : [];
+
+  return {
+    tiene_interaccion: data.tiene_interaccion ?? detalles.length > 0,
+    detalles,
+  };
+};
+
+export interface EvaluacionInteraccionesIA {
+  tiene_interaccion: boolean;
+  detalles: {
+    medicamento_1: string;
+    medicamento_2: string;
+    severidad: string;
+    descripcion: string;
+    accion_requerida?: string | null;
+  }[];
+  observaciones: string;
+  fuente: string;
+  aviso: string;
+}
+
+export const evaluarInteraccionesIA = async (
+  medicamentosIds: number[],
+): Promise<EvaluacionInteraccionesIA> => {
+  const ids = normalizarMedicamentosIds(medicamentosIds);
+
+  if (ids.length < 2) {
+    throw new Error("Selecciona al menos 2 medicamentos válidos.");
+  }
+
+  const response = await api.post<EvaluacionInteraccionesIA>(
+    "/api/almacen/evaluar-interacciones-ia",
+    { medicamentos_ids: ids },
+  );
+  const data = response.data;
+
+  if (
+    typeof data?.tiene_interaccion !== "boolean" ||
+    !Array.isArray(data.detalles) ||
+    typeof data.observaciones !== "string" ||
+    typeof data.aviso !== "string"
+  ) {
+    throw new Error("El servidor devolvió un resultado de IA incompleto.");
+  }
+
+  return data;
 };
 
 /* ============================================================
