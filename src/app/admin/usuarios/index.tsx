@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +10,7 @@ import {
   View,
 } from "react-native";
 
+import ModalUsuario from "../../../components/admin/ModalUsuario";
 import PanelUsuario, { PestanaPanel } from "../../../components/admin/PanelUsuario";
 import {
   Avatar,
@@ -20,11 +20,12 @@ import {
   Campo,
   Chip,
   Insignia,
-  Selector
+  Selector,
 } from "../../../components/admin/ui";
 import { useAuth } from "../../../context/AuthContext";
 import {
   cambiarEstadoUsuario,
+  eliminarUsuario,
   listarUsuarios,
   nombreCompleto,
   permisosSobre,
@@ -55,7 +56,7 @@ const COL = {
   rol: 140,
   contacto: 200,
   estado: 120,
-  acciones: 180,
+  acciones: 220,
 };
 
 export default function UsuariosScreen() {
@@ -82,7 +83,9 @@ export default function UsuariosScreen() {
 
   const [panel, setPanel] = useState<{ id: number; tab: PestanaPanel } | null>(null);
   const [confirmar, setConfirmar] = useState<UsuarioFila | null>(null);
+  const [eliminar, setEliminar] = useState<UsuarioFila | null>(null);
   const [cambiando, setCambiando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const [toast, setToast] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
 
   // Núcleo: usuario + rol + estado + acciones ≈ 740 px.
@@ -210,6 +213,21 @@ export default function UsuariosScreen() {
       setConfirmar(null);
     } finally {
       setCambiando(false);
+    }
+  };
+
+  const confirmarEliminacion = async () => {
+    if (!eliminar) return;
+    try {
+      setEliminando(true);
+      await eliminarUsuario(eliminar.id_PK, token);
+      setToast({ tipo: "ok", texto: `La cuenta de ${nombreCompleto(eliminar)} fue eliminada.` });
+      setEliminar(null);
+      await cargar();
+    } catch (e) {
+      setToast({ tipo: "error", texto: mensajeError(e, "No se pudo eliminar el usuario.") });
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -452,6 +470,7 @@ export default function UsuariosScreen() {
                       onEditar={() => setPanel({ id: u.id_PK, tab: "editar" })}
                       onSeguridad={() => setPanel({ id: u.id_PK, tab: "seguridad" })}
                       onEstado={() => setConfirmar(u)}
+                      onEliminar={() => setEliminar(u)}
                     />
                   ))}
                 </View>
@@ -537,75 +556,25 @@ export default function UsuariosScreen() {
         onCambio={cargar}
       />
 
-      {/* Confirmar activar / desactivar */}
-      <Modal
+      {/* Activar / desactivar */}
+      <ModalUsuario
         visible={!!confirmar}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setConfirmar(null)}
-      >
-        <Pressable
-          style={[
-            s.modalFondo,
-            {
-              backgroundColor:
-                c.mode === "dark" ? "rgba(0,0,0,0.65)" : "rgba(23,63,58,0.45)",
-            },
-          ]}
-          onPress={() => !cambiando && setConfirmar(null)}
-        >
-          <Pressable
-            style={[s.modal, { backgroundColor: c.card, borderColor: c.border }]}
-            onPress={() => undefined}
-          >
-            {confirmar && (
-              <>
-                <View
-                  style={[
-                    s.modalIcono,
-                    {
-                      backgroundColor: esActivo(confirmar)
-                        ? withAlpha(c.error, 0.16)
-                        : withAlpha(c.success, 0.16),
-                    },
-                  ]}
-                >
-                  <FontAwesome
-                    name="power-off"
-                    size={22}
-                    color={esActivo(confirmar) ? c.error : c.success}
-                  />
-                </View>
-                <Text style={[s.modalTitulo, { color: c.text }]}>
-                  {esActivo(confirmar) ? "¿Desactivar cuenta?" : "¿Activar cuenta?"}
-                </Text>
-                <Text style={[s.modalTexto, { color: c.muted }]}>
-                  <Text style={{ fontWeight: "800", color: c.text }}>{confirmar.nombre}</Text>{" "}
-                  {esActivo(confirmar)
-                    ? "no podrá iniciar sesión hasta que la reactives."
-                    : "podrá volver a iniciar sesión."}
-                </Text>
-                <View style={s.modalAcciones}>
-                  <Boton
-                    texto="Cancelar"
-                    variante="secundario"
-                    deshabilitado={cambiando}
-                    onPress={() => setConfirmar(null)}
-                    c={c}
-                  />
-                  <Boton
-                    texto={esActivo(confirmar) ? "Desactivar" : "Activar"}
-                    variante={esActivo(confirmar) ? "peligro" : "primario"}
-                    cargando={cambiando}
-                    onPress={confirmarCambioEstado}
-                    c={c}
-                  />
-                </View>
-              </>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
+        tipo={confirmar && esActivo(confirmar) ? "desactivar" : "activar"}
+        usuario={confirmar}
+        cargando={cambiando}
+        onCancelar={() => setConfirmar(null)}
+        onConfirmar={confirmarCambioEstado}
+      />
+
+      {/* Eliminar */}
+      <ModalUsuario
+        visible={!!eliminar}
+        tipo="eliminar"
+        usuario={eliminar}
+        cargando={eliminando}
+        onCancelar={() => setEliminar(null)}
+        onConfirmar={confirmarEliminacion}
+      />
     </View>
   );
 }
@@ -675,6 +644,7 @@ function FilaUsuario({
   onEditar,
   onSeguridad,
   onEstado,
+  onEliminar,
 }: {
   u: UsuarioFila;
   verContacto: boolean;
@@ -684,6 +654,7 @@ function FilaUsuario({
   onEditar: () => void;
   onSeguridad: () => void;
   onEstado: () => void;
+  onEliminar: () => void;
 }) {
   const [hover, setHover] = useState(false);
   const activo = esActivo(u);
@@ -775,24 +746,27 @@ function FilaUsuario({
           deshabilitado={!permisos.puedeCambiarEstado}
           c={c}
         />
+        <BotonIcono
+          icono="trash"
+          etiqueta={
+            u.rol_id_FK === 2 || u.rol_id_FK === 3
+              ? "No se pueden eliminar doctores ni pacientes"
+              : permisos.esPropio
+                ? "No puedes eliminar tu propia cuenta"
+                : permisos.protegido
+                  ? "Sin permiso para eliminar esta cuenta"
+                  : "Eliminar usuario"
+          }
+          tono="peligro"
+          onPress={onEliminar}
+          deshabilitado={
+            u.rol_id_FK === 2 || u.rol_id_FK === 3 || permisos.esPropio || permisos.protegido
+          }
+          c={c}
+        />
       </View>
     </Pressable>
   );
-}
-
-/* Helper local para tintes */
-function withAlpha(hex: string, a: number) {
-  const h = hex.replace("#", "");
-  const n = parseInt(
-    h.length === 3
-      ? h
-          .split("")
-          .map((x) => x + x)
-          .join("")
-      : h,
-    16
-  );
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
 /* ───────────────────────── Estilos ───────────────────────── */
@@ -887,25 +861,4 @@ const s = StyleSheet.create({
   },
   pagTxt: { fontSize: 13.5, fontWeight: "700" },
   porPagina: { flexDirection: "row", alignItems: "center", gap: 6 },
-
-  modalFondo: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20 },
-  modal: {
-    width: "100%",
-    maxWidth: 400,
-    borderRadius: 22,
-    padding: 26,
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1,
-  },
-  modalIcono: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalTitulo: { fontSize: 19, fontWeight: "800" },
-  modalTexto: { fontSize: 14, textAlign: "center", lineHeight: 21 },
-  modalAcciones: { flexDirection: "row", gap: 10, marginTop: 6 },
 });

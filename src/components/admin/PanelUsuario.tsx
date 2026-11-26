@@ -2,6 +2,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,23 +21,38 @@ import {
   CambiosUsuario,
   nombreCompleto,
   permisosSobre,
-  UsuarioFila
+  UsuarioFila,
 } from "../../services/usuariosService";
 import { authHeaders, mensajeError } from "../../services/util";
 import { useTheme } from "../../theme/theme";
 import EspecialidadSelector from "../EspecialidadSelector";
+import SelectorFecha from "../SelectorFecha";
 import QRRecuperacion from "../recuperacion/QRRecuperacion";
 import {
   Avatar,
   Aviso,
   Boton,
   Campo,
+  Chip,
   fechaLegible,
   Insignia,
   Pestanas,
-  Selector
+  Selector,
 } from "./ui";
-import { normalizarRfc, vCorreo, vCosto, vNombrePersona, vRfc, vTelefono } from "./validaciones";
+import {
+  CURP_LONGITUD,
+  fechaDeCurp,
+  hoyISO,
+  normalizarCurp,
+  normalizarRfc,
+  vCorreo,
+  vCosto,
+  vCurp,
+  vFecha,
+  vNombrePersona,
+  vRfc,
+  vTelefono,
+} from "./validaciones";
 
 export type PestanaPanel = "detalle" | "editar" | "seguridad";
 
@@ -50,6 +66,51 @@ interface Props {
 const ROL_DOCTOR = 2;
 const ROL_PACIENTE = 3;
 
+/* ───────────────────────── NORMALIZACIÓN ───────────────────────── */
+
+const normalizarMayusculasSinAcentos = (v: string) =>
+  v
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+
+const normalizarTelefonoInput = (v: string) => v.replace(/\D/g, "").slice(0, 10);
+const normalizarCorreoInput = (v: string) => v.toLowerCase().replace(/\s/g, "");
+const normalizarLicenciaInput = (v: string) =>
+  v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
+/* ───────────────────────── HELPERS ───────────────────────── */
+
+function withAlpha(hex: string, a: number) {
+  const h = hex.replace("#", "");
+  const n = parseInt(
+    h.length === 3
+      ? h.split("").map((x) => x + x).join("")
+      : h,
+    16
+  );
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+
+const sombraFlotante = (c: ReturnType<typeof useTheme>) =>
+  Platform.select({
+    web: {
+      boxShadow: `0 24px 80px ${withAlpha(c.glassShadow, 0.45)}, 0 8px 24px ${withAlpha(
+        c.glassShadow,
+        0.28
+      )}`,
+    } as any,
+    default: {
+      shadowColor: c.glassShadow,
+      shadowOffset: { width: 0, height: 20 },
+      shadowOpacity: 0.35,
+      shadowRadius: 40,
+      elevation: 24,
+    },
+  });
+
+/* ───────────────────────── COMPONENTE ───────────────────────── */
+
 export default function PanelUsuario({
   usuario,
   pestanaInicial,
@@ -57,14 +118,16 @@ export default function PanelUsuario({
   onCambio,
 }: Props) {
   const { width } = useWindowDimensions();
-  const c = useTheme(); // tema adaptativo (claro/oscuro)
+  const c = useTheme();
   const [pestana, setPestana] = useState<PestanaPanel>(pestanaInicial);
 
   useEffect(() => {
     if (usuario) setPestana(pestanaInicial);
   }, [usuario?.id_PK, pestanaInicial]);
 
-  const drawer = width >= 820;
+  // Responsivo: móvil = sheet, tablet/desktop = modal flotante
+  const esMovil = width < 720;
+  const anchoModal = Math.min(width - 48, 780);
 
   return (
     <Modal
@@ -72,38 +135,49 @@ export default function PanelUsuario({
       transparent
       animationType="fade"
       onRequestClose={onCerrar}
+      statusBarTranslucent
     >
-      <View
+      <Pressable
         style={[
           s.fondo,
           {
             backgroundColor:
-              c.mode === "dark"
-                ? "rgba(0,0,0,0.65)"
-                : "rgba(23,63,58,0.45)",
+              c.mode === "dark" ? "rgba(0,0,0,0.7)" : "rgba(10,55,50,0.5)",
+            justifyContent: esMovil ? "flex-end" : "center",
+            padding: esMovil ? 0 : 24,
           },
-          drawer && { alignItems: "flex-end" },
         ]}
+        onPress={onCerrar}
       >
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onCerrar}
-          accessibilityLabel="Cerrar panel"
-        />
-
         {usuario && (
-          <View
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
             style={[
-              s.hoja,
-              { backgroundColor: c.card },
-              drawer ? s.hojaDrawer : s.hojaCompleta,
+              s.modal,
+              {
+                backgroundColor: c.card,
+                borderColor: c.glassBorder,
+                width: esMovil ? "100%" : anchoModal,
+                maxHeight: esMovil ? "92%" : Math.min(800, 720),
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                borderBottomLeftRadius: esMovil ? 0 : 24,
+                borderBottomRightRadius: esMovil ? 0 : 24,
+              },
+              sombraFlotante(c),
             ]}
           >
-            {/* Cabecera */}
-            <View style={[s.cabecera, { borderBottomColor: c.glassBorder }]}>
-              <Avatar nombre={nombreCompleto(usuario)} tam={44} />
+            {esMovil && <View style={[s.asa, { backgroundColor: c.border }]} />}
 
-              <View style={{ flex: 1 }}>
+            {/* Cabecera */}
+            <View
+              style={[
+                s.cabecera,
+                { borderBottomColor: c.glassBorder, backgroundColor: c.bgSoft },
+              ]}
+            >
+              <Avatar nombre={nombreCompleto(usuario)} tam={48} />
+              <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[s.nombre, { color: c.text }]} numberOfLines={1}>
                   {nombreCompleto(usuario)}
                 </Text>
@@ -111,13 +185,17 @@ export default function PanelUsuario({
                   {usuario.correo_electronico}
                 </Text>
               </View>
-
               <Pressable
                 onPress={onCerrar}
                 hitSlop={10}
                 accessibilityRole="button"
                 accessibilityLabel="Cerrar"
-                style={[s.cerrar, { backgroundColor: c.tileBg }]}
+                style={({ pressed }) => [
+                  s.cerrar,
+                  {
+                    backgroundColor: pressed ? c.hoverBg : c.tileBg,
+                  },
+                ]}
               >
                 <FontAwesome name="times" size={18} color={c.muted} />
               </Pressable>
@@ -134,55 +212,107 @@ export default function PanelUsuario({
             />
 
             <ScrollView
-              contentContainerStyle={{ padding: 20, gap: 16 }}
+              contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 28 }}
               keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
             >
               {pestana === "detalle" && <Detalle u={usuario} c={c} />}
               {pestana === "editar" && (
                 <Editar u={usuario} c={c} onCambio={onCambio} onCerrar={onCerrar} />
               )}
-              {pestana === "seguridad" && <Seguridad u={usuario} c={c} onCambio={onCambio} />}
+              {pestana === "seguridad" && (
+                <Seguridad u={usuario} c={c} onCambio={onCambio} />
+              )}
             </ScrollView>
-          </View>
+          </Pressable>
         )}
-      </View>
+      </Pressable>
     </Modal>
   );
 }
 
-/* ───────────────────────── DETALLE ───────────────────────── */
+/* ───────────────────────── SUBCOMPONENTES UI ───────────────────────── */
 
-/**
- * Tarjeta de dato mejorada: fondo tile, borde sutil, etiqueta arriba y valor grande.
- */
-function Dato({
+/** Sección con título, icono y tarjeta de contenido. */
+function Seccion({
+  titulo,
+  icono,
+  c,
+  children,
+  tono = "primario",
+}: {
+  titulo: string;
+  icono: React.ComponentProps<typeof FontAwesome>["name"];
+  c: ReturnType<typeof useTheme>;
+  children: React.ReactNode;
+  tono?: "primario" | "ok" | "aviso" | "peligro";
+}) {
+  const color =
+    tono === "ok"
+      ? c.success
+      : tono === "aviso"
+        ? c.warning
+        : tono === "peligro"
+          ? c.error
+          : c.primary;
+
+  return (
+    <View style={{ gap: 10 }}>
+      <View style={s.seccionCab}>
+        <View
+          style={[s.seccionIcono, { backgroundColor: withAlpha(color, 0.14) }]}
+        >
+          <FontAwesome name={icono} size={13} color={color} />
+        </View>
+        <Text style={[s.seccionTitulo, { color: c.text }]}>{titulo}</Text>
+        <View style={[s.seccionLinea, { backgroundColor: withAlpha(color, 0.2) }]} />
+      </View>
+      {children}
+    </View>
+  );
+}
+
+/** Tarjeta de dato con etiqueta + valor. */
+function DatoCard({
   etiqueta,
   valor,
-  c,
   icono,
+  c,
+  acento = false,
 }: {
   etiqueta: string;
   valor: React.ReactNode;
+  icono?: React.ComponentProps<typeof FontAwesome>["name"];
   c: ReturnType<typeof useTheme>;
-  icono?: any;
+  acento?: boolean;
 }) {
   return (
     <View
       style={[
         s.datoCard,
-        { backgroundColor: c.tileBg, borderColor: c.glassBorder },
+        {
+          backgroundColor: acento ? withAlpha(c.primary, 0.06) : c.bgSoft,
+          borderColor: acento ? withAlpha(c.primary, 0.18) : c.border,
+        },
       ]}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+      <View style={s.datoCab}>
         {icono && (
           <FontAwesome
             name={icono}
             size={11}
-            color={c.muted}
+            color={acento ? c.primary : c.muted}
             style={{ marginRight: 6 }}
           />
         )}
-        <Text style={[s.datoEtiqueta, { color: c.muted }]}>{etiqueta}</Text>
+        <Text
+          style={[
+            s.datoEtiqueta,
+            { color: acento ? c.primary : c.muted },
+          ]}
+        >
+          {etiqueta}
+        </Text>
       </View>
       {typeof valor === "string" ? (
         <Text style={[s.datoValor, { color: c.text }]}>{valor}</Text>
@@ -193,48 +323,138 @@ function Dato({
   );
 }
 
+/* ───────────────────────── DETALLE ───────────────────────── */
+
 function Detalle({ u, c }: { u: UsuarioFila; c: ReturnType<typeof useTheme> }) {
   const activo = (u.estado ?? "").toLowerCase() === "activo";
 
   return (
-    <View style={{ gap: 4 }}>
-      <View style={s.insignias}>
-        <Insignia texto={u.rol ?? "Sin rol"} tono="primario" />
-        <Insignia texto={activo ? "Activo" : "Inactivo"} tono={activo ? "ok" : "peligro"} />
+    <View style={{ gap: 22 }}>
+      {/* Resumen */}
+      <View style={{ gap: 12 }}>
+        <View style={s.insignias}>
+          <Insignia texto={u.rol ?? "Sin rol"} tono="primario" c={c} />
+          <Insignia
+            texto={activo ? "Activo" : "Inactivo"}
+            tono={activo ? "ok" : "peligro"}
+            c={c}
+          />
+        </View>
+
+        <View style={s.gridDatos}>
+          <DatoCard
+            c={c}
+            icono="phone"
+            etiqueta="Teléfono"
+            valor={u.telefono || "—"}
+          />
+          <DatoCard
+            c={c}
+            icono="calendar"
+            etiqueta="Fecha de alta"
+            valor={fechaLegible(u.creado_en)}
+          />
+          <DatoCard
+            c={c}
+            icono="clock-o"
+            etiqueta="Último acceso"
+            valor={fechaLegible(u.ultimo_acceso, true)}
+          />
+        </View>
       </View>
 
-      <Dato c={c} icono="phone" etiqueta="Teléfono" valor={u.telefono || "—"} />
-      <Dato c={c} icono="calendar" etiqueta="Fecha de alta" valor={fechaLegible(u.creado_en)} />
-      <Dato c={c} icono="clock-o" etiqueta="Último acceso" valor={fechaLegible(u.ultimo_acceso, true)} />
-
       {u.rol_id_FK === ROL_DOCTOR && (
-        <>
-          <Text style={[s.subtitulo, { color: c.primary }]}>Perfil médico</Text>
-          <Dato c={c} icono="id-card" etiqueta="Licencia" valor={u.numero_licencia || "—"} />
-          <Dato c={c} icono="file-text-o" etiqueta="RFC" valor={u.rfc || "—"} />
-          <Dato
+        <Seccion titulo="Perfil médico" icono="stethoscope" c={c} tono="ok">
+          <View style={s.gridDatos}>
+            <DatoCard
+              c={c}
+              icono="id-card"
+              etiqueta="Licencia"
+              valor={u.numero_licencia || "—"}
+            />
+            <DatoCard
+              c={c}
+              icono="file-text-o"
+              etiqueta="RFC"
+              valor={u.rfc || "—"}
+            />
+            <DatoCard
+              c={c}
+              icono="usd"
+              etiqueta="Costo de consulta"
+              valor={
+                u.costo_consulta != null
+                  ? `$${u.costo_consulta.toFixed(2)} MXN`
+                  : "—"
+              }
+            />
+          </View>
+          <View
+            style={[
+              s.datoCard,
+              { backgroundColor: c.bgSoft, borderColor: c.border },
+            ]}
+          >
+            <View style={s.datoCab}>
+              <FontAwesome
+                name="stethoscope"
+                size={11}
+                color={c.muted}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[s.datoEtiqueta, { color: c.muted }]}>
+                Especialidades
+              </Text>
+            </View>
+            {u.especialidades.length ? (
+              <View style={s.insignias}>
+                {u.especialidades.map((e) => (
+                  <Insignia
+                    key={e.id_PK}
+                    texto={e.nombre}
+                    tono="primario"
+                    c={c}
+                  />
+                ))}
+              </View>
+            ) : (
+              <Text style={[s.datoValor, { color: c.muted }]}>
+                Sin especialidades asignadas
+              </Text>
+            )}
+          </View>
+        </Seccion>
+      )}
+
+      {u.rol_id_FK === ROL_PACIENTE && (
+        <Seccion titulo="Ficha del paciente" icono="id-card-o" c={c} tono="ok">
+          <View style={s.gridDatos}>
+            <DatoCard
+              c={c}
+              icono="id-card-o"
+              etiqueta="CURP"
+              valor={u.curp || "—"}
+            />
+            <DatoCard
+              c={c}
+              icono="calendar"
+              etiqueta="Fecha de nacimiento"
+              valor={fechaLegible(u.fecha_nacimiento)}
+            />
+            <DatoCard
+              c={c}
+              icono="venus-mars"
+              etiqueta="Género"
+              valor={u.genero || "—"}
+            />
+          </View>
+          <DatoCard
             c={c}
-            icono="usd"
-            etiqueta="Costo de consulta"
-            valor={u.costo_consulta != null ? `$${u.costo_consulta.toFixed(2)} MXN` : "—"}
+            icono="map-marker"
+            etiqueta="Dirección"
+            valor={u.direccion || "—"}
           />
-          <Dato
-            c={c}
-            icono="stethoscope"
-            etiqueta="Especialidades"
-            valor={
-              u.especialidades.length ? (
-                <View style={s.insignias}>
-                  {u.especialidades.map((e) => (
-                    <Insignia key={e.id_PK} texto={e.nombre} tono="primario" />
-                  ))}
-                </View>
-              ) : (
-                <Text style={[s.datoValor, { color: c.text }]}>Sin especialidades asignadas</Text>
-              )
-            }
-          />
-        </>
+        </Seccion>
       )}
     </View>
   );
@@ -262,16 +482,20 @@ function Editar({
 
   const original = useMemo(
     () => ({
-      nombre: u.nombre,
-      apellidoPaterno: u.apellido_paterno ?? "",
-      apellidoMaterno: u.apellido_materno ?? "",
-      rfc: u.rfc ?? "",
-      correo: u.correo_electronico,
-      telefono: u.telefono ?? "",
+      nombre: normalizarMayusculasSinAcentos(u.nombre ?? ""),
+      apellidoPaterno: normalizarMayusculasSinAcentos(u.apellido_paterno ?? ""),
+      apellidoMaterno: normalizarMayusculasSinAcentos(u.apellido_materno ?? ""),
+      rfc: normalizarRfc(u.rfc ?? ""),
+      correo: normalizarCorreoInput(u.correo_electronico ?? ""),
+      telefono: normalizarTelefonoInput(u.telefono ?? ""),
       rolId: u.rol_id_FK,
-      licencia: u.numero_licencia ?? "",
+      licencia: normalizarLicenciaInput(u.numero_licencia ?? ""),
       costo: u.costo_consulta != null ? String(u.costo_consulta) : "",
       esp: u.especialidades.map((e) => e.id_PK).sort((a, b) => a - b),
+      curp: normalizarCurp(u.curp ?? ""),
+      fechaNacimiento: u.fecha_nacimiento ?? "",
+      genero: u.genero ?? "",
+      direccion: normalizarMayusculasSinAcentos(u.direccion ?? ""),
     }),
     [u]
   );
@@ -286,6 +510,10 @@ function Editar({
   const [licencia, setLicencia] = useState(original.licencia);
   const [costo, setCosto] = useState(original.costo);
   const [esp, setEsp] = useState<number[]>(original.esp);
+  const [curp, setCurp] = useState(original.curp);
+  const [fechaNacimiento, setFechaNacimiento] = useState(original.fechaNacimiento);
+  const [genero, setGenero] = useState(original.genero);
+  const [direccion, setDireccion] = useState(original.direccion);
 
   const [roles, setRoles] = useState<{ id_PK: number; nombre: string }[]>([]);
   const [guardando, setGuardando] = useState(false);
@@ -306,6 +534,10 @@ function Editar({
     setLicencia(original.licencia);
     setCosto(original.costo);
     setEsp(original.esp);
+    setCurp(original.curp);
+    setFechaNacimiento(original.fechaNacimiento);
+    setGenero(original.genero);
+    setDireccion(original.direccion);
     setIntento(false);
   }, [original]);
 
@@ -321,13 +553,15 @@ function Editar({
     (r) =>
       r.id_PK !== ROL_DOCTOR &&
       r.id_PK !== ROL_PACIENTE &&
-      !(rolActor === 5 && (r.id_PK === 1 || r.id_PK === 5) && r.id_PK !== original.rolId)
+      !(
+        rolActor === 5 &&
+        (r.id_PK === 1 || r.id_PK === 5) &&
+        r.id_PK !== original.rolId
+      )
   );
 
   const errores = {
     nombre: vNombrePersona(nombre, "El nombre"),
-    // Cuentas anteriores sin apellidos se pueden seguir editando sin obligar a capturarlos
-    // (los pacientes sí necesitan apellido paterno).
     apellidoPaterno: vNombrePersona(
       apellidoPaterno,
       "El apellido paterno",
@@ -340,6 +574,17 @@ function Editar({
     licencia: esDoctor && !licencia.trim() ? "Ingresa el número de licencia." : "",
     costo: esDoctor ? vCosto(costo) : "",
     esp: esDoctor && esp.length === 0 ? "Selecciona al menos una especialidad." : "",
+    curp: u.rol_id_FK === ROL_PACIENTE ? vCurp(curp) : "",
+    fechaNacimiento:
+      u.rol_id_FK === ROL_PACIENTE
+        ? !fechaNacimiento
+          ? "La fecha de nacimiento es obligatoria."
+          : vFecha(fechaNacimiento) ||
+            (fechaDeCurp(curp) && fechaDeCurp(curp) !== fechaNacimiento
+              ? "La fecha no coincide con la CURP."
+              : "")
+        : "",
+    genero: u.rol_id_FK === ROL_PACIENTE && !genero ? "Selecciona el género." : "",
   };
 
   const hayErrores = Object.values(errores).some(Boolean);
@@ -351,16 +596,27 @@ function Editar({
     cambiosCuenta.apellido_paterno = apellidoPaterno.trim() || null;
   if (apellidoMaterno.trim() !== original.apellidoMaterno)
     cambiosCuenta.apellido_materno = apellidoMaterno.trim() || null;
-  if (correo.trim().toLowerCase() !== original.correo.toLowerCase())
-    cambiosCuenta.correo_electronico = correo.trim().toLowerCase();
-  if (telefono.trim() !== original.telefono) cambiosCuenta.telefono = telefono.trim() || null;
+  if (correo !== original.correo) cambiosCuenta.correo_electronico = correo;
+  if (telefono !== original.telefono) cambiosCuenta.telefono = telefono || null;
   if (rolId !== null && rolId !== original.rolId) cambiosCuenta.rol_id_FK = rolId;
+
+  if (u.rol_id_FK === ROL_PACIENTE) {
+    if (normalizarCurp(curp) !== original.curp) cambiosCuenta.curp = normalizarCurp(curp);
+    if (fechaNacimiento !== original.fechaNacimiento)
+      cambiosCuenta.fecha_nacimiento = fechaNacimiento;
+    if (genero !== original.genero) cambiosCuenta.genero = genero;
+    if (direccion.trim() !== original.direccion)
+      cambiosCuenta.direccion = direccion.trim() || null;
+  }
 
   const cambiosMedico: CambiosDoctor = {};
   if (esDoctor) {
-    if (licencia.trim() !== original.licencia) cambiosMedico.numero_licencia = licencia.trim();
-    if (normalizarRfc(rfc) !== original.rfc) cambiosMedico.rfc = normalizarRfc(rfc) || null;
-    if (costo.trim() !== original.costo) cambiosMedico.costo_consulta = Number(costo);
+    if (licencia.trim() !== original.licencia)
+      cambiosMedico.numero_licencia = licencia.trim();
+    if (normalizarRfc(rfc) !== original.rfc)
+      cambiosMedico.rfc = normalizarRfc(rfc) || null;
+    if (costo.trim() !== original.costo)
+      cambiosMedico.costo_consulta = Number(costo);
     if (JSON.stringify(espOrdenadas) !== JSON.stringify(original.esp))
       cambiosMedico.especialidad_ids = espOrdenadas;
   }
@@ -380,6 +636,10 @@ function Editar({
     setLicencia(original.licencia);
     setCosto(original.costo);
     setEsp(original.esp);
+    setCurp(original.curp);
+    setFechaNacimiento(original.fechaNacimiento);
+    setGenero(original.genero);
+    setDireccion(original.direccion);
     setIntento(false);
     setMensaje(null);
   };
@@ -422,130 +682,256 @@ function Editar({
       <Aviso
         tipo="aviso"
         texto="Como coordinador no puedes modificar cuentas de administradores ni de otros coordinadores."
+        c={c}
       />
     );
   }
 
   return (
-    <View style={{ gap: 16 }}>
-      <Text style={[s.subtitulo, { color: c.primary }]}>Datos de la cuenta</Text>
+    <View style={{ gap: 22 }}>
+      <Seccion titulo="Datos de la cuenta" icono="user" c={c}>
+        <View style={{ gap: 12 }}>
+          <Campo
+            etiqueta="Nombre(s)"
+            valor={nombre}
+            onChange={(v) => setNombre(normalizarMayusculasSinAcentos(v))}
+            requerido
+            error={errores.nombre}
+            mostrarError={intento}
+            autoCapitalize="characters"
+            icono="user"
+            c={c}
+          />
+          <View style={s.gridDos}>
+            <Campo
+              etiqueta="Apellido paterno"
+              valor={apellidoPaterno}
+              onChange={(v) => setApellidoPaterno(normalizarMayusculasSinAcentos(v))}
+              requerido={u.rol_id_FK === ROL_PACIENTE}
+              error={errores.apellidoPaterno}
+              mostrarError={intento}
+              autoCapitalize="characters"
+              c={c}
+            />
+            <Campo
+              etiqueta="Apellido materno"
+              valor={apellidoMaterno}
+              onChange={(v) => setApellidoMaterno(normalizarMayusculasSinAcentos(v))}
+              error={errores.apellidoMaterno}
+              mostrarError={intento}
+              autoCapitalize="characters"
+              ayuda="Opcional"
+              c={c}
+            />
+          </View>
+          <Campo
+            etiqueta="Correo electrónico"
+            valor={correo}
+            onChange={(v) => setCorreo(normalizarCorreoInput(v))}
+            requerido
+            error={errores.correo}
+            mostrarError={intento}
+            teclado="email-address"
+            autoCapitalize="none"
+            icono="envelope-o"
+            c={c}
+          />
+          <Campo
+            etiqueta="Teléfono"
+            valor={telefono}
+            onChange={(v) => setTelefono(normalizarTelefonoInput(v))}
+            error={errores.telefono}
+            mostrarError={intento}
+            teclado="phone-pad"
+            maxLength={10}
+            icono="phone"
+            ayuda="Opcional, 10 dígitos"
+            c={c}
+          />
 
-      <Campo
-        etiqueta="Nombre(s)"
-        valor={nombre}
-        onChange={setNombre}
-        requerido
-        error={errores.nombre}
-        mostrarError={intento}
-        autoCapitalize="words"
-        icono="user"
-      />
-      <Campo
-        etiqueta="Apellido paterno"
-        valor={apellidoPaterno}
-        onChange={setApellidoPaterno}
-        requerido={u.rol_id_FK === ROL_PACIENTE}
-        error={errores.apellidoPaterno}
-        mostrarError={intento}
-        autoCapitalize="words"
-      />
-      <Campo
-        etiqueta="Apellido materno"
-        valor={apellidoMaterno}
-        onChange={setApellidoMaterno}
-        error={errores.apellidoMaterno}
-        mostrarError={intento}
-        autoCapitalize="words"
-        ayuda="Opcional"
-      />
-      <Campo
-        etiqueta="Correo electrónico"
-        valor={correo}
-        onChange={setCorreo}
-        requerido
-        error={errores.correo}
-        mostrarError={intento}
-        teclado="email-address"
-        icono="envelope-o"
-      />
-      <Campo
-        etiqueta="Teléfono"
-        valor={telefono}
-        onChange={setTelefono}
-        error={errores.telefono}
-        mostrarError={intento}
-        teclado="phone-pad"
-        icono="phone"
-        ayuda="Opcional"
-      />
-
-      {tienePerfilClinico ? (
-        <View style={{ gap: 6 }}>
-          <Text style={[s.datoEtiqueta, { color: c.muted }]}>Rol</Text>
-          <Insignia texto={u.rol ?? "—"} tono="primario" />
-          <Text style={[s.ayuda, { color: c.muted }]}>
-            El rol no se puede cambiar porque la cuenta tiene un perfil clínico asociado.
-          </Text>
+          {tienePerfilClinico ? (
+            <View style={{ gap: 6 }}>
+              <Text style={[s.datoEtiqueta, { color: c.muted }]}>Rol</Text>
+              <Insignia texto={u.rol ?? "—"} tono="primario" c={c} />
+              <Text style={[s.ayuda, { color: c.muted }]}>
+                El rol no se puede cambiar porque la cuenta tiene un perfil clínico asociado.
+              </Text>
+            </View>
+          ) : (
+            <Selector
+              etiqueta="Rol"
+              valor={rolId !== null ? String(rolId) : ""}
+              opciones={rolesCambiables.map((r) => ({
+                valor: String(r.id_PK),
+                etiqueta: r.nombre,
+              }))}
+              onChange={(v) => setRolId(Number(v))}
+              icono="id-badge"
+              c={c}
+            />
+          )}
         </View>
-      ) : (
-        <Selector
-          etiqueta="Rol"
-          valor={rolId !== null ? String(rolId) : ""}
-          opciones={rolesCambiables.map((r) => ({ valor: String(r.id_PK), etiqueta: r.nombre }))}
-          onChange={(v) => setRolId(Number(v))}
-          icono="id-badge"
+      </Seccion>
+
+      {esDoctor && (
+        <Seccion titulo="Perfil médico" icono="stethoscope" c={c} tono="ok">
+          <View style={{ gap: 12 }}>
+            <EspecialidadSelector
+              valor={esp}
+              onChange={setEsp}
+              error={errores.esp}
+              mostrarError={intento}
+            />
+            <View style={s.gridDos}>
+              <Campo
+                etiqueta="Número de licencia"
+                valor={licencia}
+                onChange={(v) => setLicencia(normalizarLicenciaInput(v))}
+                requerido
+                error={errores.licencia}
+                mostrarError={intento}
+                autoCapitalize="characters"
+                icono="certificate"
+                c={c}
+              />
+              <Campo
+                etiqueta="RFC"
+                valor={rfc}
+                onChange={(v) => setRfc(normalizarRfc(v))}
+                error={errores.rfc}
+                mostrarError={intento}
+                autoCapitalize="characters"
+                icono="file-text-o"
+                maxLength={13}
+                ayuda="12 o 13 caracteres"
+                c={c}
+              />
+            </View>
+            <Campo
+              etiqueta="Costo de consulta (MXN)"
+              valor={costo}
+              onChange={setCosto}
+              requerido
+              error={errores.costo}
+              mostrarError={intento}
+              teclado="decimal-pad"
+              icono="usd"
+              c={c}
+            />
+          </View>
+        </Seccion>
+      )}
+
+      {u.rol_id_FK === ROL_PACIENTE && (
+        <Seccion titulo="Ficha del paciente" icono="id-card-o" c={c} tono="ok">
+          <View style={{ gap: 12 }}>
+            <View style={s.gridDos}>
+              <Campo
+                etiqueta="CURP"
+                valor={curp}
+                onChange={(v) => setCurp(normalizarCurp(v))}
+                requerido
+                error={errores.curp}
+                mostrarError={intento || curp.length >= CURP_LONGITUD}
+                autoCapitalize="characters"
+                maxLength={CURP_LONGITUD}
+                icono="id-card-o"
+                c={c}
+              />
+              <View style={{ gap: 6 }}>
+                <Text style={[s.datoEtiqueta, { color: c.muted }]}>
+                  Fecha de nacimiento *
+                </Text>
+                <SelectorFecha
+                  value={fechaNacimiento}
+                  onChange={setFechaNacimiento}
+                  max={hoyISO()}
+                  placeholder="Fecha de nacimiento"
+                />
+              </View>
+            </View>
+            {!!(intento && errores.fechaNacimiento) && (
+              <Text style={{ color: c.error, fontSize: 12 }}>
+                {errores.fechaNacimiento}
+              </Text>
+            )}
+            {!!(
+              fechaNacimiento &&
+              fechaDeCurp(curp) &&
+              fechaDeCurp(curp) !== fechaNacimiento
+            ) && (
+              <Text style={{ color: c.error, fontSize: 12 }}>
+                La fecha de nacimiento no coincide con la CURP.
+              </Text>
+            )}
+
+            <View style={{ gap: 8 }}>
+              <Text style={[s.datoEtiqueta, { color: c.muted }]}>Género *</Text>
+              <View style={s.chipsFila}>
+                {["Femenino", "Masculino", "Otro"].map((g) => (
+                  <Chip
+                    key={g}
+                    texto={g}
+                    activo={genero === g}
+                    onPress={() => setGenero(g)}
+                    c={c}
+                  />
+                ))}
+              </View>
+              {!!(intento && errores.genero) && (
+                <Text style={{ color: c.error, fontSize: 12 }}>{errores.genero}</Text>
+              )}
+            </View>
+
+            <Campo
+              etiqueta="Dirección"
+              valor={direccion}
+              onChange={(v) => setDireccion(normalizarMayusculasSinAcentos(v))}
+              autoCapitalize="characters"
+              icono="map-marker"
+              multilinea
+              ayuda="Calle, número exterior e interior, colonia, CP, municipio y estado. Ejemplo: AV. REFORMA, #123, INT. 4, COL. CENTRO, CP 06000, CUAUHTÉMOC, CIUDAD DE MÉXICO"
+              c={c}
+            />
+          </View>
+        </Seccion>
+      )}
+
+      {mensaje && (
+        <Aviso
+          tipo={mensaje.tipo}
+          texto={mensaje.texto}
+          onCerrar={() => setMensaje(null)}
+          c={c}
         />
       )}
 
-      {esDoctor && (
-        <>
-          <Text style={[s.subtitulo, { color: c.primary, marginTop: 6 }]}>Perfil médico</Text>
-          <EspecialidadSelector valor={esp} onChange={setEsp} error={errores.esp} mostrarError={intento} />
-          <Campo
-            etiqueta="Número de licencia"
-            valor={licencia}
-            onChange={setLicencia}
-            requerido
-            error={errores.licencia}
-            mostrarError={intento}
-            autoCapitalize="characters"
-            icono="certificate"
+      {/* Barra de acciones flotante */}
+      <View
+        style={[
+          s.barraAcciones,
+          { borderTopColor: c.glassBorder, backgroundColor: c.bgSoft },
+        ]}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <View
+            style={[
+              s.puntoEstado,
+              { backgroundColor: sucio ? c.warning : c.success },
+            ]}
           />
-          <Campo
-            etiqueta="RFC"
-            valor={rfc}
-            onChange={(v) => setRfc(normalizarRfc(v))}
-            error={errores.rfc}
-            mostrarError={intento}
-            autoCapitalize="characters"
-            icono="file-text-o"
-            maxLength={13}
-            ayuda="12 o 13 caracteres"
-          />
-          <Campo
-            etiqueta="Costo de consulta (MXN)"
-            valor={costo}
-            onChange={setCosto}
-            requerido
-            error={errores.costo}
-            mostrarError={intento}
-            teclado="decimal-pad"
-            icono="usd"
-          />
-        </>
-      )}
-
-      {mensaje && <Aviso tipo={mensaje.tipo} texto={mensaje.texto} onCerrar={() => setMensaje(null)} />}
-
-      <View style={[s.barraAcciones, { borderTopColor: c.glassBorder }]}>
-        <Text
-          style={[
-            s.ayuda,
-            { color: sucio ? c.warning : c.muted, fontWeight: sucio ? "700" : "500" },
-          ]}
-        >
-          {sucio ? "● Cambios sin guardar" : "Sin cambios"}
-        </Text>
+          <Text
+            style={[
+              s.ayuda,
+              {
+                color: sucio ? c.warning : c.muted,
+                fontWeight: sucio ? "700" : "500",
+              },
+            ]}
+          >
+            {sucio ? "Cambios sin guardar" : "Sin cambios"}
+          </Text>
+        </View>
         <View style={{ flexDirection: "row", gap: 8 }}>
           <Boton
             texto="Descartar"
@@ -553,6 +939,7 @@ function Editar({
             chico
             deshabilitado={!sucio || guardando}
             onPress={descartar}
+            c={c}
           />
           <Boton
             texto="Guardar cambios"
@@ -561,6 +948,7 @@ function Editar({
             deshabilitado={!sucio || guardando}
             cargando={guardando}
             onPress={guardar}
+            c={c}
           />
         </View>
       </View>
@@ -586,7 +974,10 @@ function Seguridad({
 
   const [enviando, setEnviando] = useState(false);
   const [espera, setEspera] = useState(0);
-  const [correoMsg, setCorreoMsg] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
+  const [correoMsg, setCorreoMsg] = useState<{
+    tipo: "ok" | "error";
+    texto: string;
+  } | null>(null);
 
   useEffect(() => {
     setCorreoMsg(null);
@@ -605,7 +996,11 @@ function Seguridad({
       setEnviando(true);
       setCorreoMsg(null);
       const respuesta = await solicitarEnlaceCorreo(u.correo_electronico);
-      setEspera(typeof respuesta.espera_segundos === "number" ? respuesta.espera_segundos : 60);
+      setEspera(
+        typeof respuesta.espera_segundos === "number"
+          ? respuesta.espera_segundos
+          : 60
+      );
       setCorreoMsg({
         tipo: "ok",
         texto:
@@ -622,60 +1017,94 @@ function Seguridad({
     }
   };
 
+  if (!permisos.puedeEditar) {
+    return (
+      <Aviso
+        tipo="aviso"
+        texto="Como coordinador no puedes restablecer la contraseña de administradores ni de otros coordinadores."
+        c={c}
+      />
+    );
+  }
+
+  if (!activo) {
+    return (
+      <Aviso
+        tipo="aviso"
+        texto="Activa la cuenta para poder restablecer su contraseña."
+        c={c}
+      />
+    );
+  }
+
   return (
-    <View style={{ gap: 18 }}>
-      <Text style={[s.subtitulo, { color: c.primary }]}>Recuperación de contraseña</Text>
-
-      {!permisos.puedeEditar ? (
-        <Aviso
-          tipo="aviso"
-          texto="Como coordinador no puedes restablecer la contraseña de administradores ni de otros coordinadores."
-        />
-      ) : !activo ? (
-        <Aviso tipo="aviso" texto="Activa la cuenta para poder restablecer su contraseña." />
-      ) : (
-        <>
-          {/* QR */}
-          <View style={[s.bloque, { backgroundColor: c.tileBg, borderColor: c.glassBorder }]}>
-            <View style={s.bloqueCab}>
+    <View style={{ gap: 20 }}>
+      <Seccion titulo="Recuperación de contraseña" icono="lock" c={c} tono="aviso">
+        <View
+          style={[
+            s.bloque,
+            { backgroundColor: c.bgSoft, borderColor: c.border },
+          ]}
+        >
+          <View style={s.bloqueCab}>
+            <View
+              style={[s.bloqueIcono, { backgroundColor: withAlpha(c.primary, 0.14) }]}
+            >
               <FontAwesome name="qrcode" size={16} color={c.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
               <Text style={[s.bloqueTitulo, { color: c.text }]}>Código QR</Text>
+              <Text style={[s.ayuda, { color: c.muted }]}>
+                Para entregarlo en persona. El usuario lo escanea desde la pantalla
+                de recuperación.
+              </Text>
             </View>
-            <Text style={[s.ayuda, { color: c.muted }]}>
-              Para entregarlo en persona. El usuario lo escanea desde la pantalla de recuperación.
-            </Text>
-            <QRRecuperacion usuarioId={u.id_PK} token={token} c={c} />
           </View>
+          <QRRecuperacion usuarioId={u.id_PK} token={token} c={c} />
+        </View>
 
-          {/* Enlace por correo */}
-          <View style={[s.bloque, { backgroundColor: c.tileBg, borderColor: c.glassBorder }]}>
-            <View style={s.bloqueCab}>
-              <FontAwesome name="envelope-o" size={15} color={c.primary} />
-              <Text style={[s.bloqueTitulo, { color: c.text }]}>Enlace por correo</Text>
+        <View
+          style={[
+            s.bloque,
+            { backgroundColor: c.bgSoft, borderColor: c.border },
+          ]}
+        >
+          <View style={s.bloqueCab}>
+            <View
+              style={[s.bloqueIcono, { backgroundColor: withAlpha(c.info, 0.14) }]}
+            >
+              <FontAwesome name="envelope-o" size={15} color={c.info} />
             </View>
-            <Text style={[s.ayuda, { color: c.muted }]}>
-              Se enviará un enlace para restablecer la contraseña a {u.correo_electronico}. Al abrirlo, la persona
-              podrá establecer una contraseña nueva.
-            </Text>
-            <Boton
-              texto={
-                enviando
-                  ? "Enviando enlace..."
-                  : espera > 0
-                    ? `Reenviar en ${espera}s`
-                    : "Enviar enlace al correo"
-              }
-              icono="paper-plane"
-              variante="secundario"
-              chico
-              deshabilitado={enviando || espera > 0}
-              cargando={enviando}
-              onPress={enviarEnlace}
-            />
-            {correoMsg && <Aviso tipo={correoMsg.tipo} texto={correoMsg.texto} />}
+            <View style={{ flex: 1 }}>
+              <Text style={[s.bloqueTitulo, { color: c.text }]}>
+                Enlace por correo
+              </Text>
+              <Text style={[s.ayuda, { color: c.muted }]}>
+                Se enviará un enlace para restablecer la contraseña a{" "}
+                {u.correo_electronico}. Al abrirlo, la persona podrá establecer una
+                contraseña nueva.
+              </Text>
+            </View>
           </View>
-        </>
-      )}
+          <Boton
+            texto={
+              enviando
+                ? "Enviando enlace..."
+                : espera > 0
+                  ? `Reenviar en ${espera}s`
+                  : "Enviar enlace al correo"
+            }
+            icono="paper-plane"
+            variante="secundario"
+            chico
+            deshabilitado={enviando || espera > 0}
+            cargando={enviando}
+            onPress={enviarEnlace}
+            c={c}
+          />
+          {correoMsg && <Aviso tipo={correoMsg.tipo} texto={correoMsg.texto} c={c} />}
+        </View>
+      </Seccion>
     </View>
   );
 }
@@ -683,26 +1112,27 @@ function Seguridad({
 /* ───────────────────────── ESTILOS ───────────────────────── */
 
 const s = StyleSheet.create({
-  fondo: { flex: 1, justifyContent: "flex-end" },
-  hoja: { overflow: "hidden" },
-  hojaDrawer: {
-    width: 520,
-    height: "100%",
-    borderTopLeftRadius: 24,
-    borderBottomLeftRadius: 24,
+  fondo: {
+    flex: 1,
+    alignItems: "center",
   },
-  hojaCompleta: {
-    width: "100%",
-    height: "94%",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+  modal: {
+    overflow: "hidden",
+    borderWidth: 1,
+  },
+  asa: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 10,
   },
   cabecera: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
     padding: 20,
-    paddingBottom: 14,
+    paddingTop: 16,
     borderBottomWidth: 1,
   },
   nombre: { fontSize: 17, fontWeight: "800" },
@@ -714,27 +1144,73 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  insignias: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 6 },
-  subtitulo: {
-    fontSize: 13,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-    marginTop: 8,
+  insignias: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
   },
 
-  // Tarjetas de dato (Detalle)
+  /* Secciones */
+  seccionCab: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  seccionIcono: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  seccionTitulo: {
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
+  seccionLinea: {
+    flex: 1,
+    height: 1,
+    marginLeft: 4,
+  },
+
+  /* Grid datos */
+  gridDatos: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  gridDos: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  chipsFila: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
+  /* DatoCard */
   datoCard: {
+    flexGrow: 1,
+    flexBasis: 200,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 10,
+    gap: 4,
+  },
+  datoCab: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   datoEtiqueta: { fontSize: 11.5, fontWeight: "700" },
   datoValor: { fontSize: 15, fontWeight: "700" },
-
   ayuda: { fontSize: 12.5, lineHeight: 18 },
+
+  /* Barra de acciones */
   barraAcciones: {
     flexDirection: "row",
     alignItems: "center",
@@ -742,14 +1218,31 @@ const s = StyleSheet.create({
     flexWrap: "wrap",
     gap: 10,
     paddingTop: 12,
+    paddingHorizontal: 4,
+    marginTop: 4,
     borderTopWidth: 1,
+    borderRadius: 12,
   },
+  puntoEstado: { width: 8, height: 8, borderRadius: 4 },
+
+  /* Bloque seguridad */
   bloque: {
-    gap: 10,
+    gap: 12,
     padding: 16,
     borderRadius: 14,
     borderWidth: 1,
   },
-  bloqueCab: { flexDirection: "row", alignItems: "center", gap: 10 },
-  bloqueTitulo: { flex: 1, fontSize: 14.5, fontWeight: "800" },
+  bloqueCab: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  bloqueIcono: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bloqueTitulo: { fontSize: 14.5, fontWeight: "800", marginBottom: 2 },
 });

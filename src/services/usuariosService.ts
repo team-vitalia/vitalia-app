@@ -24,6 +24,11 @@ export interface UsuarioFila {
   rfc?: string | null;
   costo_consulta: number | null;
   especialidades: EspecialidadAsignada[];
+  paciente_id?: number | null;
+  curp?: string | null;
+  fecha_nacimiento?: string | null;
+  genero?: string | null;
+  direccion?: string | null;
 }
 
 /** Nombre + apellidos (los usuarios anteriores a los apellidos solo tienen `nombre`). */
@@ -41,6 +46,10 @@ export interface CambiosUsuario {
   telefono?: string | null;
   rol_id_FK?: number;
   estado?: "activo" | "inactivo";
+  curp?: string | null;
+  fecha_nacimiento?: string | null;
+  genero?: string | null;
+  direccion?: string | null;
 }
 
 export interface CambiosDoctor {
@@ -74,3 +83,6 @@ export function permisosSobre(u: UsuarioFila, rolActor?: number, idActor?: numbe
     puedeCambiarEstado: !protegido && !esPropio,
   };
 }
+
+export const eliminarUsuario = async (id: number, token?: string | null) =>
+  (await api.delete(`/api/usuarios/${id}`, authHeaders(token))).data;
