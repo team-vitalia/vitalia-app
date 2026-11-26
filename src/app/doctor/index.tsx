@@ -19,6 +19,10 @@ import {
   useWindowDimensions,
 } from "react-native";
 import {
+  SafeAreaProvider,
+  SafeAreaView,
+} from "react-native-safe-area-context";
+import {
   AccionCard,
   EmptyState,
   FondoLuces,
@@ -555,79 +559,143 @@ export default function DoctorScreen() {
       </Animated.View>
 
       {/* Modal contratos (idéntico al anterior, con paleta del tema) */}
+      
       <Modal
         visible={modalContrato}
         animationType="slide"
         presentationStyle="fullScreen"
+        statusBarTranslucent={false}
         onRequestClose={() => {
-          setModalContrato(false);
-          setContratoSeleccionado(null);
+          if (contratoSeleccionado) {
+            setContratoSeleccionado(null);
+          } else {
+            setModalContrato(false);
+          }
         }}
       >
-        <View style={{ flex: 1, backgroundColor: c.bg }}>
-          <View
-            style={{
-              flexDirection: width < 400 ? "column" : "row",
-              alignItems: width < 400 ? "stretch" : "center",
-              justifyContent: "space-between",
-              gap: 12,
-              paddingHorizontal: width < 400 ? 16 : 20,
-              paddingVertical: 16,
-              backgroundColor: c.card,
-              borderBottomWidth: 1,
-              borderBottomColor: c.border,
-            }}
+        <SafeAreaProvider>
+          <SafeAreaView
+            edges={["top", "bottom"]}
+            style={{ flex: 1, backgroundColor: c.bg }}
           >
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text
-                style={{
-                  fontSize: width < 400 ? 18 : 20,
-                  fontWeight: "700",
-                  color: c.primary,
-                  flexShrink: 1,
-                }}
-              >
-                {contratoSeleccionado
-                  ? `Contrato CT-${String(contratoSeleccionado.id_PK).padStart(4, "0")}`
-                  : "Mis contratos"}
-              </Text>
-
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: c.muted,
-                  marginTop: 4,
-                  flexShrink: 1,
-                }}
-              >
-                VITALIA · Documento contractual
-              </Text>
-            </View>
-
-            <Pressable
-              onPress={() => {
-                setModalContrato(false);
-                setContratoSeleccionado(null);
-              }}
+            {/* ÚNICO ENCABEZADO DEL MODAL */}
+            <View
               style={{
-                backgroundColor: c.activeBg,
-                paddingHorizontal: 14,
-                paddingVertical: 9,
-                borderRadius: 10,
-                alignSelf: width < 400 ? "flex-start" : "center",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingHorizontal: width < 400 ? 14 : 20,
+                paddingVertical: 12,
+                backgroundColor: c.card,
+                borderBottomWidth: 1,
+                borderBottomColor: c.border,
+                gap: 12,
               }}
             >
-              <Text
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  style={{
+                    fontSize: width < 400 ? 17 : 20,
+                    fontWeight: "700",
+                    color: c.primary,
+                    flexShrink: 1,
+                  }}
+                  numberOfLines={1}
+                >
+                  {contratoSeleccionado
+                    ? "Vista previa del contrato"
+                    : "Mis contratos"}
+                </Text>
+
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: c.muted,
+                    marginTop: 4,
+                  }}
+                  numberOfLines={1}
+                >
+                  {contratoSeleccionado
+                    ? `Contrato CT-${String(
+                        contratoSeleccionado.id_PK
+                      ).padStart(4, "0")} · VITALIA`
+                    : "VITALIA · Documentos contractuales"}
+                </Text>
+              </View>
+
+              <View
                 style={{
-                  color: c.primary,
-                  fontWeight: "600",
-                  fontSize: 14,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
                 }}
               >
-                Cerrar
-              </Text>
-            </Pressable>
-          </View>
+                {/* DESCARGAR: SOLO ICONO */}
+                {contratoSeleccionado && (
+                  <Pressable
+                    onPress={() => descargarContrato(contratoSeleccionado)}
+                    disabled={descargandoId !== null}
+                    accessibilityRole="button"
+                    accessibilityLabel="Descargar contrato PDF"
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 12,
+                      backgroundColor: "#08BFA4",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: descargandoId !== null ? 0.6 : 1,
+                    }}
+                  >
+                    {descargandoId ===
+                    Number(contratoSeleccionado.id_PK) ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Download
+                        size={20}
+                        color="#FFFFFF"
+                        strokeWidth={2.2}
+                      />
+                    )}
+                  </Pressable>
+                )}
+
+                {/* VOLVER O CERRAR */}
+                <Pressable
+                  onPress={() => {
+                    if (contratoSeleccionado) {
+                      setContratoSeleccionado(null);
+                    } else {
+                      setModalContrato(false);
+                    }
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    contratoSeleccionado
+                      ? "Volver a mis contratos"
+                      : "Cerrar contratos"
+                  }
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 12,
+                    backgroundColor: c.activeBg,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Ionicons
+                    name={
+                      contratoSeleccionado
+                        ? "arrow-back"
+                        : "close"
+                    }
+                    size={22}
+                    color={c.primary}
+                  />
+                </Pressable>
+              </View>
+            </View>
 
           {cargandoContrato ? (
             <View
@@ -694,75 +762,6 @@ export default function DoctorScreen() {
             </View>
           ) : contratoSeleccionado ? (
             <View style={{ flex: 1, backgroundColor: c.bg }}>
-
-              {/* Acciones dentro de la vista previa */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                  gap: 12,
-                }}
-              >
-                {/* Regresar al historial */}
-                <Pressable
-                  onPress={() => setContratoSeleccionado(null)}
-                  style={{
-                    paddingHorizontal: 14,
-                    paddingVertical: 11,
-                    borderRadius: 10,
-                    backgroundColor: c.activeBg,
-                  }}
-                >
-                  <Text style={{ color: c.primary, fontWeight: "700" }}>
-                    ← Volver a mis contratos
-                  </Text>
-                </Pressable>
-
-                {/* Descargar PDF */}
-                <Pressable
-                  onPress={() => descargarContrato(contratoSeleccionado)}
-                  disabled={
-                    !contratoSeleccionado ||
-                    descargandoId !== null
-                  }
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    backgroundColor: "#08BFA4",
-                    paddingHorizontal: 16,
-                    paddingVertical: 11,
-                    borderRadius: 10,
-                    opacity: descargandoId !== null ? 0.6 : 1,
-                  }}
-                >
-                  {descargandoId === Number(contratoSeleccionado.id_PK) ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <Download
-                      size={19}
-                      color="#FFFFFF"
-                      strokeWidth={2.2}
-                    />
-                  )}
-
-                  <Text
-                    style={{
-                      color: "#FFFFFF",
-                      fontSize: 13,
-                      fontWeight: "700",
-                    }}
-                  >
-                    {descargandoId === Number(contratoSeleccionado.id_PK)
-                      ? "Generando..."
-                      : "Descargar PDF"}
-                  </Text>
-                </Pressable>
-              </View>
 
               {/* Documento contractual */}
               <View style={{ flex: 1 }}>
@@ -879,7 +878,8 @@ export default function DoctorScreen() {
               )}
             </ScrollView>
           )}
-        </View>
+        </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
     </View>
   );

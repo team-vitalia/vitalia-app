@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme, type Theme } from "../../../theme/theme";
 
 import * as Print from "expo-print";
@@ -1125,13 +1126,19 @@ export default function ContratosScreen() {
         </View>
       </Modal>
 
+      
       {/* MODAL DE DOCUMENTO VISUAL, SIN PDF */}
       <Modal
         visible={documentoVisible}
         animationType="slide"
+        statusBarTranslucent={false}
         onRequestClose={() => setDocumentoVisible(false)}
       >
-        <View style={styles.contenedorDocumento}>
+        <SafeAreaView
+          style={styles.contenedorDocumento}
+          edges={["top", "bottom"]}
+        >
+          {/* ENCABEZADO */}
           <View style={styles.encabezadoDocumento}>
             <View style={styles.infoDocumento}>
               <Text style={styles.tituloDocumento}>
@@ -1178,6 +1185,7 @@ export default function ContratosScreen() {
             </View>
           </View>
 
+          {/* DOCUMENTO */}
           {contratoDocumento && (
             <DocumentoContrato
               contrato={contratoDocumento}
@@ -1186,7 +1194,7 @@ export default function ContratosScreen() {
               )}
             />
           )}
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* MODAL DE ALERTAS */}
@@ -1661,6 +1669,7 @@ const createStyles = (c: Theme) => {
     letterSpacing: 0.2,
   },
 
+  
   infoDocumento: {
     flex: 1,
     minWidth: 0,
@@ -1684,7 +1693,6 @@ const createStyles = (c: Theme) => {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    flexWrap: "wrap",
     gap: 10,
   },
 
