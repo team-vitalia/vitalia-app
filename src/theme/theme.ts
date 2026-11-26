@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from "react";
+import { createContext, useContext } from "react";
 
 /* ============================================================
    TEMA VITALIA (verde institucional + glassmorphism claro)
@@ -26,12 +26,15 @@ export const LIGHT = {
   glassBorder: "rgba(148,163,184,0.35)",
   glassShadow: "#0F172A",
 
+
   // Estados
   success: "#16A34A",
   warning: "#F59E0B",
   error: "#DC2626",
   info: "#0284C7",
   errorBg: "#FEF2F2",
+  successBg: "rgba(22,163,74,0.12)",
+  warningBg: "rgba(245,158,11,0.14)",
 
   // Derivados
   onPrimary: "#FFFFFF",
@@ -54,6 +57,8 @@ export const DARK: Theme = {
   dark: "#069882",
   bg: "#121212",
   bgSoft: "#1E2D2A",
+  successBg: "rgba(74,222,128,0.16)",
+  warningBg: "rgba(251,191,36,0.16)",
 
   card: "#1E1E1E",
   text: "#E0E0E0",
