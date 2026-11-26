@@ -2,19 +2,42 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import ExpedienteVista from "../../components/ExpedienteVista";
-import api from "../../services/api";
-import { usePlanFeatures } from "../../hooks/usePlanFeatures";
 import {
-  Aviso, Boton, C, Campo, Cargando, ConfirmarModal, ModalBase, Opciones, PantallaC2, useAccesoC2,
+  Aviso,
+  Boton,
+  C,
+  Campo,
+  Cargando,
+  ConfirmarModal,
+  ModalBase,
+  Opciones,
+  PantallaC2,
+  useAccesoC2,
 } from "../../components/c2/ui";
+import ExpedienteVista from "../../components/ExpedienteVista";
+import { usePlanFeatures } from "../../hooks/usePlanFeatures";
+import api from "../../services/api";
 import { mensajeError } from "../../services/c2Service";
 import {
-  agregarAntecedente, agregarRegistro, asignarAlergia, crearAlergiaCatalogo, Expediente, getCatalogoAlergias,
-  getDoctoresParaTransferir, getExpediente, quitarAlergia, transferirPaciente,
+  agregarAntecedente,
+  agregarRegistro,
+  asignarAlergia,
+  crearAlergiaCatalogo,
+  Expediente,
+  getCatalogoAlergias,
+  getDoctoresParaTransferir,
+  getExpediente,
+  quitarAlergia,
+  transferirPaciente,
 } from "../../services/clinicoService";
 
-type Modal = null | "alergia" | "antecedente" | "nota" | "transferir" | "consulta";
+type Modal =
+  | null
+  | "alergia"
+  | "antecedente"
+  | "nota"
+  | "transferir"
+  | "consulta";
 
 /** Expediente clínico de un paciente (médico). Edición: antecedentes, alergias, notas y transferencia. */
 export default function ExpedienteDoctor() {
@@ -34,17 +57,23 @@ export default function ExpedienteDoctor() {
   const [quitar, setQuitar] = useState<number | null>(null);
 
   const [alergia, setAlergia] = useState("");
-  const [severidad, setSeveridad] = useState<"leve" | "moderada" | "grave">("moderada");
+  const [severidad, setSeveridad] = useState<"leve" | "moderada" | "grave">(
+    "moderada",
+  );
   const [diagnostico, setDiagnostico] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [tratamiento, setTratamiento] = useState("");
   const [sangre, setSangre] = useState("");
   const [nota, setNota] = useState("");
-  const [fechaConsulta, setFechaConsulta] = useState(new Date().toISOString().split("T")[0]);
+  const [fechaConsulta, setFechaConsulta] = useState(
+    new Date().toISOString().split("T")[0],
+  );
   const [horaInicioConsulta, setHoraInicioConsulta] = useState("09:00");
   const [horaFinConsulta, setHoraFinConsulta] = useState("09:30");
   const [motivoConsulta, setMotivoConsulta] = useState("Consulta general");
-  const [doctores, setDoctores] = useState<{ id_PK: number; nombre: string; especialidad: string }[]>([]);
+  const [doctores, setDoctores] = useState<
+    { id_PK: number; nombre: string; especialidad: string }[]
+  >([]);
   const [destino, setDestino] = useState<number | null>(null);
   const [motivo, setMotivo] = useState("");
 
@@ -67,9 +96,17 @@ export default function ExpedienteDoctor() {
     if (m === "transferir") {
       try {
         const lista = await getDoctoresParaTransferir();
-        setDoctores(lista.map((d) => ({ id_PK: d.id_PK, nombre: d.nombre, especialidad: d.especialidades[0]?.nombre ?? "" })));
+        setDoctores(
+          lista.map((d) => ({
+            id_PK: d.id_PK,
+            nombre: d.nombre,
+            especialidad: d.especialidades[0]?.nombre ?? "",
+          })),
+        );
       } catch (e) {
-        setErrorModal(mensajeError(e, "No se pudo cargar la lista de médicos."));
+        setErrorModal(
+          mensajeError(e, "No se pudo cargar la lista de médicos."),
+        );
       }
     }
   };
@@ -94,8 +131,12 @@ export default function ExpedienteDoctor() {
       const nombre = alergia.trim();
       if (!nombre) throw new Error("Escribe el nombre de la alergia.");
       const catalogo = await getCatalogoAlergias();
-      const existente = catalogo.find((a) => a.nombre.toLowerCase() === nombre.toLowerCase());
-      const alergiaId = existente ? existente.id_PK : (await crearAlergiaCatalogo(nombre)).id_PK;
+      const existente = catalogo.find(
+        (a) => a.nombre.toLowerCase() === nombre.toLowerCase(),
+      );
+      const alergiaId = existente
+        ? existente.id_PK
+        : (await crearAlergiaCatalogo(nombre)).id_PK;
       await asignarAlergia(id, alergiaId, severidad);
       setAlergia("");
       return "Alergia registrada.";
@@ -103,7 +144,12 @@ export default function ExpedienteDoctor() {
 
   const guardarAntecedente = () =>
     ejecutar(async () => {
-      if (!diagnostico.trim() && !descripcion.trim() && !tratamiento.trim() && !sangre.trim()) {
+      if (
+        !diagnostico.trim() &&
+        !descripcion.trim() &&
+        !tratamiento.trim() &&
+        !sangre.trim()
+      ) {
         throw new Error("Captura al menos un dato.");
       }
       await agregarAntecedente(id, {
@@ -112,7 +158,10 @@ export default function ExpedienteDoctor() {
         tratamiento: tratamiento.trim() || null,
         tipo_sangre: sangre.trim().toUpperCase() || null,
       });
-      setDiagnostico(""); setDescripcion(""); setTratamiento(""); setSangre("");
+      setDiagnostico("");
+      setDescripcion("");
+      setTratamiento("");
+      setSangre("");
       return "Antecedente registrado.";
     });
 
@@ -126,15 +175,25 @@ export default function ExpedienteDoctor() {
 
   const guardarConsulta = () =>
     ejecutar(async () => {
-      if (!fechaConsulta.trim() || !horaInicioConsulta.trim() || !horaFinConsulta.trim()) {
+      if (
+        !fechaConsulta.trim() ||
+        !horaInicioConsulta.trim() ||
+        !horaFinConsulta.trim()
+      ) {
         throw new Error("Ingresa la fecha y horario de la consulta.");
       }
       await api.post("/api/citas/", {
         paciente_id_FK: id,
         doctor_id_FK: 0,
         fecha: fechaConsulta.trim(),
-        hora_inicio: horaInicioConsulta.trim().length === 5 ? `${horaInicioConsulta.trim()}:00` : horaInicioConsulta.trim(),
-        hora_fin: horaFinConsulta.trim().length === 5 ? `${horaFinConsulta.trim()}:00` : horaFinConsulta.trim(),
+        hora_inicio:
+          horaInicioConsulta.trim().length === 5
+            ? `${horaInicioConsulta.trim()}:00`
+            : horaInicioConsulta.trim(),
+        hora_fin:
+          horaFinConsulta.trim().length === 5
+            ? `${horaFinConsulta.trim()}:00`
+            : horaFinConsulta.trim(),
         motivo: motivoConsulta.trim() || "Consulta general",
         estado: "programada",
       });
@@ -145,7 +204,8 @@ export default function ExpedienteDoctor() {
     ejecutar(async () => {
       if (!destino) throw new Error("Selecciona el médico destino.");
       const r = await transferirPaciente(id, destino, motivo.trim());
-      setDestino(null); setMotivo("");
+      setDestino(null);
+      setMotivo("");
       const conflictos = r.citas_con_conflicto.length
         ? ` ${r.citas_con_conflicto.length} cita(s) se empalman con la agenda del nuevo médico; recepción debe reprogramarlas.`
         : "";
@@ -180,75 +240,213 @@ export default function ExpedienteDoctor() {
             <ExpedienteVista
               exp={exp}
               onQuitarAlergia={puedeEditar ? setQuitar : undefined}
-              accionesAlergias={puedeEditar && <Boton pequeno variante="secundario" texto="Agregar" onPress={() => abrir("alergia")} />}
-              accionesAntecedentes={puedeEditar && <Boton pequeno variante="secundario" texto="Agregar" onPress={() => abrir("antecedente")} />}
-              accionesConsultas={puedeEditar && <Boton pequeno variante="secundario" texto="Agendar" onPress={() => abrir("consulta")} />}
-              accionesNotas={puedeEditar && <Boton pequeno variante="secundario" texto="Agregar" onPress={() => abrir("nota")} />}
+              accionesAlergias={
+                puedeEditar && (
+                  <Boton
+                    pequeno
+                    variante="secundario"
+                    texto="Agregar"
+                    onPress={() => abrir("alergia")}
+                  />
+                )
+              }
+              accionesAntecedentes={
+                puedeEditar && (
+                  <Boton
+                    pequeno
+                    variante="secundario"
+                    texto="Agregar"
+                    onPress={() => abrir("antecedente")}
+                  />
+                )
+              }
+              accionesConsultas={
+                puedeEditar && (
+                  <Boton
+                    pequeno
+                    variante="secundario"
+                    texto="Agendar"
+                    onPress={() => abrir("consulta")}
+                  />
+                )
+              }
+              accionesNotas={
+                puedeEditar && (
+                  <Boton
+                    pequeno
+                    variante="secundario"
+                    texto="Agregar"
+                    onPress={() => abrir("nota")}
+                  />
+                )
+              }
             />
             {rolId === 2 && (
               <View style={{ gap: 8 }}>
                 {!isGratuito && (
-                  <Boton texto="Transferir paciente a otro médico" variante="secundario" onPress={() => abrir("transferir")} />
+                  <Boton
+                    texto="Transferir paciente a otro médico"
+                    variante="secundario"
+                    onPress={() => abrir("transferir")}
+                  />
                 )}
-                <Boton texto="Volver a mis pacientes" variante="secundario" onPress={() => router.replace("/doctor/pacientes")} />
+                <Boton
+                  texto="Volver a mis pacientes"
+                  variante="secundario"
+                  onPress={() => router.replace("/doctor/pacientes")}
+                />
               </View>
             )}
           </>
         )
       )}
 
-      <ModalBase visible={modal === "consulta"} titulo="Agendar consulta" onClose={() => setModal(null)}>
+      <ModalBase
+        visible={modal === "consulta"}
+        titulo="Agendar consulta"
+        onClose={() => setModal(null)}
+      >
         {!!errorModal && <Aviso tipo="error" texto={errorModal} />}
-        <Campo etiqueta="Fecha (AAAA-MM-DD)" value={fechaConsulta} onChangeText={setFechaConsulta} placeholder="YYYY-MM-DD" />
+        <Campo
+          etiqueta="Fecha (AAAA-MM-DD)"
+          value={fechaConsulta}
+          onChangeText={setFechaConsulta}
+          placeholder="YYYY-MM-DD"
+        />
         <View style={{ flexDirection: "row", gap: 8 }}>
           <View style={{ flex: 1 }}>
-            <Campo etiqueta="Hora inicio" value={horaInicioConsulta} onChangeText={setHoraInicioConsulta} placeholder="09:00" />
+            <Campo
+              etiqueta="Hora inicio"
+              value={horaInicioConsulta}
+              onChangeText={setHoraInicioConsulta}
+              placeholder="09:00"
+            />
           </View>
           <View style={{ flex: 1 }}>
-            <Campo etiqueta="Hora fin" value={horaFinConsulta} onChangeText={setHoraFinConsulta} placeholder="09:30" />
+            <Campo
+              etiqueta="Hora fin"
+              value={horaFinConsulta}
+              onChangeText={setHoraFinConsulta}
+              placeholder="09:30"
+            />
           </View>
         </View>
-        <Campo etiqueta="Motivo de la consulta" value={motivoConsulta} onChangeText={setMotivoConsulta} placeholder="Ej. Revisión general" />
+        <Campo
+          etiqueta="Motivo de la consulta"
+          value={motivoConsulta}
+          onChangeText={setMotivoConsulta}
+          placeholder="Ej. Revisión general"
+        />
         <View style={{ height: 12 }} />
-        <Boton texto="Agendar Consulta" onPress={guardarConsulta} cargando={enviando} />
+        <Boton
+          texto="Agendar Consulta"
+          onPress={guardarConsulta}
+          cargando={enviando}
+        />
       </ModalBase>
 
-      <ModalBase visible={modal === "alergia"} titulo="Agregar alergia" onClose={() => setModal(null)}>
+      <ModalBase
+        visible={modal === "alergia"}
+        titulo="Agregar alergia"
+        onClose={() => setModal(null)}
+      >
         {!!errorModal && <Aviso tipo="error" texto={errorModal} />}
-        <Campo etiqueta="Alergia" value={alergia} onChangeText={setAlergia} placeholder="Ej. Penicilina" />
-        <Opciones valor={severidad} onChange={setSeveridad} opciones={[{ valor: "leve", etiqueta: "Leve" }, { valor: "moderada", etiqueta: "Moderada" }, { valor: "grave", etiqueta: "Grave" }]} />
+        <Campo
+          etiqueta="Alergia"
+          value={alergia}
+          onChangeText={setAlergia}
+          placeholder="Ej. Penicilina"
+        />
+        <Opciones
+          valor={severidad}
+          onChange={setSeveridad}
+          opciones={[
+            { valor: "leve", etiqueta: "Leve" },
+            { valor: "moderada", etiqueta: "Moderada" },
+            { valor: "grave", etiqueta: "Grave" },
+          ]}
+        />
         <View style={{ height: 12 }} />
         <Boton texto="Guardar" onPress={guardarAlergia} cargando={enviando} />
       </ModalBase>
 
-      <ModalBase visible={modal === "antecedente"} titulo="Agregar antecedente" onClose={() => setModal(null)}>
+      <ModalBase
+        visible={modal === "antecedente"}
+        titulo="Agregar antecedente"
+        onClose={() => setModal(null)}
+      >
         {!!errorModal && <Aviso tipo="error" texto={errorModal} />}
-        <Campo etiqueta="Diagnóstico" value={diagnostico} onChangeText={setDiagnostico} />
-        <Campo etiqueta="Descripción" value={descripcion} onChangeText={setDescripcion} multiline />
-        <Campo etiqueta="Tratamiento" value={tratamiento} onChangeText={setTratamiento} />
-        <Campo etiqueta="Tipo de sangre" value={sangre} onChangeText={setSangre} placeholder="Ej. O+" />
-        <Boton texto="Guardar" onPress={guardarAntecedente} cargando={enviando} />
+        <Campo
+          etiqueta="Diagnóstico"
+          value={diagnostico}
+          onChangeText={setDiagnostico}
+        />
+        <Campo
+          etiqueta="Descripción"
+          value={descripcion}
+          onChangeText={setDescripcion}
+          multiline
+        />
+        <Campo
+          etiqueta="Tratamiento"
+          value={tratamiento}
+          onChangeText={setTratamiento}
+        />
+        <Campo
+          etiqueta="Tipo de sangre"
+          value={sangre}
+          onChangeText={setSangre}
+          placeholder="Ej. O+"
+        />
+        <Boton
+          texto="Guardar"
+          onPress={guardarAntecedente}
+          cargando={enviando}
+        />
       </ModalBase>
 
-      <ModalBase visible={modal === "nota"} titulo="Nueva nota" onClose={() => setModal(null)}>
+      <ModalBase
+        visible={modal === "nota"}
+        titulo="Nueva nota"
+        onClose={() => setModal(null)}
+      >
         {!!errorModal && <Aviso tipo="error" texto={errorModal} />}
         <Campo etiqueta="Nota" value={nota} onChangeText={setNota} multiline />
         <Boton texto="Guardar" onPress={guardarNota} cargando={enviando} />
       </ModalBase>
 
-      <ModalBase visible={modal === "transferir"} titulo="Transferir paciente" onClose={() => setModal(null)}>
+      <ModalBase
+        visible={modal === "transferir"}
+        titulo="Transferir paciente"
+        onClose={() => setModal(null)}
+      >
         {!!errorModal && <Aviso tipo="error" texto={errorModal} />}
         <Text style={s.ayuda}>
-          El nuevo médico tendrá acceso al expediente. Tus citas futuras con este paciente pasarán a su agenda.
+          El nuevo médico tendrá acceso al expediente. Tus citas futuras con
+          este paciente pasarán a su agenda.
         </Text>
         {doctores.map((d) => (
-          <Pressable key={d.id_PK} onPress={() => setDestino(d.id_PK)} style={[s.doctor, destino === d.id_PK && s.doctorActivo]}>
+          <Pressable
+            key={d.id_PK}
+            onPress={() => setDestino(d.id_PK)}
+            style={[s.doctor, destino === d.id_PK && s.doctorActivo]}
+          >
             <Text style={s.doctorNombre}>{d.nombre}</Text>
             {!!d.especialidad && <Text style={s.ayuda}>{d.especialidad}</Text>}
           </Pressable>
         ))}
-        <Campo etiqueta="Motivo (opcional)" value={motivo} onChangeText={setMotivo} multiline />
-        <Boton texto="Transferir" onPress={transferir} cargando={enviando} deshabilitado={!destino} />
+        <Campo
+          etiqueta="Motivo (opcional)"
+          value={motivo}
+          onChangeText={setMotivo}
+          multiline
+        />
+        <Boton
+          texto="Transferir"
+          onPress={transferir}
+          cargando={enviando}
+          deshabilitado={!destino}
+        />
       </ModalBase>
 
       <ConfirmarModal
@@ -266,7 +464,13 @@ export default function ExpedienteDoctor() {
 
 const s = StyleSheet.create({
   ayuda: { fontSize: 12.5, color: C.texto2, marginBottom: 8 },
-  doctor: { padding: 10, borderRadius: 10, borderWidth: 1, borderColor: C.borde, marginBottom: 6 },
+  doctor: {
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.borde,
+    marginBottom: 6,
+  },
   doctorActivo: { borderColor: C.primario, backgroundColor: C.primarioSuave },
   doctorNombre: { fontSize: 14, fontWeight: "700", color: C.texto },
 });

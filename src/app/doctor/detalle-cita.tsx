@@ -1,7 +1,6 @@
-import { useTheme, type Theme } from "../../theme/theme";
 import { FontAwesome } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo,  useEffect, useState  } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,10 +14,9 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
-import api from "../../services/api";
-import { AsistenteIAModal } from "../../components/AsistenteIAModal";
 import { usePlanFeatures } from "../../hooks/usePlanFeatures";
-import { MejoraPlanModal } from "../../components/MejoraPlanModal";
+import api from "../../services/api";
+import { useTheme, type Theme } from "../../theme/theme";
 
 interface CitaDetalle {
   id_PK: number;
@@ -50,8 +48,8 @@ export default function DetalleCitaScreen() {
   const { id } = useLocalSearchParams();
   const { token } = useAuth();
   const { isGratuito, canUseAI } = usePlanFeatures();
-  const tieneAccesoIA = canUseAI();
-  const [modalMejoraVisible, setModalMejoraVisible] = useState(false);
+  const tieneAccesoIA = canUseAI(); // se queda por si luego se ocupa
+  const [modalMejoraVisible, setModalMejoraVisible] = useState(false); // se queda
   const [cita, setCita] = useState<CitaDetalle | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -61,13 +59,12 @@ export default function DetalleCitaScreen() {
   const [busqueda, setBusqueda] = useState("");
   const [cargandoDoctores, setCargandoDoctores] = useState(false);
 
-  //  ESTADOS PARA EL CU-30 (Alergias) 
+  // ESTADOS PARA EL CU-30 (Alergias)
   const [modalAlergiaVisible, setModalAlergiaVisible] = useState(false);
   const [nuevaAlergia, setNuevaAlergia] = useState("");
   const [severidadAlergia, setSeveridadAlergia] = useState("leve");
 
-  // Modal Asistente Clínico IA
-  const [modalIAVisible, setModalIAVisible] = useState(false);
+  // (La IA se quitó de esta pantalla)
 
   const cargarDetalle = async () => {
     if (!token || !id) return;
@@ -92,7 +89,6 @@ export default function DetalleCitaScreen() {
     cargarDetalle();
   }, [id, token]);
 
-  // FUNCIÓN CORREGIDA IGUAL A LA DE CONSULTAS
   const terminarCita = async () => {
     const ejecutarTerminar = async () => {
       try {
@@ -137,9 +133,7 @@ export default function DetalleCitaScreen() {
     try {
       const res = await api.get<DoctorDisponible[]>(
         "/api/doctores/lista-para-transferir",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       setDoctores(res.data);
     } catch (e: any) {
@@ -169,7 +163,6 @@ export default function DetalleCitaScreen() {
     }
   };
 
-  //  FUNCIÓN PARA GUARDAR LA ALERGIA (CU-30) 
   const guardarAlergia = async () => {
     if (!nuevaAlergia.trim()) {
       alert("Escribe el nombre de la alergia");
@@ -183,14 +176,12 @@ export default function DetalleCitaScreen() {
           severidad: severidadAlergia,
           notas: "Registrada por el médico en consulta",
         },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       alert("Alergia agregada correctamente");
       setModalAlergiaVisible(false);
       setNuevaAlergia("");
-      cargarDetalle(); // Recargar la info del paciente
+      cargarDetalle();
     } catch (error) {
       alert("Error al guardar la alergia");
     }
@@ -307,7 +298,6 @@ export default function DetalleCitaScreen() {
                   color="#D65A5A"
                 />
                 <Text style={styles.alergiasTitle}>Alergias Registradas</Text>
-                {/*  BOTÓN PARA AGREGAR ALERGIA (CU-30)  */}
                 <Pressable
                   onPress={() => setModalAlergiaVisible(true)}
                   style={{ marginLeft: "auto" }}
@@ -409,12 +399,18 @@ export default function DetalleCitaScreen() {
                     color="#FFF"
                     style={{ marginRight: 8 }}
                   />
-                  <Text style={styles.actionButtonText}>Pasar a otro Doctor</Text>
+                  <Text style={styles.actionButtonText}>
+                    Pasar a otro Doctor
+                  </Text>
                 </Pressable>
               )}
 
               <Pressable
-                style={[styles.actionButton, styles.buttonFinish, isGratuito && { flex: 1 }]}
+                style={[
+                  styles.actionButton,
+                  styles.buttonFinish,
+                  isGratuito && { flex: 1 },
+                ]}
                 onPress={terminarCita}
               >
                 <FontAwesome
@@ -428,105 +424,58 @@ export default function DetalleCitaScreen() {
             </View>
           )}
 
-          {cita.paciente && (
-            <Pressable
-              style={[
-                styles.actionButton,
-                tieneAccesoIA
-                  ? {
-                      backgroundColor: "#0F766E",
-                      marginTop: 15,
-                      borderWidth: 1,
-                      borderColor: "#115E59",
-                      shadowColor: "#0F766E",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 4,
-                      elevation: 3,
-                    }
-                  : {
-                      backgroundColor: c.mode === "dark" ? "#2D3748" : "#EDF2F7",
-                      marginTop: 15,
-                      borderWidth: 1,
-                      borderColor: c.mode === "dark" ? "#4A5568" : "#CBD5E0",
-                    },
-              ]}
-              onPress={() => {
-                if (tieneAccesoIA) {
-                  setModalIAVisible(true);
-                } else {
-                  setModalMejoraVisible(true);
-                }
-              }}
-            >
-              <FontAwesome
-                name={tieneAccesoIA ? "magic" : "lock"}
-                size={16}
-                color={tieneAccesoIA ? "#FFF" : (c.mode === "dark" ? "#A0AEC0" : "#718096")}
-                style={{ marginRight: 8 }}
-              />
-              <Text
-                style={[
-                  styles.actionButtonText,
-                  !tieneAccesoIA && {
-                    color: c.mode === "dark" ? "#CBD5E0" : "#4A5568",
-                  },
-                ]}
-              >
-                Asistente Clínico IA (Soporte Diagnóstico)
-              </Text>
-              {!tieneAccesoIA && (
-                <View
-                  style={{
-                    marginLeft: 8,
-                    paddingHorizontal: 6,
-                    paddingVertical: 2,
-                    borderRadius: 4,
-                    backgroundColor: "#D97706",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      fontWeight: "700",
-                      color: "#FFF",
-                    }}
-                  >
-                    PRO
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          )}
+          {/* 👇 EL BOTÓN DE LA IA SE QUITÓ DE AQUÍ 👇 */}
 
-          {/*  BOTÓN REGISTRAR CONSULTA / EXPEDIENTE  */}
+          {/* BOTÓN REGISTRAR CONSULTA / EXPEDIENTE */}
           {cita.paciente && (
             <>
               <Pressable
-                style={[styles.actionButton, { backgroundColor: "#0F766E", marginTop: 15 }]}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: "#0F766E", marginTop: 15 },
+                ]}
                 onPress={() =>
                   router.push({
                     pathname: "/doctor/registrar-consulta",
-                    params: { citaId: cita.id_PK.toString(), pacienteId: cita.paciente?.id_PK.toString() },
+                    params: {
+                      citaId: cita.id_PK.toString(),
+                      pacienteId: cita.paciente?.id_PK.toString(),
+                    },
                   })
                 }
               >
-                <FontAwesome name="stethoscope" size={16} color="#FFF" style={{ marginRight: 8 }} />
+                <FontAwesome
+                  name="stethoscope"
+                  size={16}
+                  color="#FFF"
+                  style={{ marginRight: 8 }}
+                />
                 <Text style={styles.actionButtonText}>Registrar consulta</Text>
               </Pressable>
               <Pressable
-                style={[styles.actionButton, { backgroundColor: "#2B6CB0", marginTop: 15 }]}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: "#2B6CB0", marginTop: 15 },
+                ]}
                 onPress={() =>
-                  router.push({ pathname: "/doctor/expediente", params: { pacienteId: cita.paciente?.id_PK.toString() } })
+                  router.push({
+                    pathname: "/doctor/expediente",
+                    params: { pacienteId: cita.paciente?.id_PK.toString() },
+                  })
                 }
               >
-                <FontAwesome name="folder-open-o" size={16} color="#FFF" style={{ marginRight: 8 }} />
+                <FontAwesome
+                  name="folder-open-o"
+                  size={16}
+                  color="#FFF"
+                  style={{ marginRight: 8 }}
+                />
                 <Text style={styles.actionButtonText}>Ver expediente</Text>
               </Pressable>
             </>
           )}
 
-          {/*  BOTÓN DE RECETA  */}
+          {/* BOTÓN DE RECETA */}
           {cita.paciente && (
             <Pressable
               style={[
@@ -552,7 +501,6 @@ export default function DetalleCitaScreen() {
               <Text style={styles.actionButtonText}>Crear Receta Médica</Text>
             </Pressable>
           )}
-          {/*  FIN DEL BOTÓN DE RECETA  */}
 
           <Modal
             visible={modalVisible}
@@ -628,40 +576,9 @@ export default function DetalleCitaScreen() {
             </View>
           </Modal>
 
-          {/*  MODAL ASISTENTE CLÍNICO IA  */}
-          <AsistenteIAModal
-            visible={modalIAVisible}
-            onClose={() => setModalIAVisible(false)}
-            citaId={cita.id_PK}
-            motivoInicial={cita.motivo || ""}
-            pacienteNombre={
-              cita.paciente
-                ? `${cita.paciente.nombre} ${cita.paciente.apellido}`
-                : "Paciente"
-            }
-            alergiasRegistradas={cita.paciente?.alergias || []}
-            onSeleccionarMedicamentoParaReceta={(med) => {
-              setModalIAVisible(false);
-              router.push({
-                pathname: "/doctor/receta",
-                params: {
-                  pacienteId: cita.paciente?.id_PK.toString(),
-                  citaId: cita.id_PK.toString(),
-                  sugerenciaNombre: med.nombre_generico,
-                  sugerenciaDosis: med.presentacion_dosis,
-                  sugerenciaFrecuencia: med.frecuencia,
-                  sugerenciaDuracion: med.duracion_dias,
-                },
-              });
-            }}
-          />
-          <MejoraPlanModal
-            visible={modalMejoraVisible}
-            funcionBloqueada="Asistente Clínico IA"
-            onClose={() => setModalMejoraVisible(false)}
-          />
+          {/* 👇 SE QUITARON LOS MODALES DE IA (AsistenteIAModal y MejoraPlanModal) 👇 */}
 
-          {/*  MODAL PARA AGREGAR ALERGIA (CU-30)  */}
+          {/* MODAL PARA AGREGAR ALERGIA (CU-30) */}
           <Modal visible={modalAlergiaVisible} transparent animationType="fade">
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>
@@ -672,7 +589,8 @@ export default function DetalleCitaScreen() {
                   style={[
                     styles.searchInput,
                     {
-                      backgroundColor: c.mode === "dark" ? "#1E2631" : "#FBFEFD",
+                      backgroundColor:
+                        c.mode === "dark" ? "#1E2631" : "#FBFEFD",
                       color: c.text,
                       marginBottom: 15,
                       padding: 10,
@@ -745,7 +663,6 @@ export default function DetalleCitaScreen() {
               </View>
             </View>
           </Modal>
-          {/*  FIN DEL MODAL DE ALERGIA  */}
         </>
       ) : null}
     </ScrollView>
@@ -755,185 +672,197 @@ export default function DetalleCitaScreen() {
 const createStyles = (c: Theme) => {
   const isDark = c.mode === "dark";
   return StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bg },
-  content: {
-    padding: 30,
-    paddingBottom: 50,
-    maxWidth: 1100,
-    width: "100%",
-    alignSelf: "center",
-  },
-  header: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: c.card,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  backText: { color: c.primary, fontSize: 13, fontWeight: "800" },
-  smallTitle: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 2,
-    color: c.primary,
-    marginBottom: 5,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: "900",
-    color: c.text,
-    marginBottom: 20,
-  },
-  card: {
-    backgroundColor: c.card,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: c.border,
-    marginBottom: 20,
-  },
-  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 15 },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  cardTitle: { fontSize: 16, fontWeight: "800", color: c.text },
-  cardSubtitle: { fontSize: 12, color: c.muted, marginTop: 2 },
-  divider: { height: 1, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1", marginBottom: 15 },
-  infoRow: { flexDirection: "row", marginBottom: 10, alignItems: "flex-start" },
-  infoLabel: { width: 130, fontSize: 13, fontWeight: "800", color: c.text },
-  infoValue: { flex: 1, fontSize: 13, color: "#4A5D59" },
-  alergiasContainer: {
-    marginTop: 10,
-    padding: 15,
-    backgroundColor: "#FFF7F7",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#FCE3E3",
-  },
-  alergiasHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  alergiasTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#D65A5A",
-    marginLeft: 6,
-  },
-  alergiasList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  alergiaBadge: {
-    backgroundColor: "#FAD4D4",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-  },
-  alergiaText: { fontSize: 12, color: "#A33B3B", fontWeight: "700" },
-  noAlergiasText: { fontSize: 12, color: "#8A9A98", fontStyle: "italic" },
-  notesContainer: {
-    marginTop: 15,
-    backgroundColor: "#F8FAFA",
-    padding: 15,
-    borderRadius: 12,
-  },
-  notesLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: c.text,
-    marginBottom: 5,
-  },
-  notesText: { fontSize: 13, color: "#5C706C", lineHeight: 20 },
-  center: { alignItems: "center", paddingVertical: 50 },
-  loadingText: { marginTop: 12, color: c.muted, fontSize: 13 },
-  errorCard: {
-    backgroundColor: c.card,
-    borderRadius: 18,
-    padding: 25,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  errorTitle: { fontSize: 15, fontWeight: "800", color: "#8A4B4B" },
-  errorText: { fontSize: 12, color: c.muted, marginTop: 6 },
-  retryButton: {
-    marginTop: 18,
-    backgroundColor: c.primary,
-    paddingVertical: 11,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    alignSelf: "flex-start",
-  },
-  retryText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
-  actionContainer: { flexDirection: "row", gap: 12, marginTop: 10 },
-  actionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  actionButtonText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
-  buttonTransfer: { backgroundColor: "#E5A13A" },
-  buttonFinish: { backgroundColor: "#D65A5A" },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: isDark ? "rgba(0,0,0,0.75)" : "rgba(15, 40, 36, 0.48)",
-    justifyContent: "center",
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: c.card,
-    borderRadius: 20,
-    padding: 20,
-    maxHeight: "80%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: c.text,
-    marginBottom: 15,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: c.bg,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 45,
-    marginBottom: 15,
-  },
-  searchInput: { flex: 1, fontSize: 14, color: c.text },
-  doctorItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E8F0EE",
-  },
-  doctorName: { fontSize: 14, fontWeight: "700", color: c.text },
-  doctorSpecialty: { fontSize: 12, color: c.muted, marginTop: 2 },
-  emptyText: {
-    textAlign: "center",
-    color: c.muted,
-    marginTop: 20,
-    fontSize: 13,
-  },
-});
+    container: { flex: 1, backgroundColor: c.bg },
+    content: {
+      padding: 30,
+      paddingBottom: 50,
+      maxWidth: 1100,
+      width: "100%",
+      alignSelf: "center",
+    },
+    header: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+    backButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: c.card,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    backText: { color: c.primary, fontSize: 13, fontWeight: "800" },
+    smallTitle: {
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 2,
+      color: c.primary,
+      marginBottom: 5,
+    },
+    title: {
+      fontSize: 30,
+      fontWeight: "900",
+      color: c.text,
+      marginBottom: 20,
+    },
+    card: {
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: c.border,
+      marginBottom: 20,
+    },
+    cardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 15,
+    },
+    iconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E2F4F0",
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: 12,
+    },
+    cardTitle: { fontSize: 16, fontWeight: "800", color: c.text },
+    cardSubtitle: { fontSize: 12, color: c.muted, marginTop: 2 },
+    divider: {
+      height: 1,
+      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "#EEF2F1",
+      marginBottom: 15,
+    },
+    infoRow: {
+      flexDirection: "row",
+      marginBottom: 10,
+      alignItems: "flex-start",
+    },
+    infoLabel: { width: 130, fontSize: 13, fontWeight: "800", color: c.text },
+    infoValue: { flex: 1, fontSize: 13, color: "#4A5D59" },
+    alergiasContainer: {
+      marginTop: 10,
+      padding: 15,
+      backgroundColor: "#FFF7F7",
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: "#FCE3E3",
+    },
+    alergiasHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 10,
+    },
+    alergiasTitle: {
+      fontSize: 13,
+      fontWeight: "800",
+      color: "#D65A5A",
+      marginLeft: 6,
+    },
+    alergiasList: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    alergiaBadge: {
+      backgroundColor: "#FAD4D4",
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+    },
+    alergiaText: { fontSize: 12, color: "#A33B3B", fontWeight: "700" },
+    noAlergiasText: { fontSize: 12, color: "#8A9A98", fontStyle: "italic" },
+    notesContainer: {
+      marginTop: 15,
+      backgroundColor: "#F8FAFA",
+      padding: 15,
+      borderRadius: 12,
+    },
+    notesLabel: {
+      fontSize: 12,
+      fontWeight: "800",
+      color: c.text,
+      marginBottom: 5,
+    },
+    notesText: { fontSize: 13, color: "#5C706C", lineHeight: 20 },
+    center: { alignItems: "center", paddingVertical: 50 },
+    loadingText: { marginTop: 12, color: c.muted, fontSize: 13 },
+    errorCard: {
+      backgroundColor: c.card,
+      borderRadius: 18,
+      padding: 25,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    errorTitle: { fontSize: 15, fontWeight: "800", color: "#8A4B4B" },
+    errorText: { fontSize: 12, color: c.muted, marginTop: 6 },
+    retryButton: {
+      marginTop: 18,
+      backgroundColor: c.primary,
+      paddingVertical: 11,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+      alignSelf: "flex-start",
+    },
+    retryText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
+    actionContainer: { flexDirection: "row", gap: 12, marginTop: 10 },
+    actionButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 14,
+      borderRadius: 12,
+    },
+    actionButtonText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
+    buttonTransfer: { backgroundColor: "#E5A13A" },
+    buttonFinish: { backgroundColor: "#D65A5A" },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: isDark ? "rgba(0,0,0,0.75)" : "rgba(15, 40, 36, 0.48)",
+      justifyContent: "center",
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: c.card,
+      borderRadius: 20,
+      padding: 20,
+      maxHeight: "80%",
+    },
+    modalHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 15,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: c.text,
+      marginBottom: 15,
+    },
+    searchContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: c.bg,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      height: 45,
+      marginBottom: 15,
+    },
+    searchInput: { flex: 1, fontSize: 14, color: c.text },
+    doctorItem: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: "#E8F0EE",
+    },
+    doctorName: { fontSize: 14, fontWeight: "700", color: c.text },
+    doctorSpecialty: { fontSize: 12, color: c.muted, marginTop: 2 },
+    emptyText: {
+      textAlign: "center",
+      color: c.muted,
+      marginTop: 20,
+      fontSize: 13,
+    },
+  });
 };

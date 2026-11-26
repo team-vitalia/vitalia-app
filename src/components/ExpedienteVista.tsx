@@ -11,7 +11,7 @@ import {
   etiquetaEstado,
   fechaHora,
   soloFecha,
-  Tarjeta
+  Tarjeta,
 } from "./c2/ui";
 
 export default function ExpedienteVista({

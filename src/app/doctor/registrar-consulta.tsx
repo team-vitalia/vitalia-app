@@ -1,7 +1,9 @@
+import { FontAwesome } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { View } from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, Text, View } from "react-native";
 
+import { AsistenteIAModal } from "../../components/AsistenteIAModal";
 import {
   Aviso,
   Boton,
@@ -10,11 +12,14 @@ import {
   PantallaC2,
   Tarjeta,
 } from "../../components/c2/ui";
+import api from "../../services/api"; // Asegúrate de tener esto para cargar alergias
 import { mensajeError } from "../../services/c2Service";
 import { registrarConsulta } from "../../services/clinicoService";
+import { useTheme } from "../../theme/theme";
 
 export default function RegistrarConsulta() {
   const router = useRouter();
+  const c = useTheme();
   const { citaId, pacienteId } = useLocalSearchParams<{
     citaId: string;
     pacienteId?: string;
@@ -27,12 +32,33 @@ export default function RegistrarConsulta() {
   const [presion, setPresion] = useState("");
   const [fc, setFc] = useState("");
   const [peso, setPeso] = useState("");
-  const [talla, setTalla] = useState(""); // 👈 LA TALLA VUELVE
+  const [talla, setTalla] = useState("");
   const [notas, setNotas] = useState("");
   const [proxima, setProxima] = useState("");
   const [error, setError] = useState("");
   const [guardada, setGuardada] = useState(false);
   const [enviando, setEnviando] = useState(false);
+
+  // 👇 ESTADOS PARA EL ASISTENTE IA 👇
+  const [modalIAVisible, setModalIAVisible] = useState(false);
+  const [alergiasPaciente, setAlergiasPaciente] = useState<
+    { nombre: string; severidad?: string }[]
+  >([]);
+  const [nombrePaciente, setNombrePaciente] = useState("Paciente");
+
+  // Cargar datos del paciente para el modal de la IA
+  useEffect(() => {
+    if (pacienteId) {
+      api
+        .get(`/api/pacientes/${pacienteId}`)
+        .then((res) => {
+          setNombrePaciente(`${res.data.nombre} ${res.data.apellido}`);
+          // Si el backend devuelve las alergias en el perfil del paciente:
+          if (res.data.alergias) setAlergiasPaciente(res.data.alergias);
+        })
+        .catch(console.error);
+    }
+  }, [pacienteId]);
 
   const guardar = async () => {
     setError("");
@@ -46,7 +72,6 @@ export default function RegistrarConsulta() {
     }
 
     const signos: Record<string, string | number> = {};
-    // Solo guardamos si el doctor escribió algo
     if (temp.trim()) signos.temperatura_c = Number(temp);
     if (presion.trim()) signos.presion_arterial = presion.trim();
     if (fc.trim()) signos.frecuencia_cardiaca = Number(fc);
@@ -116,6 +141,30 @@ export default function RegistrarConsulta() {
         </Tarjeta>
       ) : (
         <Tarjeta>
+          {/* 👇 BOTÓN DEL ASISTENTE IA 👇 */}
+          <Pressable
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#0F766E",
+              paddingVertical: 12,
+              borderRadius: 12,
+              marginBottom: 15,
+            }}
+            onPress={() => setModalIAVisible(true)}
+          >
+            <FontAwesome
+              name="magic"
+              size={16}
+              color="#FFF"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={{ color: "#FFF", fontSize: 14, fontWeight: "800" }}>
+              Sugerir Diagnóstico con Asistente IA
+            </Text>
+          </Pressable>
+
           <Campo
             etiqueta="Diagnóstico"
             value={diagnostico}
@@ -171,7 +220,6 @@ export default function RegistrarConsulta() {
                 keyboardType="numeric"
               />
             </View>
-            {/* 👇 EL CAMPO DE LA TALLA VUELVE A ESTAR AQUÍ 👇 */}
             <View style={{ flex: 1 }}>
               <Campo
                 etiqueta="Talla (cm)"
@@ -203,6 +251,21 @@ export default function RegistrarConsulta() {
           />
         </Tarjeta>
       )}
+
+      {/* 👇 MODAL DE LA IA INTEGRADO AQUÍ 👇 */}
+      <AsistenteIAModal
+        visible={modalIAVisible}
+        onClose={() => setModalIAVisible(false)}
+        citaId={Number(citaId)}
+        motivoInicial={notas} // Usamos las notas o el motivo de la cita
+        pacienteNombre={nombrePaciente}
+        alergiasRegistradas={alergiasPaciente}
+        onAplicarDiagnostico={(diag, trat) => {
+          setDiagnostico(diag);
+          setTratamiento(trat);
+          setModalIAVisible(false);
+        }}
+      />
     </PantallaC2>
   );
 }
