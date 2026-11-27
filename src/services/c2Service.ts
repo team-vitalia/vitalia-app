@@ -370,6 +370,62 @@ export async function asignarSalas(
   return (await api.put(`/api/doctor-salas/doctor/${doctorId}`, { asignaciones }, auth(token))).data;
 }
 
+/* ---------- Calendario de uso de salas (doctor + sala + día + horario) ---------- */
+export type AsignacionCalendario = {
+  id_PK: number;
+  doctor_id: number;
+  doctor_nombre: string | null;
+  especialidad: string | null;
+  sala_id: number;
+  sala_nombre: string | null;
+  sala_tipo: string | null;
+  sala_piso: string | null;
+  sala_estado: string | null;
+  dia_semana: number | null;
+  hora_inicio: string;
+  hora_fin: string;
+};
+
+export type NuevaAsignacion = {
+  doctor_id: number;
+  sala_id: number;
+  dia_semana: number | null;
+  hora_inicio: string; // "HH:MM"
+  hora_fin: string;
+  notificar: boolean;
+};
+
+export type ValidacionAsignacion = {
+  valido: boolean;
+  conflictos: { tipo: "doctor_ocupado" | "sala_ocupada" | "sala_no_disponible" | string; mensaje: string }[];
+};
+
+export async function calendarioSalas(token: string): Promise<AsignacionCalendario[]> {
+  return (await api.get("/api/doctor-salas/calendario", auth(token))).data;
+}
+
+export async function validarAsignacion(token: string, datos: NuevaAsignacion, excluirId?: number): Promise<ValidacionAsignacion> {
+  return (
+    await api.post("/api/doctor-salas/asignaciones/validar", datos, { ...auth(token), params: limpiar({ excluir_id: excluirId }) })
+  ).data;
+}
+
+export async function crearAsignacion(token: string, datos: NuevaAsignacion): Promise<{ id_PK: number; doctor_notificado: boolean }> {
+  return (await api.post("/api/doctor-salas/asignaciones", datos, auth(token))).data;
+}
+
+export async function moverAsignacion(
+  token: string,
+  id: number,
+  datos: NuevaAsignacion
+): Promise<{ id_PK: number; doctor_notificado: boolean }> {
+  return (await api.put(`/api/doctor-salas/asignaciones/${id}`, datos, auth(token))).data;
+}
+
+export async function quitarAsignacion(token: string, id: number, notificar = true): Promise<{ doctor_notificado: boolean }> {
+  return (await api.delete(`/api/doctor-salas/asignaciones/${id}`, { ...auth(token), params: { notificar } })).data;
+}
+
 /* ============================================================
    Descarga de reportes (PDF / Excel)
 ============================================================ */

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
 
 import {
   Aviso,
@@ -15,6 +16,8 @@ import {
   Vacio,
   useAccesoC2,
 } from "../../../components/c2/ui";
+import CalendarioUsoSalas from "../../../components/c2/CalendarioUsoSalas";
+import { DIAS_CORTO, cruzaMedianoche, diaSiguiente } from "../../../components/c2/calendarioTipos";
 import {
   CampoFecha,
   ChipColor,
@@ -37,6 +40,7 @@ import {
   type Paleta,
 } from "../../../components/c2/extra";
 import {
+  AsignacionCalendario,
   Equipo,
   EquipoPayload,
   PageMeta,
@@ -45,6 +49,7 @@ import {
   actualizarEquipo,
   actualizarSala,
   agregarEquipo,
+  calendarioSalas,
   cambiarEstadoSala,
   crearSala,
   eliminarEquipo,
@@ -71,6 +76,32 @@ const NOMBRES_TIPO = TIPOS_SALA.map((t) => t.valor);
 export default function SalasScreen() {
   const { C, s } = useEstilosC2(crearEstilos);
   const { token, esAdmin } = useAccesoC2();
+  const params = useLocalSearchParams<{ vista?: string; sala?: string; dia?: string }>();
+
+  /* ---------- Pestañas: lista de salas / calendario de uso ---------- */
+  const [vista, setVista] = useState<"salas" | "calendario">(params.vista === "calendario" ? "calendario" : "salas");
+  const [salaCal, setSalaCal] = useState<number | null>(params.sala ? Number(params.sala) || null : null);
+  const [diaCal, setDiaCal] = useState<number | null>(params.dia != null && params.dia !== "" ? Number(params.dia) : null);
+  const [asignaciones, setAsignaciones] = useState<AsignacionCalendario[]>([]);
+
+  const cargarAsignaciones = useCallback(async () => {
+    if (!token) return;
+    try {
+      setAsignaciones(await calendarioSalas(token));
+    } catch {
+      setAsignaciones([]); // sin acceso al calendario: las tarjetas simplemente no muestran horarios
+    }
+  }, [token]);
+
+  useEffect(() => {
+    cargarAsignaciones();
+  }, [cargarAsignaciones]);
+
+  const abrirCalendario = (salaId: number | null, dia: number | null = null) => {
+    setSalaCal(salaId);
+    setDiaCal(dia);
+    setVista("calendario");
+  };
 
   /* ---------- Listado ---------- */
   const [salas, setSalas] = useState<Sala[]>([]);
@@ -338,7 +369,31 @@ export default function SalasScreen() {
 
   /* ---------- Render ---------- */
   return (
-    <PantallaC2 titulo="Salas y equipamiento" subtitulo="Administra los espacios de la clínica, su estado y los equipos de cada sala.">
+    <PantallaC2
+      titulo="Salas y equipamiento"
+      subtitulo={
+        vista === "calendario"
+          ? "Reserva salas para cada doctor y consulta qué días y a qué hora están ocupadas."
+          : "Administra los espacios de la clínica, su estado y los equipos de cada sala."
+      }
+    >
+      <View style={s.chips}>
+        <ChipColor texto="Salas y equipo" color="#247F76" icono="business-outline" activo={vista === "salas"} onPress={() => setVista("salas")} />
+        <ChipColor texto="Calendario de uso (salas por doctor)" color="#2563EB" icono="calendar-outline" activo={vista === "calendario"} onPress={() => abrirCalendario(salaCal)} />
+      </View>
+
+      {vista === "calendario" ? (
+        <CalendarioUsoSalas
+          key={`${salaCal ?? "x"}-${diaCal ?? "x"}`}
+          salaInicialId={salaCal}
+          diaInicial={diaCal}
+          onCambio={() => {
+            cargarAsignaciones();
+            cargar();
+          }}
+        />
+      ) : (
+        <>
       {aviso && <Aviso tipo={aviso.tipo} texto={aviso.texto} />}
 
       <Tarjeta>
@@ -422,6 +477,48 @@ export default function SalasScreen() {
                 </Text>
               )}
 
+              {(() => {
+                const deLaSala = asignaciones.filter((a) => a.sala_id === sala.id_PK);
+                const diasOcupados = new Set<number>();
+                deLaSala.forEach((a) => {
+                  // un turno nocturno (23:00 → 04:00) también ocupa la madrugada del día siguiente
+                  const cruza = cruzaMedianoche(a.hora_inicio.slice(0, 5), a.hora_fin.slice(0, 5));
+                  if (a.dia_semana == null) [0, 1, 2, 3, 4, 5, 6].forEach((d) => diasOcupados.add(d));
+                  else {
+                    diasOcupados.add(a.dia_semana);
+                    if (cruza && a.hora_fin.slice(0, 5) !== "00:00") diasOcupados.add(diaSiguiente(a.dia_semana) as number);
+                  }
+                });
+                const ordenadas = [...deLaSala].sort((a, b) => (a.dia_semana ?? -1) - (b.dia_semana ?? -1) || a.hora_inicio.localeCompare(b.hora_inicio));
+                return (
+                  <View style={s.asignaciones}>
+                    <Text style={s.filtroTitulo}>
+                      {deLaSala.length === 0 ? "HORARIOS: SIN ASIGNAR" : `HORARIOS ASIGNADOS (${deLaSala.length}) · toca un día para verlo por horas`}
+                    </Text>
+                    <View style={s.diasFila}>
+                      {DIAS_CORTO.map((d, i) => {
+                        const ocupado = diasOcupados.has(i);
+                        return (
+                          <Pressable
+                            key={d}
+                            onPress={() => abrirCalendario(sala.id_PK, i)}
+                            style={[s.diaPildora, ocupado ? { backgroundColor: est.color, borderColor: est.color } : { borderColor: C.borde }]}
+                          >
+                            <Text style={[s.diaPildoraTexto, { color: ocupado ? "#FFFFFF" : C.muted }]}>{d}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    {ordenadas.slice(0, 3).map((a) => (
+                      <Text key={a.id_PK} style={s.salaDetalle} numberOfLines={1}>
+                        {a.dia_semana == null ? "Todos los días" : DIAS_CORTO[a.dia_semana]} {a.hora_inicio.slice(0, 5)}–{a.hora_fin.slice(0, 5)}{cruzaMedianoche(a.hora_inicio.slice(0, 5), a.hora_fin.slice(0, 5)) ? " (+1 día)" : ""} · {a.doctor_nombre ?? `Doctor #${a.doctor_id}`}
+                      </Text>
+                    ))}
+                    {ordenadas.length > 3 && <Text style={s.salaDetalle}>+{ordenadas.length - 3} más…</Text>}
+                  </View>
+                );
+              })()}
+
               <Text style={[s.filtroTitulo, { marginTop: 12 }]}>CAMBIAR ESTADO</Text>
               <View style={s.chips}>
                 {ESTADOS_SALA.map((e) => (
@@ -438,6 +535,7 @@ export default function SalasScreen() {
               </View>
 
               <View style={[s.filaBotones, { marginTop: 4 }]}>
+                <Boton texto="Horarios" variante="secundario" pequeno onPress={() => abrirCalendario(sala.id_PK)} />
                 <Boton texto="Equipamiento" variante="secundario" pequeno onPress={() => abrirEquipos(sala)} />
                 <Boton texto="Editar" variante="secundario" pequeno onPress={() => abrirEditar(sala)} />
                 {esAdmin && <Boton texto="Eliminar" variante="peligro" pequeno onPress={() => setSalaEliminar(sala)} />}
@@ -448,6 +546,8 @@ export default function SalasScreen() {
       )}
 
       <Paginador meta={meta} onCambiar={setPagina} />
+        </>
+      )}
 
       {/* ---------- Modal crear / editar sala ---------- */}
       <ModalBase visible={modalSala} titulo={editando ? "Editar sala" : "Nueva sala"} onClose={() => setModalSala(false)}>
@@ -638,4 +738,8 @@ const crearEstilos = (C: Paleta) =>
   dato: { flexDirection: "row", alignItems: "center", gap: 5 },
   datoTexto: { fontSize: 12, fontWeight: "600" },
   mantTexto: { fontSize: 11, fontWeight: "800", marginTop: 4 },
+  asignaciones: { marginTop: 10, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: C.borde, backgroundColor: C.fondo, gap: 4 },
+  diasFila: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 4 },
+  diaPildora: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
+  diaPildoraTexto: { fontSize: 11, fontWeight: "800" },
 });

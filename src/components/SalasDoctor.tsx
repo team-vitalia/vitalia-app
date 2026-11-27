@@ -49,7 +49,7 @@ export default function SalasDoctor() {
             </Text>
             {lista.map((a) => (
               <Text key={a.id_PK} style={s.horario}>
-                {nombreDia(a.dia_semana)}: {hhmm(a.hora_inicio)} – {hhmm(a.hora_fin)}
+                {nombreDia(a.dia_semana)}: {hhmm(a.hora_inicio)} – {hhmm(a.hora_fin)}{hhmm(a.hora_fin) <= hhmm(a.hora_inicio) ? " (termina al día siguiente)" : ""}
               </Text>
             ))}
           </View>

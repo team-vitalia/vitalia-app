@@ -35,12 +35,11 @@ const TABS_COORD: TabItem[] = [
 type Acceso = { ruta: string; icon: IconName; titulo: string; descripcion: string };
 
 const ACCESOS: Acceso[] = [
-  { ruta: "/admin/salas", icon: "business-outline", titulo: "Salas y equipamiento", descripcion: "Consulta y gestiona salas, su estado y los equipos de cada una." },
+  { ruta: "/admin/salas", icon: "business-outline", titulo: "Salas y equipamiento", descripcion: "Gestiona salas y equipos, y asigna salas y horarios de uso a cada médico." },
   { ruta: "/admin/reportes", icon: "bar-chart-outline", titulo: "Reportes", descripcion: "Ocupación, citas por doctor, tiempos de espera, inventario y recetas." },
   { ruta: "/admin/auditoria", icon: "receipt-outline", titulo: "Auditoría", descripcion: "Revisa quién cambió qué y cuándo en el sistema." },
   { ruta: "/admin/usuarios", icon: "people-outline", titulo: "Gestión de usuarios", descripcion: "Administra médicos, pacientes y personal de recepción." },
   { ruta: "/admin/especialidades", icon: "medkit-outline", titulo: "Especialidades médicas", descripcion: "Mantén actualizado el catálogo de especialidades." },
-  { ruta: "/admin/doctores/salas", icon: "calendar-outline", titulo: "Salas por doctor", descripcion: "Asigna salas y horarios de uso a cada médico." },
   { ruta: "/admin/doctores", icon: "document-text-outline", titulo: "Médicos y contratos", descripcion: "Perfiles de médicos y consulta de contratos." },
 ];
 
