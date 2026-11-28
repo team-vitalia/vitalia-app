@@ -8,6 +8,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { usePlanFeatures } from "../hooks/usePlanFeatures";
 import { MejoraPlanModal } from "./MejoraPlanModal";
+import { sombra } from "../utils/sombra";
 
 export interface BotonAnalisisIAProps {
   onEjecutarAnalisis: () => Promise<void> | void;
@@ -92,11 +93,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#0F4C45",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
+    ...sombra({ color: "#0F4C45", x: 0, y: 4, opacity: 0.2, radius: 8, elevation: 3 }),
   },
   botonDeshabilitado: {
     opacity: 0.5,

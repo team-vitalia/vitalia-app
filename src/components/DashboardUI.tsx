@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { type Theme } from "../theme/theme";
+import { sombra } from "../utils/sombra";
 
 const ND = Platform.OS !== "web";
 type IconName = ComponentProps<typeof Ionicons>["name"];
@@ -42,11 +43,7 @@ export function Glass({
           borderRadius: radius,
           borderWidth: 1,
           borderColor: c.glassBorder,
-          shadowColor: c.glassShadow,
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.08,
-          shadowRadius: 20,
-          elevation: 0,
+          ...sombra({ color: c.glassShadow, x: 0, y: 8, opacity: 0.08, radius: 20, elevation: 0 }),
         },
         WEB_BLUR,
         style,
@@ -61,7 +58,7 @@ export function Glass({
 export function FondoLuces({ c }: { c: Theme }) {
   const dark = c.mode === "dark";
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}>
       <Svg width="100%" height="100%" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice">
         <Defs>
           <RadialGradient id="luzMenta" cx="90%" cy="8%" r="60%">
@@ -392,11 +389,7 @@ export function HeroSaludo({
         overflow: "hidden",
         borderWidth: 1,
         borderColor: isLight ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.12)",
-        shadowColor,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: isLight ? 0.22 : 0.28,
-        shadowRadius: 18,
-        elevation: 6,
+        ...sombra({ color: shadowColor, x: 0, y: 8, opacity: isLight ? 0.22 : 0.28, radius: 18, elevation: 6 }),
       }}
     >
       <View
@@ -490,8 +483,8 @@ export function TabsBar({
       >
         {tabW > 0 && (
           <Animated.View
-            pointerEvents="none"
             style={{
+              pointerEvents: "none",
               position: "absolute",
               top: 0,
               bottom: 0,
@@ -499,10 +492,7 @@ export function TabsBar({
               width: tabW,
               borderRadius: 12,
               backgroundColor: c.primary,
-              shadowColor: c.primary,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 10,
+              ...sombra({ color: c.primary, x: 0, y: 4, opacity: 0.3, radius: 10 }),
               transform: [
                 {
                   translateX: scrollX.interpolate({

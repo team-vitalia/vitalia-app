@@ -34,6 +34,7 @@ import {
   BP_MOBILE,
   type Theme,
 } from "../theme/theme";
+import { sombra } from "../utils/sombra";
 
 const ND = Platform.OS !== "web";
 
@@ -365,10 +366,7 @@ function Sidebar({
             alignItems: "center",
             justifyContent: "center",
             marginBottom: compact ? 0 : 10,
-            shadowColor: c.glow,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.35,
-            shadowRadius: 14,
+            ...sombra({ color: c.glow, x: 0, y: 4, opacity: 0.35, radius: 14 }),
           }}
         >
           <Image source={require("../assets/images/logo.png")} style={{ width: 40, height: 40 }} resizeMode="contain" />
@@ -397,10 +395,7 @@ function Sidebar({
             paddingHorizontal: 12,
             paddingVertical: 12,
             marginBottom: 16,
-            shadowColor: c.glow,
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.3,
-            shadowRadius: 14,
+            ...sombra({ color: c.glow, x: 0, y: 6, opacity: 0.3, radius: 14 }),
           }}
         >
           <View
@@ -815,11 +810,7 @@ function BottomBar({
         borderTopColor: c.border,
         paddingHorizontal: 6,
         paddingBottom: Math.max(bottomInset, 6),
-        shadowColor: c.glow,
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 12,
-        elevation: 12,
+        ...sombra({ color: c.glow, x: 0, y: -4, opacity: 0.12, radius: 12, elevation: 12 }),
       }}
     >
       {tabs.map((item) => (

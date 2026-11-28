@@ -14,6 +14,7 @@ import {
 import { useAsistenteIA } from "../hooks/useAsistenteIA";
 import { MedicamentoSugerido } from "../services/asistenteIaService";
 import { useTheme, type Theme } from "../theme/theme";
+import { sombra } from "../utils/sombra";
 
 interface AsistenteIAModalProps {
   visible: boolean;
@@ -501,11 +502,7 @@ const createStyles = (c: Theme) => {
       width: "100%",
       maxWidth: 820,
       maxHeight: "92%",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.25,
-      shadowRadius: 15,
-      elevation: 10,
+      ...sombra({ color: "#000", x: 0, y: 10, opacity: 0.25, radius: 15, elevation: 10 }),
       overflow: "hidden",
     },
     header: {

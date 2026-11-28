@@ -407,8 +407,8 @@ export default function CalendarioUsoSalas({ salaInicialId = null, doctorInicial
   );
   const heroMarco = (hijos: React.ReactNode) => (
     <LinearGradient colors={["#0F766E", "#1D4ED8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
-      <View pointerEvents="none" style={s.heroCirculoA} />
-      <View pointerEvents="none" style={s.heroCirculoB} />
+      <View style={[s.heroCirculoA, { pointerEvents: "none" }]} />
+      <View style={[s.heroCirculoB, { pointerEvents: "none" }]} />
       {hijos}
     </LinearGradient>
   );

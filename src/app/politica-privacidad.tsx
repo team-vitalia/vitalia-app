@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme, type Theme } from "../theme/theme";
+import { sombra } from "../utils/sombra";
 
 const POINTER = Platform.select({
   web: { cursor: "pointer" } as any,
@@ -547,11 +548,7 @@ function createStyles(c: Theme, isSmall: boolean) {
       backgroundColor: isDark ? c.card : "#FFFFFF",
       borderBottomWidth: 1,
       borderBottomColor: c.border,
-      shadowColor: "#0F172A",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: isDark ? 0.2 : 0.04,
-      shadowRadius: 6,
-      elevation: 3,
+      ...sombra({ color: "#0F172A", x: 0, y: 2, opacity: isDark ? 0.2 : 0.04, radius: 6, elevation: 3 }),
       zIndex: 10,
     },
     headerContent: {
@@ -624,11 +621,7 @@ function createStyles(c: Theme, isSmall: boolean) {
       flexDirection: isSmall ? "column" : "row",
       alignItems: isSmall ? "flex-start" : "center",
       marginBottom: 20,
-      shadowColor: c.primary,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.25,
-      shadowRadius: 18,
-      elevation: 6,
+      ...sombra({ color: c.primary, x: 0, y: 8, opacity: 0.25, radius: 18, elevation: 6 }),
     },
     heroIconCircle: {
       width: 60,
@@ -711,11 +704,7 @@ function createStyles(c: Theme, isSmall: boolean) {
       padding: 16,
       borderWidth: 1,
       borderColor: c.border,
-      shadowColor: "#0F172A",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: isDark ? 0.15 : 0.03,
-      shadowRadius: 6,
-      elevation: 1,
+      ...sombra({ color: "#0F172A", x: 0, y: 2, opacity: isDark ? 0.15 : 0.03, radius: 6, elevation: 1 }),
     },
     highlightIconWrap: {
       width: 40,
@@ -819,11 +808,7 @@ function createStyles(c: Theme, isSmall: boolean) {
       borderWidth: 1,
       borderColor: c.border,
       padding: isSmall ? 18 : 24,
-      shadowColor: "#0F172A",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: isDark ? 0.2 : 0.03,
-      shadowRadius: 10,
-      elevation: 2,
+      ...sombra({ color: "#0F172A", x: 0, y: 4, opacity: isDark ? 0.2 : 0.03, radius: 10, elevation: 2 }),
     },
     sectionHeader: {
       flexDirection: "row",
@@ -951,11 +936,7 @@ function createStyles(c: Theme, isSmall: boolean) {
       alignItems: isSmall ? "flex-start" : "center",
       gap: 16,
       marginBottom: 28,
-      shadowColor: c.primary,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.12,
-      shadowRadius: 16,
-      elevation: 4,
+      ...sombra({ color: c.primary, x: 0, y: 6, opacity: 0.12, radius: 16, elevation: 4 }),
     },
     supportIconWrap: {
       width: 52,

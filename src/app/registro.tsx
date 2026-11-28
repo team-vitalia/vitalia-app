@@ -35,6 +35,7 @@ import { useTheme as useAppThemeHook } from "../theme/theme";
 import { registrarGratuito, registrarPaciente } from "../services/registroService";
 import { mensajeError } from "../services/util";
 import { DARK, LIGHT, type Theme } from "../theme/theme";
+import { sombra } from "../utils/sombra";
 
 const AUTH_LIGHT: Theme = {
   ...LIGHT,
@@ -240,11 +241,10 @@ export default function RegistroScreen() {
       style={{ flex: 1 }}
     >
       <LinearGradient
-        pointerEvents="none"
         colors={["rgba(45,212,191,0.34)", "rgba(45,212,191,0)"]}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.7, y: 0.7 }}
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}
       />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -628,11 +628,7 @@ const crearEstilos = (c: Theme, compacto: boolean) =>
       borderColor: c.mode === "dark" ? "rgba(45,212,191,0.28)" : "rgba(255,255,255,0.7)",
       padding: compacto ? 18 : 30,
       gap: 14,
-      shadowColor: c.mode === "dark" ? "#2DD4BF" : "#022C22",
-      shadowOpacity: c.mode === "dark" ? 0.22 : 0.3,
-      shadowRadius: 36,
-      shadowOffset: { width: 0, height: 18 },
-      elevation: 14,
+      ...sombra({ color: c.mode === "dark" ? "#2DD4BF" : "#022C22", opacity: c.mode === "dark" ? 0.22 : 0.3, radius: 36, x: 0, y: 18, elevation: 14 }),
     },
     tabs: {
       flexDirection: "row",
@@ -644,11 +640,7 @@ const crearEstilos = (c: Theme, compacto: boolean) =>
     tab: { flex: 1, paddingVertical: 11, borderRadius: 11, alignItems: "center", justifyContent: "center" },
     tabActiva: {
       backgroundColor: c.card,
-      shadowColor: "#0F172A",
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 2,
+      ...sombra({ color: "#0F172A", opacity: 0.12, radius: 8, x: 0, y: 2, elevation: 2 }),
     },
     tabTexto: { fontSize: 14, fontWeight: "700", color: c.muted },
     tabTextoActiva: { color: c.primary },
@@ -718,10 +710,7 @@ const crearEstilos = (c: Theme, compacto: boolean) =>
       backgroundColor: c.success,
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: c.success,
-      shadowOpacity: 0.45,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: 6 },
+      ...sombra({ color: c.success, opacity: 0.45, radius: 18, x: 0, y: 6 }),
     },
     exitoTitulo: { fontSize: 21, fontWeight: "800", color: c.text, textAlign: "center" },
     exitoTexto: { fontSize: 14.5, color: c.muted, textAlign: "center", lineHeight: 22 },

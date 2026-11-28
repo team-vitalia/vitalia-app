@@ -13,6 +13,7 @@ import {
   ajustar,
   hoyIndiceSemana,
 } from "./calendarioTipos";
+import { sombra } from "../../utils/sombra";
 
 /** En el celular no se arrastra: se toca el doctor/sala y luego el horario donde colocarlo. */
 export function ChipArrastrable({ item, color, subtitulo, activo, deshabilitado, onPress }: ChipArrastrableProps) {
@@ -96,7 +97,7 @@ export function CalendarioSemana({ bloques, dias = [0, 1, 2, 3, 4, 5, 6], etique
                 <View key={h} style={{ position: "absolute", left: 0, right: 0, top: i * 60 * PX, borderTopWidth: 1, borderTopColor: C.borde }} />
               ))}
               {ahora && ahora.dia === dia && ahora.min >= minIni && ahora.min <= minFin && (
-                <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: (ahora.min - minIni) * PX, borderTopWidth: 2, borderTopColor: "#EF4444", zIndex: 4 }}>
+                <View style={{ pointerEvents: "none", position: "absolute", left: 0, right: 0, top: (ahora.min - minIni) * PX, borderTopWidth: 2, borderTopColor: "#EF4444", zIndex: 4 }}>
                   <View style={{ position: "absolute", left: -1, top: -6, width: 10, height: 10, borderRadius: 5, backgroundColor: "#EF4444" }} />
                   <Text style={{ position: "absolute", right: 4, top: -18, fontSize: 10, fontWeight: "800", color: "#FFFFFF", backgroundColor: "#EF4444", borderRadius: 6, paddingHorizontal: 6, overflow: "hidden" }}>ahora {aHHMM(ahora.min)}</Text>
                 </View>
@@ -119,11 +120,7 @@ export function CalendarioSemana({ bloques, dias = [0, 1, 2, 3, 4, 5, 6], etique
                       borderLeftWidth: 6,
                       borderLeftColor: b.color,
                       borderRadius: 10,
-                      elevation: 2,
-                      shadowColor: "#0F172A",
-                      shadowOpacity: 0.14,
-                      shadowRadius: 4,
-                      shadowOffset: { width: 0, height: 2 },
+                      ...sombra({ elevation: 2, color: "#0F172A", opacity: 0.14, radius: 4, x: 0, y: 2 }),
                       paddingHorizontal: 6,
                       paddingVertical: 3,
                       overflow: "hidden",

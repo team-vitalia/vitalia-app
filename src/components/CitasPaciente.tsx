@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useTheme, type Theme } from "../theme/theme";
+import { sombra } from "../utils/sombra";
 
 export type CitaPaciente = {
   id_PK: number;
@@ -126,11 +127,7 @@ const createStyles = (c: Theme) => StyleSheet.create({
     borderWidth: 1, 
     borderColor: c.border, 
     marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    ...sombra({ color: "#000", x: 0, y: 2, opacity: 0.05, radius: 8, elevation: 2 }),
   },
   fecha: { fontSize: 14, fontWeight: "800", color: c.text, marginBottom: 8 },
   filaInfo: { 

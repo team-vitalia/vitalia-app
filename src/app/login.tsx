@@ -156,6 +156,7 @@ const FEATURES: { icon: IconName; title: string }[] = [
 ];
 
 import { useTheme as useAppThemeHook } from "../theme/theme";
+import { aRgba, sombra } from "../utils/sombra";
 const ND = Platform.OS !== "web";
 
 // Cursor de mano en web (en nativo no hace nada)
@@ -403,7 +404,7 @@ function PulseBackdrop({ c, compact, bottom }: { c: Theme; compact?: boolean; bo
   const offset = draw.interpolate({ inputRange: [0, 1], outputRange: [ECG_LEN, 0] });
   const glow = breath.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.26] });
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}>
       <Svg
         width="100%"
         height="100%"
@@ -585,10 +586,19 @@ function Field({ c, label, icon, right, inputRef, fieldHeight = 52, gap = 16, er
           paddingHorizontal: 14,
           backgroundColor: c.inputBg,
           borderColor: error || invalid ? c.error : f.interpolate({ inputRange: [0, 1], outputRange: [c.border, c.focus] }),
-          shadowColor: c.glow,
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: f.interpolate({ inputRange: [0, 1], outputRange: [0, 0.38] }),
-          shadowRadius: 10,
+          ...(Platform.OS === "web"
+            ? ({
+                boxShadow: f.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [`0px 0px 20px ${aRgba(c.glow, 0)}`, `0px 0px 20px ${aRgba(c.glow, 0.38)}`],
+                }),
+              } as any)
+            : {
+                shadowColor: c.glow,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: f.interpolate({ inputRange: [0, 1], outputRange: [0, 0.38] }) as any,
+                shadowRadius: 10,
+              }),
         }}
       >
         {icon ? (
@@ -1224,11 +1234,7 @@ const createRegStyles = (c: Theme, L: Layout) =>
     },
     stepDotOn: { backgroundColor: c.primary, borderColor: c.primary },
     stepDotActive: {
-      shadowColor: c.glow,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.55,
-      shadowRadius: 10,
-      elevation: 4,
+      ...sombra({ color: c.glow, x: 0, y: 0, opacity: 0.55, radius: 10, elevation: 4 }),
     },
     stepLabel: { marginTop: 5, fontSize: 11, fontWeight: "600", color: c.muted },
     stepLabelOn: { color: c.primary, fontWeight: "800" },
@@ -1255,11 +1261,7 @@ const createRegStyles = (c: Theme, L: Layout) =>
     chipOn: {
       backgroundColor: c.primary,
       borderColor: c.primary,
-      shadowColor: c.glow,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.35,
-      shadowRadius: 10,
-      elevation: 3,
+      ...sombra({ color: c.glow, x: 0, y: 4, opacity: 0.35, radius: 10, elevation: 3 }),
     },
     chipText: { fontSize: 13.5, fontWeight: "700", color: c.text },
     chipTextOn: { color: c.onBtn },
@@ -1281,11 +1283,7 @@ const createRegStyles = (c: Theme, L: Layout) =>
       alignItems: "center",
       justifyContent: "center",
       marginBottom: 16,
-      shadowColor: c.success,
-      shadowOpacity: 0.45,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 6,
+      ...sombra({ color: c.success, opacity: 0.45, radius: 18, x: 0, y: 6, elevation: 6 }),
     },
   });
 
@@ -1947,11 +1945,7 @@ const createStyles = (c: Theme, L: Layout) =>
       padding: L.cardPad,
       borderWidth: 1,
       borderColor: c.border,
-      shadowColor: c.glow,
-      shadowOffset: { width: 0, height: 18 },
-      shadowOpacity: c.mode === "dark" ? 0.2 : 0.28,
-      shadowRadius: 36,
-      elevation: 14,
+      ...sombra({ color: c.glow, x: 0, y: 18, opacity: c.mode === "dark" ? 0.2 : 0.28, radius: 36, elevation: 14 }),
     },
 
     /* ---------- Panel de marca ---------- */
@@ -1976,10 +1970,7 @@ const createStyles = (c: Theme, L: Layout) =>
       backgroundColor: c.brandLogoTile,
       borderWidth: 1,
       borderColor: c.brandGlassBorder,
-      shadowColor: c.glow,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.55,
-      shadowRadius: 16,
+      ...sombra({ color: c.glow, x: 0, y: 0, opacity: 0.55, radius: 16 }),
     },
     logoHaloSmall: {
       width: L.xs ? 38 : 44,
@@ -2058,11 +2049,7 @@ const createStyles = (c: Theme, L: Layout) =>
       borderRadius: 10,
       minHeight: L.compact || L.xs ? 42 : 46,
       paddingHorizontal: 8,
-      shadowColor: c.glow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 8,
-      elevation: 2,
+      ...sombra({ color: c.glow, x: 0, y: 2, opacity: 0.25, radius: 8, elevation: 2 }),
     },
     tabActiveText: { color: c.primary, fontSize: L.xs ? 13 : 14, fontWeight: "800" },
     tabInactive: {
@@ -2123,11 +2110,7 @@ const createStyles = (c: Theme, L: Layout) =>
     /* ---------- Botón principal ---------- */
     loginButtonWrapper: {
       borderRadius: 14,
-      shadowColor: c.glow,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.42,
-      shadowRadius: 16,
-      elevation: 6,
+      ...sombra({ color: c.glow, x: 0, y: 8, opacity: 0.42, radius: 16, elevation: 6 }),
       marginBottom: L.compact ? 14 : 20,
     },
     loginButton: {
@@ -2228,11 +2211,7 @@ const createStyles = (c: Theme, L: Layout) =>
       backgroundColor: c.card,
       borderRadius: 22,
       padding: L.cardPad,
-      shadowColor: c.glow,
-      shadowOffset: { width: 0, height: 12 },
-      shadowOpacity: c.mode === "dark" ? 0.18 : 0.22,
-      shadowRadius: 28,
-      elevation: 8,
+      ...sombra({ color: c.glow, x: 0, y: 12, opacity: c.mode === "dark" ? 0.18 : 0.22, radius: 28, elevation: 8 }),
       borderWidth: 1,
       borderColor: c.border,
     },
@@ -2252,11 +2231,7 @@ const createStyles = (c: Theme, L: Layout) =>
       padding: 28,
       alignItems: "center",
       borderWidth: 1,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 16 },
-      shadowOpacity: 0.25,
-      shadowRadius: 32,
-      elevation: 12,
+      ...sombra({ color: "#000", x: 0, y: 16, opacity: 0.25, radius: 32, elevation: 12 }),
     },
     modalIconContainer: {
       width: 56,

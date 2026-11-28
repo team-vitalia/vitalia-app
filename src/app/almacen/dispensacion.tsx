@@ -251,7 +251,7 @@ export default function Dispensacion() {
       >
         <View style={{ flex: 1, backgroundColor: "#000" }}>
           <CameraView
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             facing="back"
             onBarcodeScanned={buscandoQR ? undefined : handleBarCodeScanned}
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}

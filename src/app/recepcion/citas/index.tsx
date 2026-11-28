@@ -25,6 +25,7 @@ import {
 } from "../../../services/colasService";
 import SelectorFecha from "../../../components/SelectorFecha";
 import SelectorHora from "../../../components/SelectorHora";
+import { sombra } from "../../../utils/sombra";
 
 interface Cita {
   id_PK: number;
@@ -1970,11 +1971,7 @@ const createStyles = (c: Theme) => {
     alignItems: "center",
     borderWidth: 1,
     borderColor: c.border,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 4,
+    ...sombra({ color: "#000000", x: 0, y: 8, opacity: 0.06, radius: 16, elevation: 4 }),
   },
 
   deniedIconBox: {

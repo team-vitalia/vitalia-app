@@ -15,6 +15,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 import { useTheme, type Theme } from "../../theme/theme";
+import { sombra } from "../../utils/sombra";
 
 interface Paciente {
   id_PK: number;
@@ -729,11 +730,7 @@ const createStyles = (c: Theme) => {
       padding: 22,
       borderWidth: 1,
       borderColor: c.border,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.15,
-      shadowRadius: 20,
-      elevation: 8,
+      ...sombra({ color: "#000", x: 0, y: 8, opacity: 0.15, radius: 20, elevation: 8 }),
     },
     modalHeaderRow: {
       flexDirection: "row",

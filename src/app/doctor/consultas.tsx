@@ -611,7 +611,7 @@ const createStyles = (c: Theme) => {
   btnNuevaConsulta: { flexDirection: "row", alignItems: "center", backgroundColor: c.primary, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
   btnNuevaConsultaTexto: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject },
+  modalBackdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   modalContenido: { backgroundColor: c.card, borderRadius: 20, padding: 22, width: "100%", maxWidth: 520, borderWidth: 1, borderColor: c.border },
   modalCabecera: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
   modalTitulo: { fontSize: 18, fontWeight: "900", color: c.text },

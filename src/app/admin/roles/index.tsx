@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../services/api";
+import { sombra } from "../../../utils/sombra";
 
 interface Rol {
     id_PK: number;
@@ -758,14 +759,7 @@ const createStyles = (c: Theme) => {
         borderWidth: 1,
         borderColor: "#E1ECE8",
         alignItems: "center",
-        shadowColor: "#173F3A",
-        shadowOffset: {
-            width: 0,
-            height: 12,
-        },
-        shadowOpacity: 0.18,
-        shadowRadius: 24,
-        elevation: 12,
+        ...sombra({ color: "#173F3A", x: 0, y: 12, opacity: 0.18, radius: 24, elevation: 12 }),
     },
     modalIcon: {
     width: 66,
@@ -841,11 +835,7 @@ const createStyles = (c: Theme) => {
         padding: 26,
         borderWidth: 1,
         borderColor: "#E2EEEB",
-        shadowColor: "#173F3A",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 20,
-        elevation: 10,
+        ...sombra({ color: "#173F3A", x: 0, y: 8, opacity: 0.12, radius: 20, elevation: 10 }),
     },
 
     editModalHeader: {

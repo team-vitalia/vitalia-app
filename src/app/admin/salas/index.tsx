@@ -53,6 +53,7 @@ import {
   listarSalas,
   mensajeError,
 } from "../../../services/c2Service";
+import { sombra } from "../../../utils/sombra";
 
 const FORM_SALA_VACIO = { nombre: "", tipo: "", ubicacion: "", piso: "", capacidad: "", estado: "disponible", lista_equipamiento: "" };
 
@@ -644,7 +645,7 @@ const crearEstilos = (C: Paleta) =>
   pestanaIcono: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   pestanaTitulo: { fontSize: 14.5, fontWeight: "800", color: C.titulo },
   pestanaSub: { fontSize: 11.5, color: C.muted, marginTop: 1 },
-  pestanaCta: { flexGrow: 1.4, flexBasis: 240, borderRadius: 16, overflow: "hidden", borderWidth: 2, borderColor: "transparent", elevation: 4, shadowColor: "#1D4ED8", shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  pestanaCta: { flexGrow: 1.4, flexBasis: 240, borderRadius: 16, overflow: "hidden", borderWidth: 2, borderColor: "transparent", ...sombra({ color: "#1D4ED8", x: 0, y: 4, opacity: 0.3, radius: 10, elevation: 4 }) },
   pestanaCtaActiva: { borderColor: "#0F766E" },
   pestanaCtaFondo: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12 },
   pestanaCtaIcono: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.22)" },

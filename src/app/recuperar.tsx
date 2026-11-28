@@ -27,6 +27,7 @@ import {
   verificarCodigoCorreo,
   type TipoRecuperacion,
 } from "../services/recuperacionService";
+import { sombra } from "../utils/sombra";
 
 type Fase = "correo" | "codigo" | "password" | "listo";
 
@@ -565,11 +566,7 @@ const crearEstilos = (c: Paleta, m: Medidas) =>
       borderWidth: 1,
       borderColor: c.dark ? c.border : "rgba(255,255,255,0.6)",
       padding: m.padCard,
-      shadowColor: "#022C22",
-      shadowOpacity: c.dark ? 0.35 : 0.18,
-      shadowRadius: 24,
-      shadowOffset: { width: 0, height: 10 },
-      elevation: 8,
+      ...sombra({ color: "#022C22", opacity: c.dark ? 0.35 : 0.18, radius: 24, x: 0, y: 10, elevation: 8 }),
     },
     marca: { color: c.primary, fontSize: 18, fontWeight: "800", textAlign: "center", marginBottom: m.compacto ? 12 : 18 },
     pasos: { flexDirection: "row", marginBottom: m.compacto ? 16 : 22 },

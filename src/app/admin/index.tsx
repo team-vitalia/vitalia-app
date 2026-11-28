@@ -32,6 +32,7 @@ import { CrownSvg, UpgradeModal } from "../../components/UpgradeModal";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 import { useTheme, type Theme } from "../../theme/theme";
+import { sombra } from "../../utils/sombra";
 
 /* ============================================================
    DATOS
@@ -268,11 +269,7 @@ function Glass({
           borderRadius: radius,
           borderWidth: 1,
           borderColor: c.glassBorder,
-          shadowColor: c.glassShadow,
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.08,
-          shadowRadius: 20,
-          elevation: 0,
+          ...sombra({ color: c.glassShadow, x: 0, y: 8, opacity: 0.08, radius: 20, elevation: 0 }),
         },
         WEB_BLUR,
         style,
@@ -286,7 +283,7 @@ function Glass({
 function FondoLuces({ c }: { c: Theme }) {
   const dark = c.mode === "dark";
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}>
       <Svg width="100%" height="100%" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice">
         <Defs>
           <RadialGradient id="luzMenta" cx="90%" cy="8%" r="60%">
@@ -342,8 +339,8 @@ function TabsBar({
       >
         {tabW > 0 && (
           <Animated.View
-            pointerEvents="none"
             style={{
+              pointerEvents: "none",
               position: "absolute",
               top: 0,
               bottom: 0,
@@ -351,10 +348,7 @@ function TabsBar({
               width: tabW,
               borderRadius: m.r(12),
               backgroundColor: c.primary,
-              shadowColor: c.primary,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 10,
+              ...sombra({ color: c.primary, x: 0, y: 4, opacity: 0.3, radius: 10 }),
               transform: [
                 {
                   translateX: scrollX.interpolate({
@@ -482,7 +476,7 @@ function AccesoTile({
               padding: m.r(14),
               opacity: bloqueado ? 0.70 : 1,
               borderColor: state.hovered ? color : c.glassBorder,
-              shadowOpacity: state.hovered ? 0.16 : 0.08,
+              ...sombra({ color: c.glassShadow, x: 0, y: 8, opacity: state.hovered ? 0.16 : 0.08, radius: 20 }),
             }}
           >
             <View

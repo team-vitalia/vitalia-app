@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { sombra } from "../../utils/sombra";
 
 type Props = {
   /** Si se indica, el calendario se abre directamente en ese doctor; si no, en la vista general. */
@@ -42,7 +43,7 @@ export default function BotonAsignarSalas({ doctorId = null, compacto = false }:
 }
 
 const s = StyleSheet.create({
-  boton: { alignSelf: "stretch", borderRadius: 12, overflow: "hidden", marginTop: 14, elevation: 3, shadowColor: "#1D4ED8", shadowOpacity: 0.28, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  boton: { alignSelf: "stretch", borderRadius: 12, overflow: "hidden", marginTop: 14, ...sombra({ color: "#1D4ED8", x: 0, y: 3, opacity: 0.28, radius: 8, elevation: 3 }) },
   botonCompacto: { alignSelf: "flex-start", marginTop: 12, borderRadius: 10 },
   fondo: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 13, paddingHorizontal: 16 },
   fondoCompacto: { paddingVertical: 9, paddingHorizontal: 13, gap: 8 },

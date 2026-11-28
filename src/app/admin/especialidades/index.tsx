@@ -16,6 +16,7 @@ import {
 import { useRouter } from "expo-router";
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../services/api";
+import { sombra } from "../../../utils/sombra";
 
 type Especialidad = {
     id_PK: number;
@@ -769,11 +770,7 @@ const createStyles = (c: Theme) => {
         marginBottom: 0,
         borderWidth: 1,
         borderColor: c.border,
-        shadowColor: "#173F3A",
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.04,
-        shadowRadius: 9,
-        elevation: 2,
+        ...sombra({ color: "#173F3A", x: 0, y: 3, opacity: 0.04, radius: 9, elevation: 2 }),
     },
     detalles: {
         flex: 1,
@@ -1062,14 +1059,7 @@ const createStyles = (c: Theme) => {
         borderWidth: 1,
         borderColor: c.border,
         alignItems: "center",
-        shadowColor: "#173F3A",
-        shadowOffset: {
-            width: 0,
-            height: 12,
-        },
-        shadowOpacity: 0.18,
-        shadowRadius: 24,
-        elevation: 12,
+        ...sombra({ color: "#173F3A", x: 0, y: 12, opacity: 0.18, radius: 24, elevation: 12 }),
     },
 
     modalIcon: {

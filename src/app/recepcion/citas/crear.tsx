@@ -18,6 +18,7 @@ import api from "../../../services/api";
 import SelectorFecha from "../../../components/SelectorFecha";
 import SelectorHora from "../../../components/SelectorHora";
 import { AsignacionSala, Equipo, hhmm, nombreDia } from "../../../services/c2Service";
+import { sombra } from "../../../utils/sombra";
 
 /** Alert.alert no muestra nada en web; este helper funciona en ambas plataformas. */
 function avisar(titulo: string, mensaje: string, alAceptar?: () => void) {
@@ -952,11 +953,7 @@ const createStyles = (c: Theme) => {
     alignItems: "center",
     borderWidth: 1,
     borderColor: c.border,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 4,
+    ...sombra({ color: "#000000", x: 0, y: 8, opacity: 0.06, radius: 16, elevation: 4 }),
   },
 
   deniedIconBox: {

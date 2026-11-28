@@ -28,6 +28,7 @@ import {
   registrarEntradaPorCodigoBarras,
 } from "../../services/almacenService";
 import { mensajeError } from "../../services/c2Service";
+import { sombra, sombraTexto } from "../../utils/sombra";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 const ND = Platform.OS !== "web";
@@ -79,7 +80,7 @@ function Banner({ tipo, titulo, texto, detalle, children }: {
     <Aparece>
       <View
         accessibilityRole="alert"
-        style={[st.banner, { backgroundColor: x.fondo, borderColor: x.acento, shadowColor: x.acento }]}
+        style={[st.banner, { backgroundColor: x.fondo, borderColor: x.acento, ...sombra({ color: x.acento, x: 0, y: 4, opacity: 0.22, radius: 12 }) }]}
       >
         <View style={[st.bannerIcono, { backgroundColor: x.acento }]}>
           <Ionicons name={x.icono} size={22} color="#FFFFFF" />
@@ -151,8 +152,7 @@ function Entrada({
           {
             backgroundColor: k.inputBg,
             borderColor: foco ? k.primario : k.borde,
-            shadowColor: k.c.glow,
-            shadowOpacity: foco ? 0.35 : 0,
+            ...sombra({ color: k.c.glow, x: 0, y: 0, opacity: foco ? 0.35 : 0, radius: 8 }),
           },
         ]}
       >
@@ -197,7 +197,7 @@ function MarcoEscaneo() {
 
   return (
     <View style={st.marcoContenedor}>
-      <View style={st.marco} pointerEvents="none">
+      <View style={[st.marco, { pointerEvents: "none" }]}>
         <View style={[st.esquina, st.esqTL, esquina]} />
         <View style={[st.esquina, st.esqTR, esquina]} />
         <View style={[st.esquina, st.esqBL, esquina]} />
@@ -626,12 +626,12 @@ export default function EntradaPorCodigoBarras() {
           />
 
           {/* Marco centrado sobre la cámara */}
-          <View style={st.camaraCentro} pointerEvents="none">
+          <View style={[st.camaraCentro, { pointerEvents: "none" }]}>
             <MarcoEscaneo />
           </View>
 
           {/* Texto flotante, SIN fondo, solo sombra */}
-          <View style={st.camaraTextoWrap} pointerEvents="none">
+          <View style={[st.camaraTextoWrap, { pointerEvents: "none" }]}>
             <Text style={st.camaraTexto}>
               Centra el código de barras dentro del marco
             </Text>
@@ -677,8 +677,6 @@ const st = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     minHeight: 46,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 8,
   },
   input: { flex: 1, fontSize: 14, paddingVertical: 10 },
   filaCampos: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
@@ -697,9 +695,6 @@ const st = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     marginBottom: 12,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
   },
   bannerIcono: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
   bannerTitulo: { fontSize: 15, fontWeight: "800" },
@@ -712,7 +707,11 @@ const st = StyleSheet.create({
     backgroundColor: "#000",
   },
   camaraCentro: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -729,9 +728,7 @@ const st = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     textAlign: "center",
-    textShadowColor: "rgba(0,0,0,0.95)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    ...sombraTexto("rgba(0,0,0,0.95)", 0, 1, 4),
   },
   camaraBotonWrap: {
     position: "absolute",
@@ -772,9 +769,6 @@ const st = StyleSheet.create({
     height: 2,
     borderRadius: 1,
     backgroundColor: "#2DD4BF",
-    shadowColor: "#2DD4BF",
-    shadowOpacity: 0.9,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
+    ...sombra({ color: "#2DD4BF", opacity: 0.9, radius: 8, x: 0, y: 0 }),
   },
 });

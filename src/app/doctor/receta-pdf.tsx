@@ -245,7 +245,7 @@ export default function RecetaQRScreen() {
           <div class="header">
             <div class="header-left">
               ${
-                LOGO_BASE64 !==
+                (LOGO_BASE64 as string) !==
                 "data:image/png;base64,PEGA_AQUI_TU_LOGO_SUPERIOR"
                   ? `<img src="${LOGO_BASE64}" alt="VITALIA" />`
                   : `<h1>VITALIA</h1>`
