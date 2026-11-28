@@ -1,4 +1,5 @@
 import api from "./api";
+import { MIME_PDF, MIME_XLSX, guardarArchivo } from "../utils/archivos";
 
 /* ============================================================
    Tipos comunes
@@ -424,6 +425,25 @@ export async function moverAsignacion(
 
 export async function quitarAsignacion(token: string, id: number, notificar = true): Promise<{ doctor_notificado: boolean }> {
   return (await api.delete(`/api/doctor-salas/asignaciones/${id}`, { ...auth(token), params: { notificar } })).data;
+}
+
+/**
+ * Descarga (web) o comparte (celular) el resumen de asignación de salas en Excel o PDF.
+ * `semanaInicio` (AAAA-MM-DD, lunes) solo sirve para rotular las fechas de la semana que se está viendo.
+ */
+export async function descargarResumenAsignaciones(token: string, formato: "excel" | "pdf", semanaInicio?: string): Promise<void> {
+  const res = await api.get("/api/doctor-salas/resumen/exportar", {
+    ...auth(token),
+    params: limpiar({ formato, semana_inicio: semanaInicio }),
+    responseType: "arraybuffer",
+  });
+  const hoy = new Date();
+  const sello = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+  await guardarArchivo(
+    `resumen_asignacion_salas_${sello}.${formato === "pdf" ? "pdf" : "xlsx"}`,
+    res.data as ArrayBuffer,
+    formato === "pdf" ? MIME_PDF : MIME_XLSX
+  );
 }
 
 /* ============================================================

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams } from "expo-router";
 
 import {
@@ -41,33 +42,44 @@ import {
 } from "../../../components/c2/extra";
 import {
   AsignacionCalendario,
-  Equipo,
-  EquipoPayload,
   PageMeta,
   Sala,
   SalaPayload,
-  actualizarEquipo,
   actualizarSala,
-  agregarEquipo,
   calendarioSalas,
   cambiarEstadoSala,
   crearSala,
-  eliminarEquipo,
   eliminarSala,
-  listarEquipos,
   listarSalas,
   mensajeError,
 } from "../../../services/c2Service";
 
 const FORM_SALA_VACIO = { nombre: "", tipo: "", ubicacion: "", piso: "", capacidad: "", estado: "disponible", lista_equipamiento: "" };
-const FORM_EQUIPO_VACIO = {
-  nombre_equipo: "",
-  tipo_equipo: "otro",
-  numero_serie: "",
-  estado: "operativo",
-  fecha_compra: "",
-  ultimo_mantenimiento: "",
-  proximo_mantenimiento: "",
+
+/* Catálogo de equipos frecuentes por categoría (se pueden elegir con un toque). */
+const EQUIPOS_SUGERIDOS: Record<string, string[]> = {
+  diagnostico: ["Electrocardiógrafo", "Ultrasonido", "Rayos X", "Otoscopio", "Oftalmoscopio", "Estetoscopio", "Báscula con estadímetro"],
+  monitoreo: ["Monitor de signos vitales", "Oxímetro de pulso", "Baumanómetro", "Termómetro digital", "Glucómetro"],
+  cirugia: ["Electrobisturí", "Lámpara quirúrgica", "Mesa quirúrgica", "Instrumental quirúrgico", "Aspirador"],
+  soporte_vital: ["Desfibrilador", "Ventilador mecánico", "Tanque de oxígeno", "Carro de paro", "Bomba de infusión"],
+  laboratorio: ["Centrífuga", "Microscopio", "Analizador de sangre", "Refrigerador de muestras"],
+  esterilizacion: ["Autoclave", "Esterilizador de calor seco", "Lavador ultrasónico"],
+  mobiliario: ["Camilla", "Mesa de exploración", "Escritorio", "Silla de ruedas", "Banco giratorio", "Lavamanos"],
+  otro: ["Aire acondicionado", "Computadora", "Impresora", "Lámpara de exploración"],
+};
+
+/** "a, b; c" → ["a","b","c"] (sin vacíos ni repetidos). */
+const textoAItems = (t: string): string[] => {
+  const vistos = new Set<string>();
+  return t
+    .split(/[,;\n]/)
+    .map((x) => x.trim())
+    .filter((x) => {
+      const k = x.toLowerCase();
+      if (!x || vistos.has(k)) return false;
+      vistos.add(k);
+      return true;
+    });
 };
 
 type AvisoEstado = { tipo: "ok" | "error"; texto: string } | null;
@@ -76,13 +88,25 @@ const NOMBRES_TIPO = TIPOS_SALA.map((t) => t.valor);
 export default function SalasScreen() {
   const { C, s } = useEstilosC2(crearEstilos);
   const { token, esAdmin } = useAccesoC2();
-  const params = useLocalSearchParams<{ vista?: string; sala?: string; dia?: string }>();
+  const params = useLocalSearchParams<{ vista?: string; sala?: string; dia?: string; modo?: string; doctor?: string }>();
 
   /* ---------- Pestañas: lista de salas / calendario de uso ---------- */
   const [vista, setVista] = useState<"salas" | "calendario">(params.vista === "calendario" ? "calendario" : "salas");
   const [salaCal, setSalaCal] = useState<number | null>(params.sala ? Number(params.sala) || null : null);
   const [diaCal, setDiaCal] = useState<number | null>(params.dia != null && params.dia !== "" ? Number(params.dia) : null);
+  const [modoCal, setModoCal] = useState<"sala" | "doctor" | "general">(params.modo === "doctor" || params.modo === "general" ? params.modo : "sala");
+  const [doctorCal, setDoctorCal] = useState<number | null>(params.doctor ? Number(params.doctor) || null : null);
   const [asignaciones, setAsignaciones] = useState<AsignacionCalendario[]>([]);
+
+  // Si se llega desde otra pantalla (p. ej. «Asignar sala» en Médicos) con la pantalla ya abierta, se actualizan los parámetros
+  useEffect(() => {
+    if (params.vista !== "calendario") return;
+    setVista("calendario");
+    setModoCal(params.modo === "doctor" || params.modo === "general" ? params.modo : "sala");
+    setDoctorCal(params.doctor ? Number(params.doctor) || null : null);
+    setSalaCal(params.sala ? Number(params.sala) || null : null);
+    setDiaCal(params.dia != null && params.dia !== "" ? Number(params.dia) : null);
+  }, [params.vista, params.modo, params.doctor, params.sala, params.dia]);
 
   const cargarAsignaciones = useCallback(async () => {
     if (!token) return;
@@ -98,6 +122,8 @@ export default function SalasScreen() {
   }, [cargarAsignaciones]);
 
   const abrirCalendario = (salaId: number | null, dia: number | null = null) => {
+    setModoCal("sala");
+    setDoctorCal(null);
     setSalaCal(salaId);
     setDiaCal(dia);
     setVista("calendario");
@@ -165,6 +191,7 @@ export default function SalasScreen() {
   const abrirNueva = () => {
     setEditando(null);
     setForm(FORM_SALA_VACIO);
+    setEquipoNuevo("");
     setTipoOtro(false);
     setErrorForm("");
     setModalSala(true);
@@ -260,112 +287,22 @@ export default function SalasScreen() {
     }
   };
 
-  /* ---------- Equipamiento ---------- */
-  const [salaEquipos, setSalaEquipos] = useState<Sala | null>(null);
-  const [equipos, setEquipos] = useState<Equipo[]>([]);
-  const [cargandoEquipos, setCargandoEquipos] = useState(false);
-  const [equipoEditando, setEquipoEditando] = useState<Equipo | null>(null);
-  const [formEquipo, setFormEquipo] = useState(FORM_EQUIPO_VACIO);
-  const [errorEquipo, setErrorEquipo] = useState("");
-  const [guardandoEquipo, setGuardandoEquipo] = useState(false);
-  const [equipoEliminarId, setEquipoEliminarId] = useState<number | null>(null);
+  /* ---------- Equipamiento (se guarda como texto en la sala) ---------- */
+  const [catEquipo, setCatEquipo] = useState<string>(TIPOS_EQUIPO[0].valor);
+  const [equipoNuevo, setEquipoNuevo] = useState("");
 
-  const cargarEquipos = async (salaId: number) => {
-    if (!token) return;
-    try {
-      setCargandoEquipos(true);
-      setEquipos(await listarEquipos(token, salaId));
-    } catch (e) {
-      setErrorEquipo(mensajeError(e, "No se pudo cargar el equipamiento."));
-    } finally {
-      setCargandoEquipos(false);
-    }
+  const itemsEquipo = textoAItems(form.lista_equipamiento);
+  const setItemsEquipo = (items: string[]) => setForm((f) => ({ ...f, lista_equipamiento: items.join(", ") }));
+  const tieneEquipo = (nombre: string) => itemsEquipo.some((x) => x.toLowerCase() === nombre.toLowerCase());
+  const alternarEquipo = (nombre: string) =>
+    setItemsEquipo(tieneEquipo(nombre) ? itemsEquipo.filter((x) => x.toLowerCase() !== nombre.toLowerCase()) : [...itemsEquipo, nombre]);
+  const agregarEquipoPropio = () => {
+    const nombre = equipoNuevo.replace(/[,;\n]/g, " ").replace(/\s+/g, " ").trim();
+    if (!nombre) return;
+    if (!tieneEquipo(nombre)) setItemsEquipo([...itemsEquipo, nombre]);
+    setEquipoNuevo("");
   };
-
-  const abrirEquipos = (sala: Sala) => {
-    setSalaEquipos(sala);
-    setEquipos([]);
-    setEquipoEditando(null);
-    setFormEquipo(FORM_EQUIPO_VACIO);
-    setErrorEquipo("");
-    setEquipoEliminarId(null);
-    cargarEquipos(sala.id_PK);
-  };
-
-  const editarEquipo = (eq: Equipo) => {
-    setEquipoEditando(eq);
-    setFormEquipo({
-      nombre_equipo: eq.nombre_equipo ?? "",
-      tipo_equipo: eq.tipo_equipo ?? "otro",
-      numero_serie: eq.numero_serie ?? "",
-      estado: eq.estado ?? "operativo",
-      fecha_compra: eq.fecha_compra ?? "",
-      ultimo_mantenimiento: eq.ultimo_mantenimiento ?? "",
-      proximo_mantenimiento: eq.proximo_mantenimiento ?? "",
-    });
-    setErrorEquipo("");
-  };
-
-  const cancelarEdicionEquipo = () => {
-    setEquipoEditando(null);
-    setFormEquipo(FORM_EQUIPO_VACIO);
-    setErrorEquipo("");
-  };
-
-  const guardarEquipo = async () => {
-    if (!token || !salaEquipos) return;
-    const nombre = formEquipo.nombre_equipo.trim();
-    if (!nombre) return setErrorEquipo("El nombre del equipo es obligatorio.");
-    const hoy = hoyLocal();
-    const { fecha_compra: compra, ultimo_mantenimiento: ult, proximo_mantenimiento: prox } = formEquipo;
-    if (compra && compra > hoy) return setErrorEquipo("La fecha de compra no puede ser futura.");
-    if (ult && ult > hoy) return setErrorEquipo("El último mantenimiento no puede ser una fecha futura.");
-    if (compra && ult && ult < compra) return setErrorEquipo("El último mantenimiento no puede ser anterior a la compra.");
-    if (ult && prox && prox < ult) return setErrorEquipo("El próximo mantenimiento no puede ser anterior al último.");
-
-    const vacioANull = (t: string) => (t.trim() === "" ? null : t.trim());
-    const payload: EquipoPayload = {
-      nombre_equipo: nombre,
-      tipo_equipo: formEquipo.tipo_equipo,
-      numero_serie: vacioANull(formEquipo.numero_serie),
-      estado: formEquipo.estado,
-      fecha_compra: vacioANull(compra),
-      ultimo_mantenimiento: vacioANull(ult),
-      proximo_mantenimiento: vacioANull(prox),
-    };
-    try {
-      setGuardandoEquipo(true);
-      setErrorEquipo("");
-      if (equipoEditando) await actualizarEquipo(token, equipoEditando.id_PK, payload);
-      else await agregarEquipo(token, salaEquipos.id_PK, payload);
-      cancelarEdicionEquipo();
-      await cargarEquipos(salaEquipos.id_PK);
-      cargar(); // refresca los contadores de la tarjeta
-    } catch (e) {
-      setErrorEquipo(mensajeError(e, "No se pudo guardar el equipo."));
-    } finally {
-      setGuardandoEquipo(false);
-    }
-  };
-
-  const borrarEquipo = async (id: number) => {
-    if (!token || !salaEquipos) return;
-    try {
-      setGuardandoEquipo(true);
-      await eliminarEquipo(token, id);
-      setEquipoEliminarId(null);
-      if (equipoEditando?.id_PK === id) cancelarEdicionEquipo();
-      await cargarEquipos(salaEquipos.id_PK);
-      cargar();
-    } catch (e) {
-      setErrorEquipo(mensajeError(e, "No se pudo eliminar el equipo."));
-      setEquipoEliminarId(null);
-    } finally {
-      setGuardandoEquipo(false);
-    }
-  };
-
-  const tipoEquipoActual = infoTipoEquipo(formEquipo.tipo_equipo);
+  const catActual = infoTipoEquipo(catEquipo);
 
   /* ---------- Render ---------- */
   return (
@@ -377,15 +314,57 @@ export default function SalasScreen() {
           : "Administra los espacios de la clínica, su estado y los equipos de cada sala."
       }
     >
-      <View style={s.chips}>
-        <ChipColor texto="Salas y equipo" color="#247F76" icono="business-outline" activo={vista === "salas"} onPress={() => setVista("salas")} />
-        <ChipColor texto="Calendario de uso (salas por doctor)" color="#2563EB" icono="calendar-outline" activo={vista === "calendario"} onPress={() => abrirCalendario(salaCal)} />
+      <View style={s.pestanas}>
+        <Pressable
+          onPress={() => setVista("salas")}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: vista === "salas" }}
+          style={[s.pestana, vista === "salas" && { borderColor: C.primario, backgroundColor: C.primarioSuave }]}
+        >
+          <View style={[s.pestanaIcono, { backgroundColor: vista === "salas" ? C.primario : C.primarioSuave }]}>
+            <Ionicons name="business-outline" size={20} color={vista === "salas" ? "#FFFFFF" : C.primario} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.pestanaTitulo}>Salas y equipo</Text>
+            <Text style={s.pestanaSub} numberOfLines={2}>
+              Estado, equipos y mantenimiento
+            </Text>
+          </View>
+        </Pressable>
+
+        {/* Pestaña destacada: asignar salas a los doctores */}
+        <Pressable
+          onPress={() => vista !== "calendario" && abrirCalendario(salaCal)}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: vista === "calendario" }}
+          accessibilityLabel="Asignar salas a doctores. Calendario de uso"
+          style={({ pressed }) => [s.pestanaCta, vista === "calendario" && s.pestanaCtaActiva, pressed && { opacity: 0.85 }]}
+        >
+          <LinearGradient colors={["#0F766E", "#1D4ED8"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.pestanaCtaFondo}>
+            <View style={s.pestanaCtaIcono}>
+              <Ionicons name="calendar" size={22} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.pestanaCtaTitulo}>Asignar salas a doctores</Text>
+              <Text style={s.pestanaCtaSub} numberOfLines={2}>
+                Calendario de uso por día y hora
+              </Text>
+            </View>
+            {vista === "calendario" ? (
+              <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
+            ) : (
+              <Text style={s.pestanaCtaInsignia}>{asignaciones.length} reserva{asignaciones.length === 1 ? "" : "s"}</Text>
+            )}
+          </LinearGradient>
+        </Pressable>
       </View>
 
       {vista === "calendario" ? (
         <CalendarioUsoSalas
-          key={`${salaCal ?? "x"}-${diaCal ?? "x"}`}
+          key={`${modoCal}-${salaCal ?? "x"}-${doctorCal ?? "x"}-${diaCal ?? "x"}`}
+          modoInicial={modoCal}
           salaInicialId={salaCal}
+          doctorInicialId={doctorCal}
           diaInicial={diaCal}
           onCambio={() => {
             cargarAsignaciones();
@@ -465,10 +444,7 @@ export default function SalasScreen() {
 
               <View style={s.datos}>
                 <Dato icono="people-outline" texto={`Capacidad: ${sala.capacidad ?? "—"}`} />
-                <Dato icono="construct-outline" texto={`${sala.total_equipos ?? 0} equipo(s)`} />
-                {(sala.equipos_con_problema ?? 0) > 0 && (
-                  <Dato icono="warning-outline" texto={`${sala.equipos_con_problema} con problema`} color="#DC2626" />
-                )}
+                <Dato icono="construct-outline" texto={`${textoAItems(sala.lista_equipamiento ?? "").length} equipo(s)`} />
                 <Dato icono="calendar-outline" texto={`${sala.citas_proximas ?? 0} cita(s) próximas`} color={C.info} />
               </View>
               {!!sala.lista_equipamiento && (
@@ -536,7 +512,6 @@ export default function SalasScreen() {
 
               <View style={[s.filaBotones, { marginTop: 4 }]}>
                 <Boton texto="Horarios" variante="secundario" pequeno onPress={() => abrirCalendario(sala.id_PK)} />
-                <Boton texto="Equipamiento" variante="secundario" pequeno onPress={() => abrirEquipos(sala)} />
                 <Boton texto="Editar" variante="secundario" pequeno onPress={() => abrirEditar(sala)} />
                 {esAdmin && <Boton texto="Eliminar" variante="peligro" pequeno onPress={() => setSalaEliminar(sala)} />}
               </View>
@@ -591,111 +566,37 @@ export default function SalasScreen() {
           ))}
         </View>
 
-        <Campo
-          etiqueta="Resumen de equipamiento"
-          value={form.lista_equipamiento}
-          onChangeText={(t) => setForm({ ...form, lista_equipamiento: t })}
-          multiline
-          placeholder="Texto libre. El detalle de cada equipo se administra en «Equipamiento»."
-        />
+        <Text style={s.filtroTitulo}>EQUIPAMIENTO DE LA SALA</Text>
+        <Text style={s.salaDetalle}>Elige la categoría y toca los equipos que tiene la sala, o escribe uno propio.</Text>
+        <SelectorIconos opciones={TIPOS_EQUIPO} valor={catEquipo} onChange={setCatEquipo} />
+        <View style={s.chips}>
+          {(EQUIPOS_SUGERIDOS[catEquipo] ?? []).map((nombre) => (
+            <ChipColor key={nombre} texto={nombre} color={catActual.color} icono={catActual.icono} activo={tieneEquipo(nombre)} onPress={() => alternarEquipo(nombre)} />
+          ))}
+        </View>
+        <View style={s.fila}>
+          <Campo
+            etiqueta="Otro equipo"
+            value={equipoNuevo}
+            onChangeText={setEquipoNuevo}
+            placeholder={catActual.ejemplo}
+          />
+          <Boton texto="Agregar" variante="secundario" pequeno onPress={agregarEquipoPropio} deshabilitado={!equipoNuevo.trim()} />
+        </View>
+
+        <Text style={s.filtroTitulo}>SELECCIONADOS ({itemsEquipo.length})</Text>
+        {itemsEquipo.length === 0 ? (
+          <Text style={s.salaDetalle}>Aún no has elegido equipos.</Text>
+        ) : (
+          <View style={s.chips}>
+            {itemsEquipo.map((nombre) => (
+              <ChipColor key={nombre} texto={`${nombre}  ✕`} color={C.info} activo onPress={() => alternarEquipo(nombre)} />
+            ))}
+          </View>
+        )}
         <View style={s.fila}>
           <Boton texto="Cancelar" variante="secundario" onPress={() => setModalSala(false)} deshabilitado={guardando} />
           <Boton texto={editando ? "Guardar cambios" : "Crear sala"} onPress={guardarSala} cargando={guardando} />
-        </View>
-      </ModalBase>
-
-      {/* ---------- Modal equipamiento ---------- */}
-      <ModalBase visible={!!salaEquipos} titulo={salaEquipos ? `Equipamiento · ${salaEquipos.nombre}` : "Equipamiento"} onClose={() => setSalaEquipos(null)}>
-        {!!errorEquipo && <Aviso tipo="error" texto={errorEquipo} />}
-
-        {cargandoEquipos ? (
-          <Cargando mensaje="Actualizando salas, equipamiento y disponibilidad…" />
-        ) : equipos.length === 0 ? (
-          <Vacio texto="Esta sala aún no tiene equipos registrados." />
-        ) : (
-          equipos.map((eq) => {
-            const tipo = infoTipoEquipo(eq.tipo_equipo);
-            const colorEq = colorEstadoEquipo(eq.estado);
-            const mant = MANTENIMIENTO[eq.mantenimiento_estado ?? "sin_programar"];
-            return (
-              <Tarjeta key={eq.id_PK} style={{ padding: 12, borderLeftWidth: 5, borderLeftColor: tipo.color }}>
-                <View style={s.cabeceraSala}>
-                  <CirculoIcono name={tipo.icono} color={tipo.color} size={40} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.salaNombre}>{eq.nombre_equipo || "Equipo sin nombre"}</Text>
-                    <Text style={s.salaDetalle}>
-                      {tipo.etiqueta} · Serie: {eq.numero_serie || "—"}
-                    </Text>
-                  </View>
-                  <View style={[s.estadoPildora, { backgroundColor: `${colorEq}1A`, borderColor: colorEq }]}>
-                    <Text style={[s.estadoTexto, { color: colorEq }]}>{etiquetaEstadoEquipo(eq.estado)}</Text>
-                  </View>
-                </View>
-                <View style={s.datos}>
-                  <Dato icono="cart-outline" texto={`Compra: ${fechaCorta(eq.fecha_compra)}`} />
-                  <Dato icono="construct-outline" texto={`Último mant.: ${fechaCorta(eq.ultimo_mantenimiento)}`} />
-                  <Dato icono="calendar-outline" texto={`Próximo: ${fechaCorta(eq.proximo_mantenimiento)}`} color={mant.color} />
-                </View>
-                <Text style={[s.mantTexto, { color: mant.color }]}>● {mant.etiqueta}</Text>
-
-                {equipoEliminarId === eq.id_PK ? (
-                  <View style={[s.filaBotones, { marginTop: 10 }]}>
-                    <Text style={[s.salaDetalle, { flex: 1 }]}>¿Eliminar este equipo?</Text>
-                    <Boton texto="No" variante="secundario" pequeno onPress={() => setEquipoEliminarId(null)} />
-                    <Boton texto="Sí, eliminar" variante="peligro" pequeno cargando={guardandoEquipo} onPress={() => borrarEquipo(eq.id_PK)} />
-                  </View>
-                ) : (
-                  <View style={[s.filaBotones, { marginTop: 10 }]}>
-                    <Boton texto="Editar" variante="secundario" pequeno onPress={() => editarEquipo(eq)} />
-                    {esAdmin && <Boton texto="Eliminar" variante="peligro" pequeno onPress={() => setEquipoEliminarId(eq.id_PK)} />}
-                  </View>
-                )}
-              </Tarjeta>
-            );
-          })
-        )}
-
-        <Text style={[s.salaNombre, { marginTop: 8, marginBottom: 10 }]}>{equipoEditando ? "Editar equipo" : "Agregar equipo"}</Text>
-
-        <Text style={s.filtroTitulo}>1. ¿QUÉ TIPO DE EQUIPO ES?</Text>
-        <SelectorIconos opciones={TIPOS_EQUIPO} valor={formEquipo.tipo_equipo} onChange={(v) => setFormEquipo({ ...formEquipo, tipo_equipo: v })} />
-
-        <Text style={s.filtroTitulo}>2. DATOS DEL EQUIPO</Text>
-        <Campo
-          etiqueta="Nombre del equipo *"
-          value={formEquipo.nombre_equipo}
-          onChangeText={(t) => setFormEquipo({ ...formEquipo, nombre_equipo: t })}
-          placeholder={tipoEquipoActual.ejemplo}
-        />
-        <Campo etiqueta="Número de serie" value={formEquipo.numero_serie} onChangeText={(t) => setFormEquipo({ ...formEquipo, numero_serie: t })} />
-        <Text style={s.filtroTitulo}>ESTADO</Text>
-        <View style={s.chips}>
-          {ESTADOS_EQUIPO.map((e) => (
-            <ChipColor key={e.valor} texto={e.etiqueta} color={e.color} icono={e.icono} activo={formEquipo.estado === e.valor} onPress={() => setFormEquipo({ ...formEquipo, estado: e.valor })} />
-          ))}
-        </View>
-
-        <Text style={s.filtroTitulo}>3. FECHAS (elige en el calendario)</Text>
-        <View style={s.fila}>
-          <CampoFecha etiqueta="Fecha de compra" value={formEquipo.fecha_compra} onChange={(v) => setFormEquipo({ ...formEquipo, fecha_compra: v })} max={hoyLocal()} />
-          <CampoFecha
-            etiqueta="Último mantenimiento"
-            value={formEquipo.ultimo_mantenimiento}
-            onChange={(v) => setFormEquipo({ ...formEquipo, ultimo_mantenimiento: v })}
-            min={formEquipo.fecha_compra || undefined}
-            max={hoyLocal()}
-          />
-          <CampoFecha
-            etiqueta="Próximo mantenimiento"
-            value={formEquipo.proximo_mantenimiento}
-            onChange={(v) => setFormEquipo({ ...formEquipo, proximo_mantenimiento: v })}
-            min={formEquipo.ultimo_mantenimiento || undefined}
-          />
-        </View>
-
-        <View style={s.fila}>
-          {equipoEditando && <Boton texto="Cancelar edición" variante="secundario" onPress={cancelarEdicionEquipo} />}
-          <Boton texto={equipoEditando ? "Guardar equipo" : "Agregar equipo"} onPress={guardarEquipo} cargando={guardandoEquipo} />
         </View>
       </ModalBase>
 
@@ -738,6 +639,18 @@ const crearEstilos = (C: Paleta) =>
   dato: { flexDirection: "row", alignItems: "center", gap: 5 },
   datoTexto: { fontSize: 12, fontWeight: "600" },
   mantTexto: { fontSize: 11, fontWeight: "800", marginTop: 4 },
+  pestanas: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
+  pestana: { flexGrow: 1, flexBasis: 200, flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 16, borderWidth: 2, borderColor: C.borde, backgroundColor: C.tarjeta },
+  pestanaIcono: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  pestanaTitulo: { fontSize: 14.5, fontWeight: "800", color: C.titulo },
+  pestanaSub: { fontSize: 11.5, color: C.muted, marginTop: 1 },
+  pestanaCta: { flexGrow: 1.4, flexBasis: 240, borderRadius: 16, overflow: "hidden", borderWidth: 2, borderColor: "transparent", elevation: 4, shadowColor: "#1D4ED8", shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  pestanaCtaActiva: { borderColor: "#0F766E" },
+  pestanaCtaFondo: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12 },
+  pestanaCtaIcono: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.22)" },
+  pestanaCtaTitulo: { fontSize: 15, fontWeight: "800", color: "#FFFFFF" },
+  pestanaCtaSub: { fontSize: 11.5, color: "rgba(255,255,255,0.88)", marginTop: 1 },
+  pestanaCtaInsignia: { fontSize: 11, fontWeight: "800", color: "#0F766E", backgroundColor: "#FFFFFF", paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, overflow: "hidden" },
   asignaciones: { marginTop: 10, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: C.borde, backgroundColor: C.fondo, gap: 4 },
   diasFila: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 4 },
   diaPildora: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },

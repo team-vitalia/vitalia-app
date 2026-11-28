@@ -21,6 +21,10 @@ export type CalendarioSemanaProps = {
   bloques: BloqueCal[];
   /** Días a mostrar (0 = lunes ... 6 = domingo). Por defecto toda la semana; con un solo día se ve por horas. */
   dias?: number[];
+  /** Oculta la fila con el nombre del día (útil cuando el encabezado ya lo muestra otro componente). */
+  sinEncabezado?: boolean;
+  /** Marca la hora actual con una línea roja en ese día (solo cuando se ve la fecha de hoy). */
+  ahora?: { dia: number; min: number } | null;
   /** Texto bajo el nombre del día en el encabezado (p. ej. la fecha «23 nov»). */
   etiquetaDia?: (dia: number) => string;
   /** Píxeles por minuto (altura de cada hora). Por defecto PX_MIN. */
@@ -87,3 +91,36 @@ export const rangoSemana = (lunes: Date) => {
   const ini = mismoMes ? `${lunes.getDate()}` : fechaDiaMes(lunes);
   return `${ini} – ${fechaDiaMes(dom)} ${dom.getFullYear()}`;
 };
+
+/* ---------------------------------------------------------------- turnos del día (para cortar la vista por horas) */
+export type TurnoClave = "madrugada" | "matutino" | "vespertino" | "noche";
+export type TurnoDef = {
+  clave: TurnoClave;
+  nombre: string;
+  detalle: string;
+  /** minutos desde las 00:00 */
+  ini: number;
+  fin: number;
+  color: string;
+  colorFin: string;
+  icono: "moon-outline" | "sunny-outline" | "partly-sunny-outline" | "cloudy-night-outline";
+};
+
+/** El día se corta en cuatro tramos: la madrugada y la noche son las dos puntas del turno nocturno. */
+export const TURNOS_DIA: TurnoDef[] = [
+  { clave: "madrugada", nombre: "Madrugada", detalle: "turno nocturno (termina)", ini: 0, fin: 7 * 60, color: "#4338CA", colorFin: "#6D28D9", icono: "moon-outline" },
+  { clave: "matutino", nombre: "Matutino", detalle: "turno de la mañana", ini: 7 * 60, fin: 15 * 60, color: "#F59E0B", colorFin: "#EA580C", icono: "sunny-outline" },
+  { clave: "vespertino", nombre: "Vespertino", detalle: "turno de la tarde", ini: 15 * 60, fin: 23 * 60, color: "#2563EB", colorFin: "#0891B2", icono: "partly-sunny-outline" },
+  { clave: "noche", nombre: "Noche", detalle: "turno nocturno (empieza)", ini: 23 * 60, fin: 24 * 60, color: "#6D28D9", colorFin: "#4338CA", icono: "cloudy-night-outline" },
+];
+
+export type GrupoTurno = "todo" | "matutino" | "vespertino" | "nocturno";
+export const GRUPOS_TURNO: { clave: GrupoTurno; etiqueta: string; secciones: TurnoClave[] }[] = [
+  { clave: "todo", etiqueta: "Todo el día", secciones: ["madrugada", "matutino", "vespertino", "noche"] },
+  { clave: "matutino", etiqueta: "Matutino", secciones: ["matutino"] },
+  { clave: "vespertino", etiqueta: "Vespertino", secciones: ["vespertino"] },
+  { clave: "nocturno", etiqueta: "Nocturno", secciones: ["madrugada", "noche"] },
+];
+
+/** true si el tramo [ini, fin) toca el rango [desde, hasta). */
+export const solapa = (b: { ini: number; fin: number }, desde: number, hasta: number) => b.ini < hasta && desde < b.fin;

@@ -43,12 +43,12 @@ export function ChipArrastrable({ item, color, subtitulo, activo, deshabilitado,
   );
 }
 
-export function CalendarioSemana({ bloques, dias = [0, 1, 2, 3, 4, 5, 6], etiquetaDia, pxMin, horaIni, horaFin, duracionNueva, colocando, onColocar, onBloque }: CalendarioSemanaProps) {
+export function CalendarioSemana({ bloques, dias = [0, 1, 2, 3, 4, 5, 6], etiquetaDia, ahora, sinEncabezado, pxMin, horaIni, horaFin, duracionNueva, colocando, onColocar, onBloque }: CalendarioSemanaProps) {
   const C = useC2Colors();
   const PX = pxMin ?? PX_MIN;
   const unSoloDia = dias.length === 1;
   const { width } = useWindowDimensions();
-  const anchoCol = unSoloDia ? Math.max(220, width - 44 - 48) : 110;
+  const anchoCol = unSoloDia ? Math.max(220, width - 56 - 48) : 110;
   const hoy = hoyIndiceSemana();
   const minIni = horaIni * 60;
   const minFin = horaFin * 60;
@@ -58,8 +58,9 @@ export function CalendarioSemana({ bloques, dias = [0, 1, 2, 3, 4, 5, 6], etique
   return (
     <ScrollView horizontal style={[s.caja, { borderColor: C.borde, backgroundColor: C.tarjeta }]}>
       <View>
+        {!sinEncabezado && (
         <View style={[s.fila, { backgroundColor: C.fondo, borderBottomColor: C.borde, borderBottomWidth: 1 }]}>
-          <View style={{ width: 44 }} />
+          <View style={{ width: 56 }} />
           {dias.map((i) => (
             <Text key={i} style={[s.dia, { width: anchoCol, color: i === hoy ? C.primario : C.texto, borderLeftColor: C.borde }]}>
               {unSoloDia ? DIAS_LARGO[i] : DIAS_CORTO[i]}
@@ -68,10 +69,11 @@ export function CalendarioSemana({ bloques, dias = [0, 1, 2, 3, 4, 5, 6], etique
             </Text>
           ))}
         </View>
+        )}
         <View style={s.fila}>
-          <View style={{ width: 44, height: alto }}>
+          <View style={{ width: 56, height: alto }}>
             {horas.map((h, i) => (
-              <Text key={h} style={[s.hora, { top: i * 60 * PX - 7, color: C.muted }]}>
+              <Text key={h} style={[s.hora, { top: i * 60 * PX - 9, color: C.texto, backgroundColor: C.fondo, borderColor: C.borde }]}>
                 {String(h).padStart(2, "0")}:00
               </Text>
             ))}
@@ -87,11 +89,20 @@ export function CalendarioSemana({ bloques, dias = [0, 1, 2, 3, 4, 5, 6], etique
               }}
               style={[s.columna, { width: anchoCol, height: alto, borderLeftColor: C.borde, backgroundColor: dia === hoy ? C.primarioSuave : "transparent" }]}
             >
+              {horas.map((h, i) =>
+                i % 2 === 1 ? <View key={`b${h}`} style={{ position: "absolute", left: 0, right: 0, top: i * 60 * PX, height: 60 * PX, backgroundColor: "rgba(100,116,139,0.07)" }} /> : null
+              )}
               {horas.map((h, i) => (
                 <View key={h} style={{ position: "absolute", left: 0, right: 0, top: i * 60 * PX, borderTopWidth: 1, borderTopColor: C.borde }} />
               ))}
+              {ahora && ahora.dia === dia && ahora.min >= minIni && ahora.min <= minFin && (
+                <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: (ahora.min - minIni) * PX, borderTopWidth: 2, borderTopColor: "#EF4444", zIndex: 4 }}>
+                  <View style={{ position: "absolute", left: -1, top: -6, width: 10, height: 10, borderRadius: 5, backgroundColor: "#EF4444" }} />
+                  <Text style={{ position: "absolute", right: 4, top: -18, fontSize: 10, fontWeight: "800", color: "#FFFFFF", backgroundColor: "#EF4444", borderRadius: 6, paddingHorizontal: 6, overflow: "hidden" }}>ahora {aHHMM(ahora.min)}</Text>
+                </View>
+              )}
               {bloques
-                .filter((b) => b.dia === dia || b.dia === null)
+                .filter((b) => (b.dia === dia || b.dia === null) && b.fin > minIni && b.ini < minFin)
                 .map((b, idx) => (
                   <Pressable
                     key={`${b.id}-${dia}-${idx}`}
@@ -103,9 +114,16 @@ export function CalendarioSemana({ bloques, dias = [0, 1, 2, 3, 4, 5, 6], etique
                       top: (Math.max(b.ini, minIni) - minIni) * PX,
                       height: Math.max((Math.min(b.fin, minFin) - Math.max(b.ini, minIni)) * PX - 2, 14),
                       backgroundColor: `${b.color}2E`,
-                      borderLeftWidth: 5,
+                      borderWidth: 1,
+                      borderColor: `${b.color}55`,
+                      borderLeftWidth: 6,
                       borderLeftColor: b.color,
-                      borderRadius: 8,
+                      borderRadius: 10,
+                      elevation: 2,
+                      shadowColor: "#0F172A",
+                      shadowOpacity: 0.14,
+                      shadowRadius: 4,
+                      shadowOffset: { width: 0, height: 2 },
                       paddingHorizontal: 6,
                       paddingVertical: 3,
                       overflow: "hidden",
@@ -127,6 +145,6 @@ const s = StyleSheet.create({
   caja: { borderWidth: 1, borderRadius: 14 },
   fila: { flexDirection: "row" },
   dia: { width: 110, textAlign: "center", paddingVertical: 8, fontSize: 12, fontWeight: "800", borderLeftWidth: 1 },
-  hora: { position: "absolute", right: 4, fontSize: 10 },
+  hora: { position: "absolute", right: 4, fontSize: 10.5, fontWeight: "700", borderWidth: 1, borderRadius: 8, paddingHorizontal: 6, lineHeight: 16, overflow: "hidden" },
   columna: { width: 110, borderLeftWidth: 1 },
 });
