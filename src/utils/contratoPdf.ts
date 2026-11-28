@@ -70,8 +70,10 @@ export function generarHtmlContrato(
   html,
   body {
     width: 100%;
+    max-width: 100%;
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
   }
 
   body {
@@ -87,23 +89,28 @@ export function generarHtmlContrato(
   /* CONTENEDOR DEL DOCUMENTO */
   .documento {
     width: 100%;
+    max-width: 100%;
     margin: 0 auto;
     padding: 0;
     background: #FFFFFF;
-    overflow: visible;
+    overflow-wrap: break-word;
+    box-sizing: border-box;
   }
 
   /* ENCABEZADO */
   .encabezado {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
+    width: 100%;
+    max-width: 100%;
     margin-bottom: 20px;
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
   .logo {
+    flex: 0 0 45px;
     width: 45px;
     height: 45px;
     min-width: 45px;
@@ -117,8 +124,9 @@ export function generarHtmlContrato(
   }
 
   .empresa {
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .empresa h1 {
@@ -135,10 +143,12 @@ export function generarHtmlContrato(
   }
 
   .folio {
-    flex-shrink: 0;
+    flex: 0 0 auto;
+    min-width: 0;
     text-align: right;
     color: #247F76;
     font-weight: bold;
+    overflow-wrap: anywhere;
   }
 
   .linea {
@@ -202,15 +212,19 @@ export function generarHtmlContrato(
   /* COLUMNAS */
   .columnas {
     display: flex;
-    gap: 20px;
+    width: 100%;
+    max-width: 100%;
+    gap: 16px;
     margin-bottom: 15px;
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
   .columna {
-    flex: 1;
+    flex: 1 1 0;
+    width: 0;
     min-width: 0;
+    overflow-wrap: break-word;
   }
 
   /* SALARIO */

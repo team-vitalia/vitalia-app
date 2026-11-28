@@ -1,5 +1,9 @@
-
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -12,13 +16,14 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme, type Theme } from "../../../theme/theme";
 
 import * as Print from "expo-print";
 import { useFocusEffect } from "expo-router";
-import BotonAsignarSalas from "../../../components/c2/BotonAsignarSalas";
 import * as Sharing from "expo-sharing";
-import { Download } from "lucide-react-native";
+import { Download, X } from "lucide-react-native";
+import BotonAsignarSalas from "../../../components/c2/BotonAsignarSalas";
 import DocumentoContrato from "../../../components/DocumentoContrato";
 import SelectorFecha from "../../../components/SelectorFecha";
 import { CrownSvg, UpgradeModal } from "../../../components/UpgradeModal";
@@ -30,8 +35,13 @@ interface Doctor {
   id_PK: number;
   nombre?: string;
   nombre_completo?: string;
+  apellido_paterno?: string;
+  apellido_materno?: string;
   usuario?: {
     nombre?: string;
+    nombre_completo?: string;
+    apellido_paterno?: string;
+    apellido_materno?: string;
   };
 }
 
@@ -72,10 +82,13 @@ const TIPOS_CONTRATO = [
   "Otro",
 ];
 
+const TAM_PAGINA = [10, 25, 50];
+
 export default function ContratosScreen() {
   const c = useTheme();
   const styles = useMemo(() => createStyles(c), [c]);
   const { token, planActual } = useAuth();
+
   const [modalUpgradeVisible, setModalUpgradeVisible] = useState(false);
   const [descargandoId, setDescargandoId] = useState<number | null>(null);
 
@@ -84,15 +97,19 @@ export default function ContratosScreen() {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
+
   const tieneAccesoContratos =
-    !!planActual?.incluye_contratos || planNormalizado === "empresarial";
+    !!planActual?.incluye_contratos ||
+    planNormalizado === "empresarial";
 
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [doctores, setDoctores] = useState<Doctor[]>([]);
   const [busqueda, setBusqueda] = useState("");
+
   const [filtroEstado, setFiltroEstado] = useState<
     "Todos" | "Activo" | "Pendiente" | "Finalizado"
   >("Todos");
+
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [otroTipoContrato, setOtroTipoContrato] = useState("");
@@ -107,6 +124,15 @@ export default function ContratosScreen() {
   const [documentoVisible, setDocumentoVisible] = useState(false);
   const [contratoDocumento, setContratoDocumento] =
     useState<Contrato | null>(null);
+
+  // PAGINACIÓN
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [porPagina, setPorPagina] = useState(10);
+
+  // BUSCADOR DE MÉDICOS
+  const [busquedaDoctor, setBusquedaDoctor] = useState("");
+  const [mostrarResultadosDoctores, setMostrarResultadosDoctores] =
+    useState(false);
 
   const [alerta, setAlerta] = useState({
     visible: false,
@@ -209,13 +235,17 @@ export default function ContratosScreen() {
     }));
   };
 
+  // ABRIR FORMULARIO NUEVO
   const abrirNuevo = () => {
     setContratoEditar(null);
     setFormulario(formularioInicial);
     setOtroTipoContrato("");
+    setBusquedaDoctor("");
+    setMostrarResultadosDoctores(false);
     setModalVisible(true);
   };
 
+  // ABRIR FORMULARIO DE EDICIÓN
   const abrirEdicion = (contrato: Contrato) => {
     setContratoEditar(contrato.id_PK);
 
@@ -238,9 +268,12 @@ export default function ContratosScreen() {
       tipoConocido ? "" : tipoRegistrado
     );
 
+    setBusquedaDoctor("");
+    setMostrarResultadosDoctores(false);
     setModalVisible(true);
   };
 
+  // GUARDAR CONTRATO
   const guardarContrato = async () => {
     const inicio = formulario.fecha_inicio.trim();
     const fin = formulario.fecha_fin.trim();
@@ -359,6 +392,9 @@ export default function ContratosScreen() {
       setFormulario(formularioInicial);
       setContratoEditar(null);
       setOtroTipoContrato("");
+      setBusquedaDoctor("");
+      setMostrarResultadosDoctores(false);
+      setPaginaActual(1);
 
       await cargarDatos();
     } catch (error: any) {
@@ -381,18 +417,45 @@ export default function ContratosScreen() {
     }
   };
 
+  // OBTENER NOMBRE COMPLETO DEL MÉDICO
   const nombreDoctor = (id: number): string => {
     const doctor = doctores.find(
       (item) => item.id_PK === id
     );
-    return (
-      doctor?.nombre_completo ??
-      doctor?.nombre ??
-      doctor?.usuario?.nombre ??
-      `Médico #${id}`
-    );
+
+    if (!doctor) {
+      return `Médico #${id}`;
+    }
+
+    const usuario = doctor.usuario;
+
+    const nombreCompleto =
+      usuario?.nombre_completo || doctor.nombre_completo;
+
+    if (nombreCompleto?.trim()) {
+      return nombreCompleto.trim();
+    }
+
+    const nombre = usuario?.nombre || doctor.nombre;
+
+    const apellidoPaterno =
+      usuario?.apellido_paterno || doctor.apellido_paterno;
+
+    const apellidoMaterno =
+      usuario?.apellido_materno || doctor.apellido_materno;
+
+    const nombreConstruido = [
+      nombre,
+      apellidoPaterno,
+      apellidoMaterno,
+    ]
+      .filter((parte) => parte?.trim())
+      .join(" ");
+
+    return nombreConstruido || `Médico #${id}`;
   };
 
+  // NORMALIZAR TEXTO PARA BÚSQUEDAS
   const normalizarTexto = (texto: string) =>
     texto
       .toLowerCase()
@@ -400,6 +463,18 @@ export default function ContratosScreen() {
       .replace(/[\u0300-\u036f]/g, "")
       .trim();
 
+  // FILTRAR MÉDICOS SEGÚN LO ESCRITO
+  const doctoresFiltrados = useMemo(() => {
+    const texto = normalizarTexto(busquedaDoctor);
+
+    if (!texto) return [];
+
+    return doctores.filter((doctor) =>
+      normalizarTexto(nombreDoctor(doctor.id_PK)).includes(texto)
+    );
+  }, [doctores, busquedaDoctor]);
+
+  // FILTRAR CONTRATOS
   const contratosFiltrados = useMemo(() => {
     const textoBusqueda = normalizarTexto(busqueda);
 
@@ -425,7 +500,64 @@ export default function ContratosScreen() {
         return coincideBusqueda && coincideEstado;
       })
       .sort((a, b) => b.id_PK - a.id_PK);
-  }, [contratos, busqueda, filtroEstado]);
+  }, [contratos, doctores, busqueda, filtroEstado]);
+
+  // CALCULAR TOTAL DE PÁGINAS
+    // TOTAL DE PÁGINAS
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(contratosFiltrados.length / porPagina)
+  );
+
+  // REINICIAR PAGINACIÓN AL CAMBIAR BÚSQUEDA, FILTRO O CANTIDAD
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, filtroEstado, porPagina]);
+
+  // EVITAR QUE LA PÁGINA SUPERE EL TOTAL DISPONIBLE
+  const paginaSegura = Math.min(paginaActual, totalPaginas);
+
+  useEffect(() => {
+    if (paginaActual > totalPaginas) {
+      setPaginaActual(totalPaginas);
+    }
+  }, [paginaActual, totalPaginas]);
+
+  // CONTRATOS DE LA PÁGINA ACTUAL
+  const contratosPaginados = useMemo(() => {
+    const inicio = (paginaSegura - 1) * porPagina;
+
+    return contratosFiltrados.slice(
+      inicio,
+      inicio + porPagina
+    );
+  }, [contratosFiltrados, paginaSegura, porPagina]);
+
+  // RANGO DE CONTRATOS MOSTRADOS
+  const desde =
+    contratosFiltrados.length === 0
+      ? 0
+      : (paginaSegura - 1) * porPagina + 1;
+
+  const hasta = Math.min(
+    paginaSegura * porPagina,
+    contratosFiltrados.length
+  );
+
+  // HASTA CINCO NÚMEROS DE PÁGINA
+  const paginasVisibles = useMemo(() => {
+    const inicio = Math.max(
+      1,
+      Math.min(paginaSegura - 2, totalPaginas - 4)
+    );
+
+    const fin = Math.min(totalPaginas, inicio + 4);
+
+    return Array.from(
+      { length: fin - inicio + 1 },
+      (_, indice) => inicio + indice
+    );
+  }, [paginaSegura, totalPaginas]);
 
   const totalContratos = contratos.length;
 
@@ -444,6 +576,7 @@ export default function ContratosScreen() {
       normalizarTexto(contrato.estado ?? "") === "finalizado"
   ).length;
 
+  // DESCARGAR CONTRATO
   const descargarContrato = async (contrato: Contrato) => {
     try {
       setDescargandoId(contrato.id_PK);
@@ -453,126 +586,120 @@ export default function ContratosScreen() {
         nombreDoctor(contrato.doctor_id_FK)
       );
 
-      
-  if (Platform.OS === "web") {
-    if (
-      typeof window === "undefined" ||
-      typeof document === "undefined"
-    ) {
-      throw new Error("La descarga solo está disponible en el navegador.");
-    }
+      if (Platform.OS === "web") {
+        if (
+          typeof window === "undefined" ||
+          typeof document === "undefined"
+        ) {
+          throw new Error(
+            "La descarga solo está disponible en el navegador."
+          );
+        }
 
-    const modulo = await import("html2pdf.js");
-    const html2pdf = modulo.default;
+        const modulo = await import("html2pdf.js");
+        const html2pdf = modulo.default;
 
-    // Leer el HTML completo del contrato.
-    const documento = new DOMParser().parseFromString(
-      html,
-      "text/html"
-    );
+        const documento = new DOMParser().parseFromString(
+          html,
+          "text/html"
+        );
 
-    // Crear el contenedor que se convertirá en PDF.
-    const contenedor = document.createElement("div");
+        const contenedor = document.createElement("div");
 
-    contenedor.innerHTML = documento.body.innerHTML;
+        contenedor.innerHTML = documento.body.innerHTML;
 
-    contenedor.style.width = "186mm";
-    contenedor.style.maxWidth = "186mm";
-    contenedor.style.padding = "0";
-    contenedor.style.margin = "0 auto";
-    contenedor.style.backgroundColor = "#FFFFFF";
-    contenedor.style.color = "#000000";
-    contenedor.style.overflow = "visible";
+        Object.assign(contenedor.style, {
+          width: "186mm",
+          maxWidth: "186mm",
+          minWidth: "0",
+          boxSizing: "border-box",
+          padding: "0",
+          margin: "0 auto",
+          backgroundColor: "#FFFFFF",
+          color: "#000000",
+          overflow: "visible",
+          position: "relative",
+        });
 
-    // Copiar los estilos originales del contrato.
-    const estilosTemporales: HTMLElement[] = [];
+        // Evitar que los elementos internos excedan el ancho del PDF.
+        contenedor.querySelectorAll("*").forEach((elemento) => {
+          const htmlElemento = elemento as HTMLElement;
 
-    documento.head
-      .querySelectorAll('style, link[rel="stylesheet"]')
-      .forEach((estilo) => {
-        const copia = estilo.cloneNode(true) as HTMLElement;
+          htmlElemento.style.maxWidth = "100%";
+          htmlElemento.style.boxSizing = "border-box";
+          htmlElemento.style.minWidth = "0";
+        });
 
-        document.head.appendChild(copia);
-        estilosTemporales.push(copia);
-      });
-    
-    contenedor.style.width = "190mm";
-    contenedor.style.padding = "0";
-    contenedor.style.margin = "0 auto";
-    contenedor.style.backgroundColor = "#FFFFFF";
-    contenedor.style.color = "#000000";
+        // COPIAR LOS ESTILOS DEL CONTRATO
+        const estilosTemporales: HTMLElement[] = [];
 
-    // Evitar cortes innecesarios dentro de los elementos.
-    contenedor.style.setProperty("overflow", "visible");
+        documento.head
+          .querySelectorAll('style, link[rel="stylesheet"]')
+          .forEach((estilo) => {
+            const copia = estilo.cloneNode(true) as HTMLElement;
 
-    document.body.appendChild(contenedor);
+            document.head.appendChild(copia);
+            estilosTemporales.push(copia);
+          });
 
-    try {
-      // Esperar a que estén disponibles las fuentes.
-      if (document.fonts?.ready) {
-        await document.fonts.ready;
+        document.body.appendChild(contenedor);
+
+        try {
+          if (document.fonts?.ready) {
+            await document.fonts.ready;
+          }
+
+          const opcionesPdf = {
+            margin: [10, 10, 10, 10],
+            filename: `Contrato-${contrato.id_PK}.pdf`,
+            image: {
+              type: "jpeg",
+              quality: 0.98,
+            },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              backgroundColor: "#FFFFFF",
+              logging: false,
+              scrollX: 0,
+              scrollY: 0,
+            },
+            jsPDF: {
+              unit: "mm",
+              format: "a4",
+              orientation: "portrait",
+            },
+            pagebreak: {
+              mode: ["css", "legacy"],
+              avoid: [".encabezado", ".campo", ".columnas", ".pie", "h3"],
+            },
+          };
+
+          await html2pdf()
+            .set(opcionesPdf as any)
+            .from(contenedor)
+            .save();
+        } finally {
+          document.body.removeChild(contenedor);
+
+          estilosTemporales.forEach((estilo) => {
+            estilo.remove();
+          });
+        }
+
+        return;
       }
 
-      // Configuración de generación del PDF.
-      const opcionesPdf = {
-        margin: [12, 12, 12, 12],
-        filename: `Contrato-${contrato.id_PK}.pdf`,
-
-        image: {
-          type: "jpeg",
-          quality: 0.98,
-        },
-
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#FFFFFF",
-          logging: false,
-          scrollX: 0,
-          scrollY: 0,
-        },
-
-        jsPDF: {
-          unit: "mm",
-          format: "a4",
-          orientation: "portrait",
-        },
-
-        pagebreak: {
-          mode: ["css", "legacy"],
-          avoid: [
-            ".encabezado",
-            ".campo",
-            ".columnas",
-            ".pie",
-            "h3",
-          ],
-        },
-      };
-
-      await html2pdf()
-        .set(opcionesPdf as any)
-        .from(contenedor)
-        .save();
-    } finally {
-      document.body.removeChild(contenedor);
-
-      // Retirar los estilos temporales.
-      estilosTemporales.forEach((estilo) => {
-        estilo.remove();
-      });
-    }
-
-    return;
-  }
-
-      // Android e iOS.
+      // ANDROID E IOS
       const resultado = await Print.printToFileAsync({ html });
 
       const disponible = await Sharing.isAvailableAsync();
 
       if (!disponible) {
-        mostrarAlerta("Aviso", "No está disponible compartir el PDF.");
+        mostrarAlerta(
+          "Aviso",
+          "No está disponible compartir el PDF."
+        );
         return;
       }
 
@@ -582,17 +709,25 @@ export default function ContratosScreen() {
       });
     } catch (error) {
       console.error("Error al generar contrato:", error);
-      mostrarAlerta("Error", "No se pudo generar el PDF del contrato.");
+
+      mostrarAlerta(
+        "Error",
+        "No se pudo generar el PDF del contrato."
+      );
     } finally {
       setDescargandoId(null);
     }
   };
 
+  // PANTALLA PARA PLANES SIN ACCESO
   if (!tieneAccesoContratos) {
     return (
       <View style={styles.contenedor}>
         <View style={styles.encabezado}>
-          <Text style={styles.titulo}>Contratos médicos</Text>
+          <Text style={styles.titulo}>
+            Contratos médicos
+          </Text>
+
           <Text style={styles.subtitulo}>
             Administra la contratación y condiciones legales de los médicos de tu clínica.
           </Text>
@@ -644,6 +779,7 @@ export default function ContratosScreen() {
     );
   }
 
+  // TARJETA DE CONTRATO
   const renderContrato = ({
     item,
   }: {
@@ -664,7 +800,7 @@ export default function ContratosScreen() {
         <View
           style={[
             styles.estadoBadge,
-            item.estado?.toLowerCase() === "activo"
+            normalizarTexto(item.estado ?? "") === "activo"
               ? styles.estadoActivo
               : styles.estadoOtro,
           ]}
@@ -714,8 +850,6 @@ export default function ContratosScreen() {
           Editar contrato
         </Text>
       </Pressable>
-
-      <BotonAsignarSalas doctorId={item.doctor_id_FK} compacto />
     </View>
   );
 
@@ -743,14 +877,15 @@ export default function ContratosScreen() {
       </View>
 
       {cargando ? (
-          <ActivityIndicator
-            size="large"
-            color="#2A8C82"
-            style={styles.cargando}
-          />
-        ) : (
+        <ActivityIndicator
+          size="large"
+          color="#2A8C82"
+          style={styles.cargando}
+        />
+      ) : (
+        <View style={styles.contenidoLista}>
           <FlatList
-            data={contratosFiltrados}
+            data={contratosPaginados}
             keyExtractor={(item) => String(item.id_PK)}
             renderItem={renderContrato}
             contentContainerStyle={styles.lista}
@@ -761,35 +896,62 @@ export default function ContratosScreen() {
                 {/* RESUMEN */}
                 <View style={styles.resumenGrid}>
                   <View style={styles.resumenCard}>
-                    <Text style={styles.resumenNumero}>{totalContratos}</Text>
-                    <Text style={styles.resumenLabel}>Total contratos</Text>
+                    <Text style={styles.resumenNumero}>
+                      {totalContratos}
+                    </Text>
+                    <Text style={styles.resumenLabel}>
+                      Total contratos
+                    </Text>
                   </View>
 
                   <View style={styles.resumenCard}>
-                    <Text style={[styles.resumenNumero, { color: "#16A085" }]}>
+                    <Text
+                      style={[
+                        styles.resumenNumero,
+                        { color: "#16A085" },
+                      ]}
+                    >
                       {totalActivos}
                     </Text>
-                    <Text style={styles.resumenLabel}>Activos</Text>
+                    <Text style={styles.resumenLabel}>
+                      Activos
+                    </Text>
                   </View>
 
                   <View style={styles.resumenCard}>
-                    <Text style={[styles.resumenNumero, { color: "#D99A25" }]}>
+                    <Text
+                      style={[
+                        styles.resumenNumero,
+                        { color: "#D99A25" },
+                      ]}
+                    >
                       {totalPendientes}
                     </Text>
-                    <Text style={styles.resumenLabel}>Pendientes</Text>
+                    <Text style={styles.resumenLabel}>
+                      Pendientes
+                    </Text>
                   </View>
 
                   <View style={styles.resumenCard}>
-                    <Text style={[styles.resumenNumero, { color: c.muted }]}>
+                    <Text
+                      style={[
+                        styles.resumenNumero,
+                        { color: c.muted },
+                      ]}
+                    >
                       {totalFinalizados}
                     </Text>
-                    <Text style={styles.resumenLabel}>Finalizados</Text>
+                    <Text style={styles.resumenLabel}>
+                      Finalizados
+                    </Text>
                   </View>
                 </View>
 
-                {/* BUSCADOR */}
+                {/* BUSCADOR DE CONTRATOS */}
                 <View style={styles.buscador}>
-                  <Text style={styles.iconoBusqueda}>⌕</Text>
+                  <Text style={styles.iconoBusqueda}>
+                    ⌕
+                  </Text>
 
                   <TextInput
                     style={styles.inputBusqueda}
@@ -805,13 +967,17 @@ export default function ContratosScreen() {
                       onPress={() => setBusqueda("")}
                       style={styles.limpiarBusqueda}
                     >
-                      <Text style={styles.limpiarBusquedaTexto}>Limpiar</Text>
+                      <Text style={styles.limpiarBusquedaTexto}>
+                        Limpiar
+                      </Text>
                     </Pressable>
                   )}
                 </View>
 
                 {/* FILTROS */}
-                <Text style={styles.tituloFiltros}>Filtrar contratos</Text>
+                <Text style={styles.tituloFiltros}>
+                  Filtrar contratos
+                </Text>
 
                 <ScrollView
                   horizontal
@@ -831,20 +997,26 @@ export default function ContratosScreen() {
                       onPress={() => setFiltroEstado(estado)}
                       style={[
                         styles.filtroBoton,
-                        filtroEstado === estado && styles.filtroBotonActivo,
+                        filtroEstado === estado &&
+                          styles.filtroBotonActivo,
                       ]}
                     >
                       <Text
                         style={[
                           styles.filtroTexto,
-                          filtroEstado === estado && styles.filtroTextoActivo,
+                          filtroEstado === estado &&
+                            styles.filtroTextoActivo,
                         ]}
                       >
                         {estado}
-                        {estado === "Todos" && ` (${totalContratos})`}
-                        {estado === "Activo" && ` (${totalActivos})`}
-                        {estado === "Pendiente" && ` (${totalPendientes})`}
-                        {estado === "Finalizado" && ` (${totalFinalizados})`}
+                        {estado === "Todos" &&
+                          ` (${totalContratos})`}
+                        {estado === "Activo" &&
+                          ` (${totalActivos})`}
+                        {estado === "Pendiente" &&
+                          ` (${totalPendientes})`}
+                        {estado === "Finalizado" &&
+                          ` (${totalFinalizados})`}
                       </Text>
                     </Pressable>
                   ))}
@@ -879,12 +1051,14 @@ export default function ContratosScreen() {
                     : "Prueba con otro nombre, número de contrato o filtro."}
                 </Text>
 
-                {(busqueda !== "" || filtroEstado !== "Todos") && (
+                {(busqueda !== "" ||
+                  filtroEstado !== "Todos") && (
                   <Pressable
                     style={styles.limpiarFiltros}
                     onPress={() => {
                       setBusqueda("");
                       setFiltroEstado("Todos");
+                      setPaginaActual(1);
                     }}
                   >
                     <Text style={styles.limpiarFiltrosTexto}>
@@ -894,8 +1068,109 @@ export default function ContratosScreen() {
                 )}
               </View>
             }
+            ListFooterComponent={
+              contratosFiltrados.length > 0 ? (
+                <View style={styles.paginacion}>
+                  <Text style={styles.textoMostrando}>
+                    Mostrando {desde}–{hasta} de{" "}
+                    {contratosFiltrados.length}
+                  </Text>
+
+                  <View style={styles.navegacionPaginas}>
+                    <Pressable
+                      style={[
+                        styles.botonPagina,
+                        paginaSegura <= 1 &&
+                          styles.botonPaginaDeshabilitado,
+                      ]}
+                      onPress={() =>
+                        setPaginaActual(paginaSegura - 1)
+                      }
+                      disabled={paginaSegura <= 1}
+                    >
+                      <Text style={styles.textoBotonPagina}>
+                        ‹
+                      </Text>
+                    </Pressable>
+
+                    <View style={styles.numerosPagina}>
+                      {paginasVisibles.map((p) => (
+                        <Pressable
+                          key={p}
+                          onPress={() => setPaginaActual(p)}
+                          accessibilityRole="button"
+                          accessibilityState={{
+                            selected: p === paginaSegura,
+                          }}
+                          style={[
+                            styles.numeroPagina,
+                            p === paginaSegura &&
+                              styles.numeroPaginaActivo,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.textoNumeroPagina,
+                              p === paginaSegura &&
+                                styles.textoNumeroPaginaActivo,
+                            ]}
+                          >
+                            {p}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    <Pressable
+                      style={[
+                        styles.botonPagina,
+                        paginaSegura >= totalPaginas &&
+                          styles.botonPaginaDeshabilitado,
+                      ]}
+                      onPress={() =>
+                        setPaginaActual(paginaSegura + 1)
+                      }
+                      disabled={paginaSegura >= totalPaginas}
+                    >
+                      <Text style={styles.textoBotonPagina}>
+                        ›
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.porPagina}>
+                    <Text style={styles.textoFilas}>
+                      Filas:
+                    </Text>
+
+                    {TAM_PAGINA.map((n) => (
+                      <Pressable
+                        key={n}
+                        onPress={() => setPorPagina(n)}
+                        style={[
+                          styles.chipPagina,
+                          porPagina === n &&
+                            styles.chipPaginaActivo,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.textoChipPagina,
+                            porPagina === n &&
+                              styles.textoChipPaginaActivo,
+                          ]}
+                        >
+                          {n}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ) : null
+            }
           />
-        )}
+        </View>
+      )}
 
       {/* MODAL PARA REGISTRAR Y EDITAR */}
       <Modal
@@ -916,6 +1191,7 @@ export default function ContratosScreen() {
                   : "Registrar contrato"}
               </Text>
 
+              {/* BUSCADOR DE MÉDICOS */}
               <Text style={styles.etiqueta}>
                 Médico *
               </Text>
@@ -923,52 +1199,77 @@ export default function ContratosScreen() {
               {contratoEditar !== null ? (
                 <View style={styles.doctorSeleccionado}>
                   <Text style={styles.doctorSeleccionadoTexto}>
-                    {nombreDoctor(
-                      Number(formulario.doctor_id_FK)
-                    )}
+                    {nombreDoctor(Number(formulario.doctor_id_FK))}
                   </Text>
                 </View>
               ) : (
-                <View style={styles.listaDoctores}>
-                  {doctores.length === 0 ? (
-                    <Text style={styles.aviso}>
-                      No hay médicos disponibles. Verifica el
-                      endpoint GET /api/doctores/.
-                    </Text>
-                  ) : (
-                    doctores.map((doctor) => (
-                      <Pressable
-                        key={doctor.id_PK}
-                        style={[
-                          styles.opcionDoctor,
-                          formulario.doctor_id_FK ===
-                          String(doctor.id_PK)
-                            ? styles.opcionDoctorActiva
-                            : null,
-                        ]}
-                        onPress={() =>
-                          actualizarCampo(
-                            "doctor_id_FK",
-                            String(doctor.id_PK)
-                          )
-                        }
-                      >
-                        <Text
-                          style={[
-                            styles.opcionDoctorTexto,
-                            formulario.doctor_id_FK ===
-                            String(doctor.id_PK)
-                              ? styles.opcionDoctorTextoActivo
-                              : null,
-                          ]}
-                        >
-                          {doctor.nombre_completo ??
-                            doctor.nombre ??
-                            doctor.usuario?.nombre ??
-                            `Médico #${doctor.id_PK}`}
-                        </Text>
-                      </Pressable>
-                    ))
+                <View>
+                  <TextInput
+                    style={styles.input}
+                    value={busquedaDoctor}
+                    onChangeText={(texto) => {
+                      setBusquedaDoctor(texto);
+                      setMostrarResultadosDoctores(true);
+
+                      // Al cambiar el texto se requiere seleccionar nuevamente.
+                      setFormulario((actual) => ({
+                        ...actual,
+                        doctor_id_FK: "",
+                      }));
+                    }}
+                    placeholder="Escribe el nombre del médico..."
+                    placeholderTextColor={c.muted}
+                    autoCorrect={false}
+                    autoCapitalize="words"
+                  />
+
+                  {mostrarResultadosDoctores &&
+                    busquedaDoctor.trim().length > 0 && (
+                      <View style={styles.resultadosDoctores}>
+                        {doctoresFiltrados.length > 0 ? (
+                          <ScrollView
+                            keyboardShouldPersistTaps="handled"
+                            nestedScrollEnabled
+                            style={styles.scrollResultadosDoctores}
+                          >
+                            {doctoresFiltrados.map((doctor) => (
+                              <Pressable
+                                key={doctor.id_PK}
+                                style={styles.opcionDoctor}
+                                onPress={() => {
+                                  actualizarCampo(
+                                    "doctor_id_FK",
+                                    String(doctor.id_PK)
+                                  );
+
+                                  setBusquedaDoctor(
+                                    nombreDoctor(doctor.id_PK)
+                                  );
+
+                                  setMostrarResultadosDoctores(false);
+                                }}
+                              >
+                                <Text style={styles.opcionDoctorTexto}>
+                                  {nombreDoctor(doctor.id_PK)}
+                                </Text>
+                              </Pressable>
+                            ))}
+                          </ScrollView>
+                        ) : (
+                          <Text style={styles.sinDoctores}>
+                            No se encontraron médicos con ese nombre.
+                          </Text>
+                        )}
+                      </View>
+                    )}
+
+                  {formulario.doctor_id_FK !== "" && (
+                    <View style={styles.doctorSeleccionado}>
+                      <Text style={styles.doctorSeleccionadoTexto}>
+                        Médico seleccionado:{" "}
+                        {nombreDoctor(Number(formulario.doctor_id_FK))}
+                      </Text>
+                    </View>
                   )}
                 </View>
               )}
@@ -1007,9 +1308,8 @@ export default function ContratosScreen() {
                     key={tipo}
                     style={[
                       styles.opcionEstado,
-                      formulario.tipo_contrato === tipo
-                        ? styles.opcionEstadoActiva
-                        : null,
+                      formulario.tipo_contrato === tipo &&
+                        styles.opcionEstadoActiva,
                     ]}
                     onPress={() => {
                       actualizarCampo("tipo_contrato", tipo);
@@ -1022,9 +1322,8 @@ export default function ContratosScreen() {
                     <Text
                       style={[
                         styles.opcionEstadoTexto,
-                        formulario.tipo_contrato === tipo
-                          ? styles.opcionEstadoTextoActivo
-                          : null,
+                        formulario.tipo_contrato === tipo &&
+                          styles.opcionEstadoTextoActivo,
                       ]}
                     >
                       {tipo}
@@ -1055,9 +1354,8 @@ export default function ContratosScreen() {
                       key={estado}
                       style={[
                         styles.opcionEstado,
-                        formulario.estado === estado
-                          ? styles.opcionEstadoActiva
-                          : null,
+                        formulario.estado === estado &&
+                          styles.opcionEstadoActiva,
                       ]}
                       onPress={() =>
                         actualizarCampo("estado", estado)
@@ -1066,9 +1364,8 @@ export default function ContratosScreen() {
                       <Text
                         style={[
                           styles.opcionEstadoTexto,
-                          formulario.estado === estado
-                            ? styles.opcionEstadoTextoActivo
-                            : null,
+                          formulario.estado === estado &&
+                            styles.opcionEstadoTextoActivo,
                         ]}
                       >
                         {estado}
@@ -1132,16 +1429,23 @@ export default function ContratosScreen() {
         </View>
       </Modal>
 
-      {/* MODAL DE DOCUMENTO VISUAL, SIN PDF */}
+      {/* MODAL DE DOCUMENTO */}
       <Modal
         visible={documentoVisible}
         animationType="slide"
+        statusBarTranslucent={false}
         onRequestClose={() => setDocumentoVisible(false)}
       >
-        <View style={styles.contenedorDocumento}>
+        <SafeAreaView
+          style={styles.contenedorDocumento}
+          edges={["top", "bottom"]}
+        >
           <View style={styles.encabezadoDocumento}>
             <View style={styles.infoDocumento}>
-              <Text style={styles.tituloDocumento}>
+              <Text
+                style={styles.tituloDocumento}
+                numberOfLines={1}
+              >
                 Vista previa del contrato
               </Text>
 
@@ -1158,29 +1462,47 @@ export default function ContratosScreen() {
               <Pressable
                 style={[
                   styles.botonDescargar,
-                  descargandoId !== null && styles.botonDeshabilitado,
+                  descargandoId !== null &&
+                    styles.botonDeshabilitado,
                 ]}
                 onPress={() => {
-                  if (contratoDocumento && descargandoId === null) {
+                  if (
+                    contratoDocumento &&
+                    descargandoId === null
+                  ) {
                     descargarContrato(contratoDocumento);
                   }
                 }}
-                disabled={!contratoDocumento || descargandoId !== null}
+                disabled={
+                  !contratoDocumento ||
+                  descargandoId !== null
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Descargar contrato"
               >
                 {descargandoId === contratoDocumento?.id_PK ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <ActivityIndicator
+                    color="#FFFFFF"
+                    size="small"
+                  />
                 ) : (
-                  <Download size={20} color="#FFFFFF" />
+                  <Download
+                    size={20}
+                    color="#FFFFFF"
+                  />
                 )}
               </Pressable>
 
               <Pressable
                 style={styles.botonCerrarDocumento}
                 onPress={() => setDocumentoVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar vista previa"
               >
-                <Text style={styles.botonCerrarDocumentoTexto}>
-                  Cerrar
-                </Text>
+                <X
+                  size={21}
+                  color={c.text}
+                />
               </Pressable>
             </View>
           </View>
@@ -1193,7 +1515,7 @@ export default function ContratosScreen() {
               )}
             />
           )}
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* MODAL DE ALERTAS */}
@@ -1219,7 +1541,7 @@ export default function ContratosScreen() {
               ]}
             >
               <Text style={styles.iconoAlertaTexto}>
-                {alerta.exito ? "Operación correcta" : "Atención"}
+                {alerta.exito ? "✓" : "!"}
               </Text>
             </View>
 
@@ -1253,600 +1575,836 @@ export default function ContratosScreen() {
 
 const createStyles = (c: Theme) => {
   const isDark = c.mode === "dark";
+
   return StyleSheet.create({
-  contenedor: {
-    flex: 1,
-    backgroundColor: c.bg,
-  },
-  encabezado: {
-    paddingHorizontal: 22,
-    paddingTop: 24,
-    paddingBottom: 18,
-  },
-  titulo: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: c.text,
-  },
-  subtitulo: {
-    fontSize: 14,
-    color: c.muted,
-    marginTop: 7,
-    lineHeight: 21,
-  },
-  botonNuevo: {
-    backgroundColor: c.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 18,
-  },
-  botonNuevoTexto: {
-    color: isDark ? "#121212" : "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  lista: {
-    paddingHorizontal: 18,
-    paddingBottom: 30,
-    flexGrow: 1,
-  },
-  tarjeta: {
-    backgroundColor: c.card,
-    borderRadius: 16,
-    padding: 17,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  tarjetaEncabezado: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  flex: {
-    flex: 1,
-  },
-  nombreDoctor: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: c.text,
-  },
-  idContrato: {
-    color: c.muted,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  estadoBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  estadoActivo: {
-    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#DDF5E9",
-  },
-  estadoOtro: {
-    backgroundColor: isDark ? "rgba(251,191,36,0.18)" : "#F1EBDD",
-  },
-  estadoTexto: {
-    color: isDark ? "#2DD4BF" : "#426B60",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  divisor: {
-    height: 1,
-    backgroundColor: c.border,
-    marginVertical: 13,
-  },
-  detalle: {
-    color: c.muted,
-    fontSize: 14,
-    marginBottom: 7,
-  },
-  salario: {
-    color: c.primary,
-    fontSize: 16,
-    fontWeight: "800",
-    marginTop: 5,
-  },
-  botonEditar: {
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: c.primary,
-    borderRadius: 9,
-    paddingHorizontal: 15,
-    paddingVertical: 9,
-    marginTop: 15,
-  },
-  botonEditarTexto: {
-    color: c.primary,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  cargando: {
-    marginTop: 45,
-  },
-  vacio: {
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 55,
-  },
-  vacioTitulo: {
-    color: c.text,
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  vacioTexto: {
-    color: c.muted,
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: "center",
-  },
-  fondoModal: {
-    flex: 1,
-    backgroundColor: isDark ? "rgba(0, 0, 0, 0.75)" : "rgba(16, 39, 35, 0.48)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
-  },
-  modal: {
-    backgroundColor: c.card,
-    borderRadius: 20,
-    padding: 22,
-    width: "100%",
-    maxWidth: 560,
-    maxHeight: "90%",
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  modalTitulo: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: c.text,
-    marginBottom: 20,
-  },
-  etiqueta: {
-    color: c.muted,
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 7,
-    marginTop: 13,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 10,
-    paddingHorizontal: 13,
-    paddingVertical: 12,
-    color: c.text,
-    backgroundColor: isDark ? "#1E2631" : "#FBFDFC",
-    fontSize: 14,
-  },
-  listaDoctores: {
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 10,
-    overflow: "hidden",
-    backgroundColor: c.card,
-  },
-  opcionDoctor: {
-    paddingHorizontal: 13,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: c.border,
-  },
-  opcionDoctorActiva: {
-    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E0F3EF",
-  },
-  opcionDoctorTexto: {
-    color: c.muted,
-    fontSize: 14,
-  },
-  opcionDoctorTextoActivo: {
-    color: c.primary,
-    fontWeight: "800",
-  },
-  doctorSeleccionado: {
-    padding: 13,
-    borderRadius: 10,
-    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E0F3EF",
-  },
-  doctorSeleccionadoTexto: {
-    color: c.primary,
-    fontWeight: "700",
-  },
-  aviso: {
-    padding: 12,
-    color: c.warning,
-    fontSize: 13,
-  },
-  opcionesEstado: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  opcionEstado: {
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 9,
-    backgroundColor: c.card,
-  },
-  opcionEstadoActiva: {
-    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#DDF3EE",
-    borderColor: c.primary,
-  },
-  opcionEstadoTexto: {
-    color: c.muted,
-    fontSize: 12,
-  },
-  opcionEstadoTextoActivo: {
-    color: c.primary,
-    fontWeight: "800",
-  },
-  botonGuardar: {
-    backgroundColor: c.primary,
-    paddingVertical: 14,
-    borderRadius: 11,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  botonGuardarTexto: {
-    color: isDark ? "#121212" : "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  botonDeshabilitado: {
-    opacity: 0.6,
-  },
-  botonCancelar: {
-    paddingVertical: 13,
-    alignItems: "center",
-    marginTop: 5,
-  },
-  botonCancelarTexto: {
-    color: c.muted,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  modalAlerta: {
-    width: "100%",
-    maxWidth: 390,
-    backgroundColor: c.card,
-    borderRadius: 22,
-    padding: 25,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  iconoAlerta: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  iconoExito: {
-    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#DDF5E9",
-  },
-  iconoError: {
-    backgroundColor: isDark ? "rgba(248,113,113,0.18)" : "#FCE8E6",
-  },
-  iconoAlertaTexto: {
-    fontSize: 29,
-    fontWeight: "800",
-    color: c.primary,
-  },
-  alertaTitulo: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: c.text,
-    textAlign: "center",
-  },
-  alertaMensaje: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: c.muted,
-    textAlign: "center",
-    marginTop: 10,
-  },
-  botonDocumento: {
-    alignSelf: "flex-start",
-    backgroundColor: isDark ? "rgba(8,191,164,0.18)" : "#E0F3EF",
-    borderWidth: 1,
-    borderColor: c.primary,
-    borderRadius: 9,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    marginTop: 12,
-  },
-  botonDocumentoTexto: {
-    color: c.primary,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  contenedorDocumento: {
-    flex: 1,
-    backgroundColor: c.bg,
-  },
-  tituloDocumento: {
-    color: c.text,
-    fontSize: 18,
-    fontWeight: "800",
-    flexShrink: 1,
-  },
+    contenedor: {
+      flex: 1,
+      backgroundColor: c.bg,
+    },
 
-  subtituloDocumento: {
-    color: c.muted,
-    fontSize: 12,
-    marginTop: 5,
-    flexShrink: 1,
-  },
-  botonCerrarDocumento: {
-    backgroundColor: c.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 9,
-  },
-  botonCerrarDocumentoTexto: {
-    color: isDark ? "#121212" : "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  premiumBannerWrapper: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    alignItems: "center",
-  },
-  premiumCard: {
-    width: "100%",
-    maxWidth: 580,
-    backgroundColor: c.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: c.border,
-    paddingVertical: 36,
-    paddingHorizontal: 26,
-    alignItems: "center",
-  },
-  premiumIconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "rgba(251, 191, 36, 0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.35)",
-  },
-  badgePremium: {
-    backgroundColor: "rgba(251, 191, 36, 0.15)",
-    borderColor: "rgba(251, 191, 36, 0.35)",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 12,
-  },
-  badgePremiumTexto: {
-    color: "#B45309",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-  },
-  premiumTitulo: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: c.text,
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  premiumDescripcion: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: c.muted,
-    textAlign: "center",
-    marginBottom: 24,
-    paddingHorizontal: 12,
-  },
-  botonDesbloquear: {
-    backgroundColor: c.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  botonDesbloquearTexto: {
-    color: isDark ? "#121212" : "#FFFFFF",
-    fontSize: 14.5,
-    fontWeight: "700",
-    letterSpacing: 0.2,
-  },
+    // CONTENIDO DE LA LISTA Y PAGINACIÓN
+    contenidoLista: {
+      flex: 1,
+      minHeight: 0,
+    },
 
-  infoDocumento: {
-    flex: 1,
-    minWidth: 0,
-  },
+    encabezado: {
+      paddingHorizontal: 22,
+      paddingTop: 24,
+      paddingBottom: 18,
+    },
 
-  encabezadoDocumento: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: c.card,
-    borderBottomWidth: 1,
-    borderBottomColor: c.border,
-    zIndex: 10,
-  },
+    titulo: {
+      fontSize: 26,
+      fontWeight: "800",
+      color: c.text,
+    },
 
-  accionesDocumento: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    flexWrap: "wrap",
-    gap: 10,
-  },
+    subtitulo: {
+      fontSize: 14,
+      color: c.muted,
+      marginTop: 7,
+      lineHeight: 21,
+    },
 
-  botonDescargar: {
-    backgroundColor: "#08BFA4",
-    borderRadius: 9,
-    width: 42,
-    height: 42,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-    // RESUMEN DE CONTRATOS
-  resumenGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 20,
-  },
+    botonNuevo: {
+      backgroundColor: c.primary,
+      paddingVertical: 14,
+      paddingHorizontal: 18,
+      borderRadius: 12,
+      alignItems: "center",
+      marginTop: 18,
+    },
 
-  resumenCard: {
-    flexGrow: 1,
-    flexBasis: "46%",
-    backgroundColor: c.card,
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 14,
-    padding: 15,
-    minHeight: 90,
-    justifyContent: "center",
-  },
+    botonNuevoTexto: {
+      color: isDark ? "#121212" : "#FFFFFF",
+      fontSize: 15,
+      fontWeight: "700",
+    },
 
-  resumenNumero: {
-    color: c.text,
-    fontSize: 25,
-    fontWeight: "800",
-  },
+    lista: {
+      paddingHorizontal: 18,
+      paddingBottom: 20,
+      flexGrow: 1,
+    },
 
-  resumenLabel: {
-    color: c.muted,
-    fontSize: 12,
-    marginTop: 5,
-    fontWeight: "600",
-  },
+    tarjeta: {
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 17,
+      marginBottom: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
 
-  // BUSCADOR
-  buscador: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: c.card,
-    borderWidth: 1,
-    borderColor: c.border,
-    borderRadius: 12,
-    paddingHorizontal: 13,
-    minHeight: 48,
-    marginBottom: 18,
-  },
+    tarjetaEncabezado: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
 
-  iconoBusqueda: {
-    color: c.muted,
-    fontSize: 24,
-    marginRight: 10,
-  },
+    flex: {
+      flex: 1,
+      minWidth: 0,
+    },
 
-  inputBusqueda: {
-    flex: 1,
-    color: c.text,
-    fontSize: 14,
-    paddingVertical: 10,
-    outlineStyle: "none" as any,
-  },
+    nombreDoctor: {
+      fontSize: 17,
+      fontWeight: "800",
+      color: c.text,
+      flexShrink: 1,
+    },
 
-  limpiarBusqueda: {
-    padding: 7,
-    marginLeft: 5,
-  },
+    idContrato: {
+      color: c.muted,
+      fontSize: 12,
+      marginTop: 4,
+    },
 
-  limpiarBusquedaTexto: {
-    color: c.muted,
-    fontSize: 16,
-    fontWeight: "700",
-  },
+    estadoBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 20,
+    },
 
-  // FILTROS
-  tituloFiltros: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: c.text,
-    marginBottom: 10,
-  },
+    estadoActivo: {
+      backgroundColor: isDark
+        ? "rgba(8,191,164,0.18)"
+        : "#DDF5E9",
+    },
 
-  filtros: {
-    gap: 8,
-    paddingBottom: 5,
-  },
+    estadoOtro: {
+      backgroundColor: isDark
+        ? "rgba(251,191,36,0.18)"
+        : "#F1EBDD",
+    },
 
-  filtroBoton: {
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.card,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
+    estadoTexto: {
+      color: isDark ? "#2DD4BF" : "#426B60",
+      fontSize: 11,
+      fontWeight: "700",
+    },
 
-  filtroBotonActivo: {
-    backgroundColor: c.primary,
-    borderColor: c.primary,
-  },
+    divisor: {
+      height: 1,
+      backgroundColor: c.border,
+      marginVertical: 13,
+    },
 
-  filtroTexto: {
-    color: c.muted,
-    fontSize: 12,
-    fontWeight: "600",
-  },
+    detalle: {
+      color: c.muted,
+      fontSize: 14,
+      marginBottom: 7,
+    },
 
-  filtroTextoActivo: {
-    color: isDark ? "#121212" : "#FFFFFF",
-    fontWeight: "800",
-  },
+    salario: {
+      color: c.primary,
+      fontSize: 16,
+      fontWeight: "800",
+      marginTop: 5,
+    },
 
-  // RESULTADOS E HISTORIAL
-  resultadosHeader: {
-    marginTop: 22,
-    marginBottom: 14,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 5,
-  },
+    botonEditar: {
+      alignSelf: "flex-start",
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: 9,
+      paddingHorizontal: 15,
+      paddingVertical: 9,
+      marginTop: 15,
+    },
 
-  resultadosTitulo: {
-    color: c.text,
-    fontSize: 17,
-    fontWeight: "800",
-  },
+    botonEditarTexto: {
+      color: c.primary,
+      fontSize: 13,
+      fontWeight: "700",
+    },
 
-  resultadosCantidad: {
-    color: c.muted,
-    fontSize: 12,
-  },
+    botonDocumento: {
+      alignSelf: "flex-start",
+      backgroundColor: isDark
+        ? "rgba(8,191,164,0.18)"
+        : "#E0F3EF",
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: 9,
+      paddingHorizontal: 15,
+      paddingVertical: 10,
+      marginTop: 12,
+    },
 
-  limpiarFiltros: {
-    marginTop: 18,
-    borderWidth: 1,
-    borderColor: c.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
+    botonDocumentoTexto: {
+      color: c.primary,
+      fontSize: 13,
+      fontWeight: "700",
+    },
 
-  limpiarFiltrosTexto: {
-    color: c.primary,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-});
+    cargando: {
+      marginTop: 45,
+    },
+
+    vacio: {
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingTop: 55,
+    },
+
+    vacioTitulo: {
+      color: c.text,
+      fontSize: 17,
+      fontWeight: "700",
+    },
+
+    vacioTexto: {
+      color: c.muted,
+      fontSize: 14,
+      marginTop: 8,
+      textAlign: "center",
+    },
+
+    fondoModal: {
+      flex: 1,
+      backgroundColor: isDark
+        ? "rgba(0, 0, 0, 0.75)"
+        : "rgba(16, 39, 35, 0.48)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 16,
+    },
+
+    modal: {
+      backgroundColor: c.card,
+      borderRadius: 20,
+      padding: 22,
+      width: "100%",
+      maxWidth: 560,
+      maxHeight: "90%",
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+
+    modalTitulo: {
+      fontSize: 22,
+      fontWeight: "800",
+      color: c.text,
+      marginBottom: 20,
+    },
+
+    etiqueta: {
+      color: c.muted,
+      fontSize: 13,
+      fontWeight: "700",
+      marginBottom: 7,
+      marginTop: 13,
+    },
+
+    input: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      paddingHorizontal: 13,
+      paddingVertical: 12,
+      color: c.text,
+      backgroundColor: isDark ? "#1E2631" : "#FBFDFC",
+      fontSize: 14,
+    },
+
+    // RESULTADOS DEL BUSCADOR DE MÉDICOS
+    resultadosDoctores: {
+      marginTop: 5,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      backgroundColor: c.card,
+      overflow: "hidden",
+    },
+
+    scrollResultadosDoctores: {
+      maxHeight: 180,
+    },
+
+    sinDoctores: {
+      color: c.muted,
+      fontSize: 13,
+      padding: 13,
+    },
+
+    listaDoctores: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      overflow: "hidden",
+      backgroundColor: c.card,
+    },
+
+    opcionDoctor: {
+      paddingHorizontal: 13,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+
+    opcionDoctorActiva: {
+      backgroundColor: isDark
+        ? "rgba(8,191,164,0.18)"
+        : "#E0F3EF",
+    },
+
+    opcionDoctorTexto: {
+      color: c.muted,
+      fontSize: 14,
+    },
+
+    opcionDoctorTextoActivo: {
+      color: c.primary,
+      fontWeight: "800",
+    },
+
+    doctorSeleccionado: {
+      padding: 13,
+      borderRadius: 10,
+      backgroundColor: isDark
+        ? "rgba(8,191,164,0.18)"
+        : "#E0F3EF",
+      marginTop: 8,
+    },
+
+    doctorSeleccionadoTexto: {
+      color: c.primary,
+      fontWeight: "700",
+    },
+
+    aviso: {
+      padding: 12,
+      color: c.warning,
+      fontSize: 13,
+    },
+
+    opcionesEstado: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+
+    opcionEstado: {
+      paddingHorizontal: 13,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 9,
+      backgroundColor: c.card,
+    },
+
+    opcionEstadoActiva: {
+      backgroundColor: isDark
+        ? "rgba(8,191,164,0.18)"
+        : "#DDF3EE",
+      borderColor: c.primary,
+    },
+
+    opcionEstadoTexto: {
+      color: c.muted,
+      fontSize: 12,
+    },
+
+    opcionEstadoTextoActivo: {
+      color: c.primary,
+      fontWeight: "800",
+    },
+
+    botonGuardar: {
+      backgroundColor: c.primary,
+      paddingVertical: 14,
+      borderRadius: 11,
+      alignItems: "center",
+      marginTop: 24,
+    },
+
+    botonGuardarTexto: {
+      color: isDark ? "#121212" : "#FFFFFF",
+      fontSize: 15,
+      fontWeight: "800",
+    },
+
+    botonDeshabilitado: {
+      opacity: 0.6,
+    },
+
+    botonCancelar: {
+      paddingVertical: 13,
+      alignItems: "center",
+      marginTop: 5,
+    },
+
+    botonCancelarTexto: {
+      color: c.muted,
+      fontSize: 14,
+      fontWeight: "700",
+    },
+
+    modalAlerta: {
+      width: "100%",
+      maxWidth: 390,
+      backgroundColor: c.card,
+      borderRadius: 22,
+      padding: 25,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+
+    iconoAlerta: {
+      width: 54,
+      height: 54,
+      borderRadius: 27,
+      justifyContent: "center",
+      alignItems: "center",
+      marginBottom: 15,
+    },
+
+    iconoExito: {
+      backgroundColor: isDark
+        ? "rgba(8,191,164,0.18)"
+        : "#DDF5E9",
+    },
+
+    iconoError: {
+      backgroundColor: isDark
+        ? "rgba(248,113,113,0.18)"
+        : "#FCE8E6",
+    },
+
+    iconoAlertaTexto: {
+      fontSize: 29,
+      fontWeight: "800",
+      color: c.primary,
+    },
+
+    alertaTitulo: {
+      fontSize: 20,
+      fontWeight: "800",
+      color: c.text,
+      textAlign: "center",
+    },
+
+    alertaMensaje: {
+      fontSize: 14,
+      lineHeight: 21,
+      color: c.muted,
+      textAlign: "center",
+      marginTop: 10,
+    },
+
+    limpiarFiltros: {
+      marginTop: 18,
+      borderWidth: 1,
+      borderColor: c.primary,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 10,
+    },
+
+    limpiarFiltrosTexto: {
+      color: c.primary,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+
+    // DOCUMENTO
+    contenedorDocumento: {
+      flex: 1,
+      backgroundColor: c.bg,
+    },
+
+    encabezadoDocumento: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      flexWrap: "wrap",
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: c.card,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+      zIndex: 10,
+    },
+
+    infoDocumento: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    tituloDocumento: {
+      color: c.text,
+      fontSize: 18,
+      fontWeight: "800",
+      flexShrink: 1,
+    },
+
+    subtituloDocumento: {
+      color: c.muted,
+      fontSize: 12,
+      marginTop: 5,
+      flexShrink: 1,
+    },
+
+    accionesDocumento: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "flex-end",
+      flexShrink: 0,
+      gap: 10,
+    },
+
+    botonDescargar: {
+      backgroundColor: "#08BFA4",
+      borderRadius: 9,
+      width: 42,
+      height: 42,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    botonCerrarDocumento: {
+      backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.border,
+      width: 42,
+      height: 42,
+      borderRadius: 9,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    // PAGINACIÓN
+    paginacion: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      flexWrap: "wrap",
+      gap: 12,
+      paddingHorizontal: 4,
+      paddingVertical: 18,
+      marginTop: 8,
+      marginBottom: 10,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      backgroundColor: c.bg,
+    },
+
+    textoMostrando: {
+      color: c.muted,
+      fontSize: 13,
+    },
+
+    navegacionPaginas: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+    },
+
+    botonPagina: {
+      width: 34,
+      height: 34,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.card,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+
+    botonPaginaDeshabilitado: {
+      opacity: 0.35,
+    },
+
+    textoBotonPagina: {
+      color: c.text,
+      fontSize: 23,
+      fontWeight: "600",
+      lineHeight: 27,
+    },
+
+    numerosPagina: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+
+    numeroPagina: {
+      minWidth: 34,
+      height: 34,
+      borderRadius: 9,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 8,
+    },
+
+    numeroPaginaActivo: {
+      backgroundColor: c.primary,
+    },
+
+    textoNumeroPagina: {
+      color: c.text,
+      fontSize: 13.5,
+      fontWeight: "700",
+    },
+
+    textoNumeroPaginaActivo: {
+      color: isDark ? "#121212" : "#FFFFFF",
+      fontWeight: "800",
+    },
+
+    porPagina: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+
+    textoFilas: {
+      color: c.muted,
+      fontSize: 13,
+    },
+
+    chipPagina: {
+      minWidth: 34,
+      height: 32,
+      paddingHorizontal: 9,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.card,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    chipPaginaActivo: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+
+    textoChipPagina: {
+      color: c.text,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+
+    textoChipPaginaActivo: {
+      color: isDark ? "#121212" : "#FFFFFF",
+      fontWeight: "800",
+    },
+
+    // PREMIUM
+    premiumBannerWrapper: {
+      paddingHorizontal: 20,
+      paddingTop: 10,
+      alignItems: "center",
+    },
+
+    premiumCard: {
+      width: "100%",
+      maxWidth: 580,
+      backgroundColor: c.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingVertical: 36,
+      paddingHorizontal: 26,
+      alignItems: "center",
+    },
+
+    premiumIconContainer: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: "rgba(251, 191, 36, 0.12)",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: "rgba(251, 191, 36, 0.35)",
+    },
+
+    badgePremium: {
+      backgroundColor: "rgba(251, 191, 36, 0.15)",
+      borderColor: "rgba(251, 191, 36, 0.35)",
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      marginBottom: 12,
+    },
+
+    badgePremiumTexto: {
+      color: "#B45309",
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 0.6,
+    },
+
+    premiumTitulo: {
+      fontSize: 22,
+      fontWeight: "800",
+      color: c.text,
+      textAlign: "center",
+      marginBottom: 10,
+    },
+
+    premiumDescripcion: {
+      fontSize: 14,
+      lineHeight: 22,
+      color: c.muted,
+      textAlign: "center",
+      marginBottom: 24,
+      paddingHorizontal: 12,
+    },
+
+    botonDesbloquear: {
+      backgroundColor: c.primary,
+      paddingVertical: 14,
+      paddingHorizontal: 28,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    botonDesbloquearTexto: {
+      color: isDark ? "#121212" : "#FFFFFF",
+      fontSize: 14.5,
+      fontWeight: "700",
+      letterSpacing: 0.2,
+    },
+
+    // RESUMEN
+    resumenGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+      marginBottom: 20,
+    },
+
+    resumenCard: {
+      flexGrow: 1,
+      flexBasis: "46%",
+      backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 14,
+      padding: 15,
+      minHeight: 90,
+      justifyContent: "center",
+    },
+
+    resumenNumero: {
+      color: c.text,
+      fontSize: 25,
+      fontWeight: "800",
+    },
+
+    resumenLabel: {
+      color: c.muted,
+      fontSize: 12,
+      marginTop: 5,
+      fontWeight: "600",
+    },
+
+    // BUSCADOR
+    buscador: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      paddingHorizontal: 13,
+      minHeight: 48,
+      marginBottom: 18,
+    },
+
+    iconoBusqueda: {
+      color: c.muted,
+      fontSize: 24,
+      marginRight: 10,
+    },
+
+    inputBusqueda: {
+      flex: 1,
+      color: c.text,
+      fontSize: 14,
+      paddingVertical: 10,
+      outlineStyle: "none" as any,
+    },
+
+    limpiarBusqueda: {
+      padding: 7,
+      marginLeft: 5,
+    },
+
+    limpiarBusquedaTexto: {
+      color: c.muted,
+      fontSize: 16,
+      fontWeight: "700",
+    },
+
+    // FILTROS
+    tituloFiltros: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: c.text,
+      marginBottom: 10,
+    },
+
+    filtros: {
+      gap: 8,
+      paddingBottom: 5,
+    },
+
+    filtroBoton: {
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.card,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 20,
+    },
+
+    filtroBotonActivo: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+
+    filtroTexto: {
+      color: c.muted,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+
+    filtroTextoActivo: {
+      color: isDark ? "#121212" : "#FFFFFF",
+      fontWeight: "800",
+    },
+
+    // RESULTADOS
+    resultadosHeader: {
+      marginTop: 22,
+      marginBottom: 14,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 5,
+    },
+
+    resultadosTitulo: {
+      color: c.text,
+      fontSize: 17,
+      fontWeight: "800",
+    },
+
+    resultadosCantidad: {
+      color: c.muted,
+      fontSize: 12,
+    },
+  });
 };
